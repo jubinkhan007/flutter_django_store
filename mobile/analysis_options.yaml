@@ -1,0 +1,14 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    prefer_const_constructors: true
+    prefer_final_locals: true
+    avoid_print: true
+    use_key_in_widget_constructors: true
+    prefer_const_literals_to_create_immutables: true
+    avoid_relative_lib_imports: true
+    always_declare_return_types: true
+    sort_child_properties_last: true
+    unnecessary_await_in_return: true
+    prefer_single_quotes: true
