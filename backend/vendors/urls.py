@@ -23,8 +23,11 @@
 
 from django.urls import path
 from .views import VendorOnboardingView, VendorDashboardView
+from products.views import VendorProductListCreateView, VendorProductDetailView
 
 urlpatterns = [
     path('onboarding/', VendorOnboardingView.as_view(), name='vendor-onboarding'),
     path('me/', VendorDashboardView.as_view(), name='vendor-dashboard'),
+    path('products/', VendorProductListCreateView.as_view(), name='vendor-product-list'),
+    path('products/<int:pk>/', VendorProductDetailView.as_view(), name='vendor-product-detail'),
 ]

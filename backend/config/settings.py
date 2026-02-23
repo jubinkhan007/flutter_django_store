@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-rktzfzviu=dz9(@@)x4_hvje#m*rjh2n+1dc28f*3mbw$5h=r5
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver']
 
 
 # Application definition
@@ -144,3 +144,7 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': False,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+# Media files (Images uploads for products/categories)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
