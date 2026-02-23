@@ -142,9 +142,11 @@ class VendorStatsView(APIView):
         total_orders = vendor_order_ids.count()
         pending_orders = Order.objects.filter(id__in=vendor_order_ids, status='PENDING').count()
 
+        from django.db.models import F, Sum, DecimalField, ExpressionWrapper
         # Revenue = sum of (price * quantity) for all this vendor's order items
+        revenue_expr = ExpressionWrapper(F('price') * F('quantity'), output_field=DecimalField())
         revenue = OrderItem.objects.filter(vendor=vendor).aggregate(
-            total=Sum('price')
+            total=Sum(revenue_expr)
         )['total'] or 0
 
         return Response({
@@ -173,20 +175,22 @@ class VendorCustomersView(APIView):
             )
 
         from orders.models import OrderItem, Order
-        from django.db.models import Count, F
+        from django.db.models import F, Sum, Count, DecimalField, ExpressionWrapper
 
         # Find all completed or shipped orders for this vendor
         vendor_order_items = OrderItem.objects.filter(vendor=vendor)
         # We need the customer form the order
         # We can annotate the total spend
         
+        spend_expr = ExpressionWrapper(F('price') * F('quantity'), output_field=DecimalField())
+
         customers = vendor_order_items.values(
             'order__customer__id',
             'order__customer__username',
             'order__customer__email'
         ).annotate(
             total_orders=Count('order__id', distinct=True),
-            total_spend=Sum('price')
+            total_spend=Sum(spend_expr)
         ).order_by('-total_spend')
 
         # Format the response
