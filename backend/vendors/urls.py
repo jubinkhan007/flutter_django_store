@@ -24,10 +24,13 @@
 from django.urls import path
 from .views import VendorOnboardingView, VendorDashboardView
 from products.views import VendorProductListCreateView, VendorProductDetailView
+from orders.views import VendorOrderListView, VendorUpdateOrderStatusView
 
 urlpatterns = [
     path('onboarding/', VendorOnboardingView.as_view(), name='vendor-onboarding'),
     path('me/', VendorDashboardView.as_view(), name='vendor-dashboard'),
     path('products/', VendorProductListCreateView.as_view(), name='vendor-product-list'),
     path('products/<int:pk>/', VendorProductDetailView.as_view(), name='vendor-product-detail'),
+    path('orders/', VendorOrderListView.as_view(), name='vendor-order-list'),
+    path('orders/<int:pk>/', VendorUpdateOrderStatusView.as_view(), name='vendor-order-update'),
 ]

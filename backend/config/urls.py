@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/', include('users.urls')),
     path('api/vendors/', include('vendors.urls')),  # Vendor endpoints
     path('api/products/', include('products.urls')), # Public product endpoints
+    path('api/orders/', include('orders.urls')),       # Customer order endpoints
 ]
 
 # Serve media files during development
