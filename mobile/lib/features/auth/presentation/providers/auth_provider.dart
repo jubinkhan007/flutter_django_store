@@ -18,6 +18,26 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoggedIn => _user != null;
   String? get error => _error;
 
+  Future<void> restoreSession() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final loggedIn = await _authRepository.isLoggedIn();
+      if (!loggedIn) {
+        _user = null;
+      } else {
+        _user = await _authRepository.getSavedUser();
+      }
+    } catch (_) {
+      _user = null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> login(String email, String password) async {
     _isLoading = true;
     _error = null;
@@ -69,7 +89,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Update the user's type locally (e.g., after vendor onboarding)
-  void updateUserType(String newType) {
+  Future<void> updateUserType(String newType) async {
     if (_user != null) {
       _user = User(
         id: _user!.id,
@@ -77,6 +97,7 @@ class AuthProvider extends ChangeNotifier {
         username: _user!.username,
         type: newType,
       );
+      await _authRepository.saveUserInfo(type: newType, email: _user!.email);
       notifyListeners();
     }
   }

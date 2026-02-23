@@ -14,10 +14,24 @@ class ProductRepositoryImpl implements ProductRepository {
     : _apiClient = apiClient;
 
   @override
-  Future<List<Product>> getProducts({int? categoryId}) async {
+  Future<List<Product>> getProducts({
+    String? query,
+    int? categoryId,
+    double? minPrice,
+    double? maxPrice,
+    String? sortBy,
+  }) async {
+    final queryParams = <String>[];
+
+    if (query != null && query.isNotEmpty) queryParams.add('search=$query');
+    if (categoryId != null) queryParams.add('category=$categoryId');
+    if (minPrice != null) queryParams.add('min_price=$minPrice');
+    if (maxPrice != null) queryParams.add('max_price=$maxPrice');
+    if (sortBy != null && sortBy.isNotEmpty) queryParams.add('sort=$sortBy');
+
     String url = ApiConfig.productsUrl;
-    if (categoryId != null) {
-      url += '?category=$categoryId';
+    if (queryParams.isNotEmpty) {
+      url += '?${queryParams.join('&')}';
     }
 
     final response = await _apiClient.get(url, auth: false);

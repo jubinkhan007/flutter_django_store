@@ -8,6 +8,7 @@ import 'product_detail_screen.dart';
 import '../../../cart/presentation/screens/cart_screen.dart';
 import '../../../orders/presentation/screens/order_history_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../widgets/search_filter_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -184,6 +185,10 @@ class _ShopPage extends StatelessWidget {
             ),
           ),
 
+          // ── Search & Filter Bar ──
+          const SearchFilterBar(),
+          const SizedBox(height: AppTheme.spacingXs),
+
           // ── Category Chips ──
           Consumer<ProductProvider>(
             builder: (context, provider, _) {
@@ -274,9 +279,7 @@ class _ShopPage extends StatelessWidget {
 
                 return RefreshIndicator(
                   color: AppTheme.primary,
-                  onRefresh: () => provider.loadProducts(
-                    categoryId: provider.selectedCategoryId,
-                  ),
+                  onRefresh: () => provider.loadProducts(),
                   child: GridView.builder(
                     padding: const EdgeInsets.all(AppTheme.spacingMd),
                     gridDelegate:

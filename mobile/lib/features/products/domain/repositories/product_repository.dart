@@ -3,7 +3,13 @@ import '../entities/category.dart';
 
 /// Abstract product repository interface.
 abstract class ProductRepository {
-  Future<List<Product>> getProducts({int? categoryId});
+  Future<List<Product>> getProducts({
+    String? query,
+    int? categoryId,
+    double? minPrice,
+    double? maxPrice,
+    String? sortBy,
+  });
   Future<Product> getProductDetail(int id);
   Future<List<Category>> getCategories();
 }

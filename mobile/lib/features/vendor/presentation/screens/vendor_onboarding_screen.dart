@@ -29,6 +29,7 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final vendor = context.read<VendorProvider>();
+    final authProvider = context.read<AuthProvider>();
     final success = await vendor.onboard(
       _storeNameController.text.trim(),
       _descriptionController.text.trim(),
@@ -36,7 +37,8 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
 
     if (success && mounted) {
       // Promote local user type so the app shows vendor screens
-      context.read<AuthProvider>().updateUserType('VENDOR');
+      await authProvider.updateUserType('VENDOR');
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

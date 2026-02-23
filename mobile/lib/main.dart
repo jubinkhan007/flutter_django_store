@@ -10,6 +10,7 @@ import 'core/storage/token_storage.dart';
 import 'features/auth/data/repositories/auth_repository_impl.dart';
 import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
+import 'features/auth/presentation/screens/auth_gate.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 
 // Products
@@ -76,7 +77,7 @@ class MyApp extends StatelessWidget {
         title: 'ShopEase',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        initialRoute: '/login',
+        home: const AuthGate(),
         routes: {
           '/login': (context) => const LoginScreen(),
           '/home': (context) => const HomeScreen(),

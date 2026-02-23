@@ -1,6 +1,7 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from .models import Category, Product
+from django.db.models import Q
 from .serializers import CategorySerializer, ProductSerializer
 
 # ═══════════════════════════════════════════════════════════════════
@@ -30,10 +31,51 @@ class PublicProductListView(generics.ListAPIView):
         # Start with all available products
         queryset = Product.objects.filter(is_available=True)
         
-        # Check if they are searching for a specific category
-        category_id = self.request.query_params.get('category')
-        if category_id:
-            queryset = queryset.filter(category_id=category_id)
+        # 1. Search by name or description
+        search_query = self.request.query_params.get('search')
+        if search_query:
+            queryset = queryset.filter(
+                Q(name__icontains=search_query) | 
+                Q(description__icontains=search_query) |
+                Q(vendor__store_name__icontains=search_query)
+            )
+
+        # 2. Filter by category ID(s)
+        # Expected format: ?category=1 or ?category=1,2,3
+        category_param = self.request.query_params.get('category')
+        if category_param:
+            # allow comma-separated category IDs
+            category_ids = [int(cid) for cid in category_param.split(',') if cid.isdigit()]
+            if category_ids:
+                queryset = queryset.filter(category_id__in=category_ids)
+
+        # 3. Filter by Price Range
+        min_price = self.request.query_params.get('min_price')
+        max_price = self.request.query_params.get('max_price')
+        
+        if min_price:
+            try:
+                queryset = queryset.filter(price__gte=float(min_price))
+            except ValueError:
+                pass
+                
+        if max_price:
+            try:
+                queryset = queryset.filter(price__lte=float(max_price))
+            except ValueError:
+                pass
+
+        # 4. Sorting
+        sort_by = self.request.query_params.get('sort')
+        if sort_by == 'price_asc':
+            queryset = queryset.order_by('price')
+        elif sort_by == 'price_desc':
+            queryset = queryset.order_by('-price')
+        elif sort_by == 'newest':
+            queryset = queryset.order_by('-created_at')
+        else:
+            # Default sort (newest first or arbitrary)
+            queryset = queryset.order_by('-created_at')
             
         return queryset
 
