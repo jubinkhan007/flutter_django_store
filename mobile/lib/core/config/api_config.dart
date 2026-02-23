@@ -28,4 +28,5 @@ class ApiConfig {
   static String get vendorDashboardUrl => '$baseUrl/vendors/me/';
   static String get vendorProductsUrl => '$baseUrl/vendors/products/';
   static String get vendorOrdersUrl => '$baseUrl/vendors/orders/';
+  static String get vendorStatsUrl => '$baseUrl/vendors/stats/';
 }

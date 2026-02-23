@@ -15,14 +15,21 @@ User = get_user_model()
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
-        # super().get_token(user) gives us the default token with just user ID
         token = super().get_token(user)
-
-        # Now we add our custom data to it
-        token['type'] = user.type    # "CUSTOMER", "VENDOR", or "ADMIN"
-        token['email'] = user.email  # e.g., "test@example.com"
-
+        token['type'] = user.type
+        token['email'] = user.email
         return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        # Include user info in the response body so Flutter can use it immediately
+        data['user'] = {
+            'id': self.user.id,
+            'email': self.user.email,
+            'username': self.user.username,
+            'type': self.user.type,
+        }
+        return data
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)

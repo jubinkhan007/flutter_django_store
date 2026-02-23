@@ -32,12 +32,13 @@ class AuthRepositoryImpl implements AuthRepository {
         access: data['access'],
         refresh: data['refresh'],
       );
-      // Decode user info from the response or token
-      // For now, we store basic user info
-      return UserModel.fromJson(
+      final user = UserModel.fromJson(
         data['user'] ??
             {'id': 0, 'email': email, 'username': '', 'type': 'CUSTOMER'},
       );
+      // Persist user type for role-based routing
+      await _tokenStorage.saveUserInfo(type: user.type, email: user.email);
+      return user;
     } else {
       final error = jsonDecode(response.body);
       throw Exception(error['detail'] ?? error['error'] ?? 'Login failed');

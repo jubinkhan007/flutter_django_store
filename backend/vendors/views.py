@@ -28,6 +28,8 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from django.db.models import Sum, Count, Q
 from .models import Vendor
 from .serializers import VendorSerializer
 
@@ -115,3 +117,40 @@ class VendorDashboardView(generics.RetrieveUpdateAPIView):
         # .vendor_profile = the related Vendor object (from our OneToOneField)
         # If the user is NOT a vendor, this will raise a 404 automatically.
         return self.request.user.vendor_profile
+
+
+class VendorStatsView(APIView):
+    """
+    GET /api/vendors/stats/
+    Returns business stats for the vendor dashboard.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            vendor = request.user.vendor_profile
+        except AttributeError:
+            return Response(
+                {"error": "You are not a vendor."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        from orders.models import OrderItem, Order
+
+        total_products = vendor.products.count()
+        vendor_order_ids = OrderItem.objects.filter(vendor=vendor).values_list('order_id', flat=True).distinct()
+        total_orders = vendor_order_ids.count()
+        pending_orders = Order.objects.filter(id__in=vendor_order_ids, status='PENDING').count()
+
+        # Revenue = sum of (price * quantity) for all this vendor's order items
+        revenue = OrderItem.objects.filter(vendor=vendor).aggregate(
+            total=Sum('price')
+        )['total'] or 0
+
+        return Response({
+            'total_products': total_products,
+            'total_orders': total_orders,
+            'pending_orders': pending_orders,
+            'total_revenue': float(revenue),
+        })
+

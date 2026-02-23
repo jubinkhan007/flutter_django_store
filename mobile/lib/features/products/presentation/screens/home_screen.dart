@@ -132,13 +132,53 @@ class _ShopPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                IconButton(
-                  onPressed: () {
-                    context.read<AuthProvider>().logout();
-                    Navigator.pushReplacementNamed(context, '/login');
-                  },
-                  icon: const Icon(Icons.logout_outlined),
-                  tooltip: 'Logout',
+                Row(
+                  children: [
+                    // Vendor switch (only visible to vendors)
+                    Consumer<AuthProvider>(
+                      builder: (context, auth, _) {
+                        if (auth.user != null && auth.user!.isVendor) {
+                          return IconButton(
+                            onPressed: () {
+                              Navigator.pushReplacementNamed(
+                                context,
+                                '/vendor',
+                              );
+                            },
+                            icon: const Icon(Icons.dashboard_outlined),
+                            tooltip: 'Vendor Dashboard',
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                    // Vendor onboarding (for customers who want to become vendors)
+                    Consumer<AuthProvider>(
+                      builder: (context, auth, _) {
+                        if (auth.user != null && auth.user!.isCustomer) {
+                          return IconButton(
+                            onPressed: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/vendor/onboarding',
+                              );
+                            },
+                            icon: const Icon(Icons.store_outlined),
+                            tooltip: 'Become a Vendor',
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        context.read<AuthProvider>().logout();
+                        Navigator.pushReplacementNamed(context, '/login');
+                      },
+                      icon: const Icon(Icons.logout_outlined),
+                      tooltip: 'Logout',
+                    ),
+                  ],
                 ),
               ],
             ),

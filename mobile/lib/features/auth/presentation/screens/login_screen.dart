@@ -51,7 +51,13 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     if (success && mounted) {
-      Navigator.pushReplacementNamed(context, '/home');
+      // Role-based routing: Vendors → Dashboard, Customers → Shop
+      final user = authProvider.user;
+      if (user != null && user.isVendor) {
+        Navigator.pushReplacementNamed(context, '/vendor');
+      } else {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
     }
   }
 

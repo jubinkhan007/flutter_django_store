@@ -25,6 +25,13 @@ import 'features/cart/presentation/providers/cart_provider.dart';
 import 'features/orders/data/repositories/order_repository.dart';
 import 'features/orders/presentation/providers/order_provider.dart';
 
+// Vendor
+import 'features/vendor/data/repositories/vendor_repository.dart';
+import 'features/vendor/presentation/providers/vendor_provider.dart';
+import 'features/vendor/presentation/screens/vendor_dashboard_screen.dart';
+import 'features/vendor/presentation/screens/vendor_onboarding_screen.dart';
+import 'features/vendor/presentation/screens/vendor_add_product_screen.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -47,6 +54,7 @@ class MyApp extends StatelessWidget {
       apiClient: apiClient,
     );
     final orderRepository = OrderRepository(apiClient: apiClient);
+    final vendorRepository = VendorRepository(apiClient: apiClient);
 
     return MultiProvider(
       providers: [
@@ -60,6 +68,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => OrderProvider(orderRepository: orderRepository),
         ),
+        ChangeNotifierProvider(
+          create: (_) => VendorProvider(vendorRepository: vendorRepository),
+        ),
       ],
       child: MaterialApp(
         title: 'ShopEase',
@@ -69,6 +80,9 @@ class MyApp extends StatelessWidget {
         routes: {
           '/login': (context) => const LoginScreen(),
           '/home': (context) => const HomeScreen(),
+          '/vendor': (context) => const VendorDashboardScreen(),
+          '/vendor/onboarding': (context) => const VendorOnboardingScreen(),
+          '/vendor/add-product': (context) => const VendorAddProductScreen(),
         },
       ),
     );
