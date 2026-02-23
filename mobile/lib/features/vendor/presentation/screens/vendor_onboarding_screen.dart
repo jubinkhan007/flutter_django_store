@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/vendor_provider.dart';
 
 class VendorOnboardingScreen extends StatefulWidget {
@@ -34,6 +35,9 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
     );
 
     if (success && mounted) {
+      // Promote local user type so the app shows vendor screens
+      context.read<AuthProvider>().updateUserType('VENDOR');
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('🎉 Store created! Welcome aboard!'),

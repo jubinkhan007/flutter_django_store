@@ -77,4 +77,47 @@ class ApiClient {
     final headers = await _headers(auth: auth);
     return _httpClient.delete(Uri.parse(url), headers: headers);
   }
+
+  /// POST Multipart request (for image uploads)
+  Future<http.StreamedResponse> postMultipart(
+    String url, {
+    required Map<String, String> fields,
+    http.MultipartFile? file,
+    bool auth = true,
+  }) async {
+    final headers = await _headers(auth: auth);
+    // Remove Content-Type since MultipartRequest sets its own boundary
+    headers.remove('Content-Type');
+
+    final request = http.MultipartRequest('POST', Uri.parse(url));
+    request.headers.addAll(headers);
+    request.fields.addAll(fields);
+
+    if (file != null) {
+      request.files.add(file);
+    }
+
+    return await request.send();
+  }
+
+  /// PUT Multipart request (for updating products with images)
+  Future<http.StreamedResponse> putMultipart(
+    String url, {
+    required Map<String, String> fields,
+    http.MultipartFile? file,
+    bool auth = true,
+  }) async {
+    final headers = await _headers(auth: auth);
+    headers.remove('Content-Type');
+
+    final request = http.MultipartRequest('PUT', Uri.parse(url));
+    request.headers.addAll(headers);
+    request.fields.addAll(fields);
+
+    if (file != null) {
+      request.files.add(file);
+    }
+
+    return await request.send();
+  }
 }

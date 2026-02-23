@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../../../products/data/models/product_model.dart';
 import '../../../orders/data/models/order_model.dart';
+import '../../data/models/vendor_customer_model.dart';
 import '../../data/repositories/vendor_repository.dart';
 
 class VendorProvider extends ChangeNotifier {
@@ -15,15 +17,17 @@ class VendorProvider extends ChangeNotifier {
   int pendingOrders = 0;
   double totalRevenue = 0;
 
-  // Products & Orders
+  // Products & Orders & Customers
   List<ProductModel> _products = [];
   List<OrderModel> _orders = [];
+  List<VendorCustomerModel> _customers = [];
   bool _isLoading = false;
   String? _error;
   Map<String, dynamic>? _dashboard;
 
   List<ProductModel> get products => _products;
   List<OrderModel> get orders => _orders;
+  List<VendorCustomerModel> get customers => _customers;
   bool get isLoading => _isLoading;
   String? get error => _error;
   Map<String, dynamic>? get dashboard => _dashboard;
@@ -66,17 +70,47 @@ class VendorProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> addProduct(Map<String, dynamic> data) async {
+  Future<bool> addProduct({
+    required Map<String, String> fields,
+    http.MultipartFile? imageFile,
+  }) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      await _vendorRepository.addProduct(data);
+      await _vendorRepository.addProduct(fields: fields, imageFile: imageFile);
       _isLoading = false;
       notifyListeners();
       await loadProducts();
       await loadStats();
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateProduct({
+    required int productId,
+    required Map<String, String> fields,
+    http.MultipartFile? imageFile,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _vendorRepository.updateProduct(
+        productId: productId,
+        fields: fields,
+        imageFile: imageFile,
+      );
+      _isLoading = false;
+      notifyListeners();
+      await loadProducts();
       return true;
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
@@ -155,6 +189,22 @@ class VendorProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<void> loadCustomers() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _customers = await _vendorRepository.loadCustomers();
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
     }
   }
 }

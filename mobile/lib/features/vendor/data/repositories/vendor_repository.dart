@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../../../../core/config/api_config.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../orders/data/models/order_model.dart';
+import '../../data/models/vendor_customer_model.dart';
 
 class VendorRepository {
   final ApiClient _apiClient;
@@ -53,25 +55,47 @@ class VendorRepository {
   }
 
   /// Add a new product
-  Future<void> addProduct(Map<String, dynamic> productData) async {
-    final response = await _apiClient.post(
+  Future<void> addProduct({
+    required Map<String, String> fields,
+    http.MultipartFile? imageFile,
+  }) async {
+    final response = await _apiClient.postMultipart(
       ApiConfig.vendorProductsUrl,
-      body: productData,
+      fields: fields,
+      file: imageFile,
     );
+
     if (response.statusCode != 201) {
-      final error = jsonDecode(response.body);
-      throw Exception(error.toString());
+      final responseBody = await response.stream.bytesToString();
+      try {
+        final error = jsonDecode(responseBody);
+        throw Exception(error.toString());
+      } catch (_) {
+        throw Exception('Failed to add product: ${response.statusCode}');
+      }
     }
   }
 
   /// Update a product
-  Future<void> updateProduct(int productId, Map<String, dynamic> data) async {
-    final response = await _apiClient.patch(
+  Future<void> updateProduct({
+    required int productId,
+    required Map<String, String> fields,
+    http.MultipartFile? imageFile,
+  }) async {
+    final response = await _apiClient.putMultipart(
       '${ApiConfig.vendorProductsUrl}$productId/',
-      body: data,
+      fields: fields,
+      file: imageFile,
     );
+
     if (response.statusCode != 200) {
-      throw Exception('Failed to update product');
+      final responseBody = await response.stream.bytesToString();
+      try {
+        final error = jsonDecode(responseBody);
+        throw Exception(error.toString());
+      } catch (_) {
+        throw Exception('Failed to update product: ${response.statusCode}');
+      }
     }
   }
 
@@ -104,6 +128,18 @@ class VendorRepository {
     );
     if (response.statusCode != 200) {
       throw Exception('Failed to update order status');
+    }
+  }
+
+  /// Load customers for the vendor
+  Future<List<VendorCustomerModel>> loadCustomers() async {
+    final response = await _apiClient.get(ApiConfig.vendorCustomersUrl);
+
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data.map((json) => VendorCustomerModel.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load customers');
     }
   }
 }

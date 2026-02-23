@@ -68,6 +68,19 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Update the user's type locally (e.g., after vendor onboarding)
+  void updateUserType(String newType) {
+    if (_user != null) {
+      _user = User(
+        id: _user!.id,
+        email: _user!.email,
+        username: _user!.username,
+        type: newType,
+      );
+      notifyListeners();
+    }
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();

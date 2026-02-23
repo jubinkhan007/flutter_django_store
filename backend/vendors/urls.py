@@ -22,7 +22,7 @@
 # ═══════════════════════════════════════════════════════════════════
 
 from django.urls import path
-from .views import VendorOnboardingView, VendorDashboardView, VendorStatsView
+from .views import VendorOnboardingView, VendorDashboardView, VendorStatsView, VendorCustomersView
 from products.views import VendorProductListCreateView, VendorProductDetailView
 from orders.views import VendorOrderListView, VendorUpdateOrderStatusView
 
@@ -34,4 +34,5 @@ urlpatterns = [
     path('orders/', VendorOrderListView.as_view(), name='vendor-order-list'),
     path('orders/<int:pk>/', VendorUpdateOrderStatusView.as_view(), name='vendor-order-update'),
     path('stats/', VendorStatsView.as_view(), name='vendor-stats'),
+    path('customers/', VendorCustomersView.as_view(), name='vendor-customers'),
 ]

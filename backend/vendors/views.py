@@ -154,3 +154,51 @@ class VendorStatsView(APIView):
             'total_revenue': float(revenue),
         })
 
+
+class VendorCustomersView(APIView):
+    """
+    GET /api/vendors/customers/
+    Returns a list of unique customers who have ordered from this vendor,
+    along with their total spend and order count.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            vendor = request.user.vendor_profile
+        except AttributeError:
+            return Response(
+                {"error": "You are not a vendor."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        from orders.models import OrderItem, Order
+        from django.db.models import Count, F
+
+        # Find all completed or shipped orders for this vendor
+        vendor_order_items = OrderItem.objects.filter(vendor=vendor)
+        # We need the customer form the order
+        # We can annotate the total spend
+        
+        customers = vendor_order_items.values(
+            'order__customer__id',
+            'order__customer__username',
+            'order__customer__email'
+        ).annotate(
+            total_orders=Count('order__id', distinct=True),
+            total_spend=Sum('price')
+        ).order_by('-total_spend')
+
+        # Format the response
+        result = [
+            {
+                'id': c['order__customer__id'],
+                'username': c['order__customer__username'],
+                'email': c['order__customer__email'],
+                'total_orders': c['total_orders'],
+                'total_spend': float(c['total_spend']),
+            }
+            for c in customers
+        ]
+
+        return Response(result)

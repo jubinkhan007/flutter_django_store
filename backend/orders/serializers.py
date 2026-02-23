@@ -37,11 +37,19 @@ class OrderSerializer(serializers.ModelSerializer):
     Shows the customer, status, total, and all items with their details.
     """
     items = OrderItemSerializer(many=True, read_only=True)
+    customer_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
-        fields = ['id', 'customer', 'total_amount', 'status', 'items', 'created_at', 'updated_at']
+        fields = ['id', 'customer', 'customer_detail', 'total_amount', 'status', 'items', 'created_at', 'updated_at']
         read_only_fields = ['customer', 'total_amount', 'status', 'created_at', 'updated_at']
+
+    def get_customer_detail(self, obj):
+        return {
+            'id': obj.customer.id,
+            'username': obj.customer.username,
+            'email': obj.customer.email,
+        }
 
 
 class OrderCreateSerializer(serializers.Serializer):

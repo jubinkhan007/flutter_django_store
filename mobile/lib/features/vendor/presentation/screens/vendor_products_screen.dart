@@ -200,12 +200,20 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
                                   borderRadius: BorderRadius.circular(
                                     AppTheme.radiusSm,
                                   ),
+                                  image: product.image != null
+                                      ? DecorationImage(
+                                          image: NetworkImage(product.image!),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
                                 ),
-                                child: const Icon(
-                                  Icons.shopping_bag_outlined,
-                                  color: AppTheme.textSecondary,
-                                  size: 24,
-                                ),
+                                child: product.image == null
+                                    ? const Icon(
+                                        Icons.shopping_bag_outlined,
+                                        color: AppTheme.textSecondary,
+                                        size: 24,
+                                      )
+                                    : null,
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -244,28 +252,28 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
                                   ],
                                 ),
                               ),
-                              // Availability badge
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
+                              // Edit Button
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit_outlined,
+                                  color: AppTheme.textSecondary,
+                                  size: 20,
                                 ),
-                                decoration: BoxDecoration(
-                                  color: product.isAvailable
-                                      ? AppTheme.success.withAlpha(30)
-                                      : AppTheme.error.withAlpha(30),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  product.isAvailable ? 'Active' : 'Hidden',
-                                  style: TextStyle(
-                                    color: product.isAvailable
-                                        ? AppTheme.success
-                                        : AppTheme.error,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
+                                onPressed: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => VendorAddProductScreen(
+                                        initialProduct: product,
+                                      ),
+                                    ),
+                                  );
+                                  if (mounted) {
+                                    context
+                                        .read<VendorProvider>()
+                                        .loadProducts();
+                                  }
+                                },
                               ),
                             ],
                           ),

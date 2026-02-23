@@ -1,13 +1,20 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
+import '../../../products/data/models/product_model.dart';
 import '../../../products/presentation/providers/product_provider.dart';
 import '../providers/vendor_provider.dart';
 
 class VendorAddProductScreen extends StatefulWidget {
-  const VendorAddProductScreen({super.key});
+  final ProductModel? initialProduct;
+
+  const VendorAddProductScreen({super.key, this.initialProduct});
 
   @override
   State<VendorAddProductScreen> createState() => _VendorAddProductScreenState();
@@ -21,9 +28,22 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
   final _stockController = TextEditingController();
   int? _selectedCategoryId;
 
+  File? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
+
   @override
   void initState() {
     super.initState();
+
+    if (widget.initialProduct != null) {
+      final p = widget.initialProduct!;
+      _nameController.text = p.name;
+      _descriptionController.text = p.description;
+      _priceController.text = p.price.toString();
+      _stockController.text = p.stockQuantity.toString();
+      _selectedCategoryId = p.categoryId;
+    }
+
     // Load categories for the dropdown
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProductProvider>().loadCategories();
@@ -39,23 +59,63 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() {
+        _selectedImage = File(image.path);
+      });
+    }
+  }
+
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedCategoryId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a category')));
+      return;
+    }
 
     final vendor = context.read<VendorProvider>();
-    final success = await vendor.addProduct({
+
+    final fields = {
       'name': _nameController.text.trim(),
       'description': _descriptionController.text.trim(),
       'price': _priceController.text.trim(),
-      'stock_quantity': int.tryParse(_stockController.text) ?? 0,
-      'category': _selectedCategoryId,
-      'is_available': true,
-    });
+      'stock_quantity': _stockController.text.trim(),
+      'category': _selectedCategoryId.toString(),
+      'is_available': 'true',
+    };
+
+    http.MultipartFile? imageFile;
+    if (_selectedImage != null) {
+      imageFile = await http.MultipartFile.fromPath(
+        'image',
+        _selectedImage!.path,
+        contentType: MediaType('image', 'jpeg'),
+      );
+    }
+
+    bool success;
+    if (widget.initialProduct == null) {
+      success = await vendor.addProduct(fields: fields, imageFile: imageFile);
+    } else {
+      success = await vendor.updateProduct(
+        productId: widget.initialProduct!.id,
+        fields: fields,
+        imageFile: imageFile,
+      );
+    }
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Product added successfully!'),
+          content: Text(
+            widget.initialProduct == null
+                ? 'Product added successfully!'
+                : 'Product updated successfully!',
+          ),
           backgroundColor: AppTheme.success,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -71,7 +131,9 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Product'),
+        title: Text(
+          widget.initialProduct == null ? 'Add Product' : 'Edit Product',
+        ),
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back),
@@ -84,6 +146,61 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Image Picker Section
+              Center(
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceLight,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      border: Border.all(
+                        color: AppTheme.textSecondary.withAlpha(50),
+                        width: 1,
+                      ),
+                      image: _selectedImage != null
+                          ? DecorationImage(
+                              image: FileImage(_selectedImage!),
+                              fit: BoxFit.cover,
+                            )
+                          : (widget.initialProduct?.image != null
+                                ? DecorationImage(
+                                    image: NetworkImage(
+                                      widget.initialProduct!.image!,
+                                    ),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null),
+                    ),
+                    child:
+                        _selectedImage == null &&
+                            widget.initialProduct?.image == null
+                        ? const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.add_a_photo_outlined,
+                                color: AppTheme.textSecondary,
+                                size: 32,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Add Photo',
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          )
+                        : null,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingXl),
+
               CustomTextField(
                 controller: _nameController,
                 hintText: 'e.g., Wireless Headphones',
