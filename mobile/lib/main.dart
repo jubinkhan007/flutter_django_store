@@ -41,6 +41,14 @@ import 'features/addresses/presentation/providers/address_provider.dart';
 import 'features/reviews/data/repositories/review_repository.dart';
 import 'features/reviews/presentation/providers/review_provider.dart';
 
+// Wishlist
+import 'features/wishlist/data/repositories/wishlist_repository.dart';
+import 'features/wishlist/presentation/providers/wishlist_provider.dart';
+
+// Returns / RMA
+import 'features/returns/data/repositories/return_repository.dart';
+import 'features/returns/presentation/providers/return_provider.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -60,6 +68,8 @@ void main() {
   final vendorRepository = VendorRepository(apiClient: apiClient);
   final addressRepository = AddressRepository(apiClient: apiClient);
   final reviewRepository = ReviewRepository(apiClient: apiClient);
+  final wishlistRepository = WishlistRepository(apiClient: apiClient);
+  final returnRepository = ReturnRepository(apiClient: apiClient);
 
   runApp(
     MyApp(
@@ -69,6 +79,8 @@ void main() {
       vendorRepository: vendorRepository,
       addressRepository: addressRepository,
       reviewRepository: reviewRepository,
+      wishlistRepository: wishlistRepository,
+      returnRepository: returnRepository,
     ),
   );
 }
@@ -80,6 +92,8 @@ class MyApp extends StatelessWidget {
   final VendorRepository vendorRepository;
   final AddressRepository addressRepository;
   final ReviewRepository reviewRepository;
+  final WishlistRepository wishlistRepository;
+  final ReturnRepository returnRepository;
 
   const MyApp({
     super.key,
@@ -89,6 +103,8 @@ class MyApp extends StatelessWidget {
     required this.vendorRepository,
     required this.addressRepository,
     required this.reviewRepository,
+    required this.wishlistRepository,
+    required this.returnRepository,
   });
 
   @override
@@ -113,6 +129,14 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => ReviewProvider(repository: reviewRepository),
+        ),
+        ChangeNotifierProvider(
+          create: (_) =>
+              WishlistProvider(wishlistRepository: wishlistRepository)
+                ..loadWishlist(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ReturnProvider(repository: returnRepository),
         ),
       ],
       child: MaterialApp(

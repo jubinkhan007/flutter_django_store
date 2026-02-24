@@ -37,4 +37,5 @@ urlpatterns = [
     path('stats/', VendorStatsView.as_view(), name='vendor-stats'),
     path('customers/', VendorCustomersView.as_view(), name='vendor-customers'),
     path('coupons/', include('coupons.vendor_urls')),
+    path('returns/', include('returns.vendor_urls')),
 ]

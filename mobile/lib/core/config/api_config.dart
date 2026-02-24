@@ -19,9 +19,15 @@ class ApiConfig {
   // Coupons
   static String get couponValidateUrl => '$baseUrl/coupons/validate/';
 
+  // Returns / RMA
+  static String get returnsUrl => '$baseUrl/returns/';
+
   // Product endpoints
   static String get productsUrl => '$baseUrl/products/';
   static String get categoriesUrl => '$baseUrl/products/categories/';
+  static String get wishlistUrl => '$baseUrl/products/wishlist/';
+  static String wishlistToggleUrl(int productId) =>
+      '$wishlistUrl$productId/toggle/';
 
   // Review endpoints
   static String get reviewsUrl => '$baseUrl/reviews/';
@@ -38,4 +44,5 @@ class ApiConfig {
   static String get vendorStatsUrl => '$baseUrl/vendors/stats/';
   static String get vendorCustomersUrl => '$baseUrl/vendors/customers/';
   static String get vendorCouponsUrl => '$baseUrl/vendors/coupons/';
+  static String get vendorReturnsUrl => '$baseUrl/vendors/returns/';
 }

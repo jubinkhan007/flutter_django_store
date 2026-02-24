@@ -9,6 +9,7 @@ import '../../../cart/presentation/screens/cart_screen.dart';
 import '../../../orders/presentation/screens/order_history_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/screens/profile_screen.dart';
+
 import '../widgets/search_filter_bar.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -54,12 +55,15 @@ class _HomeScreenState extends State<HomeScreen> {
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: (index) => setState(() => _currentIndex = index),
+          type: BottomNavigationBarType
+              .fixed, // Ensure more than 3 items look good
           items: [
             const BottomNavigationBarItem(
               icon: Icon(Icons.storefront_outlined),
               activeIcon: Icon(Icons.storefront),
               label: 'Shop',
             ),
+
             BottomNavigationBarItem(
               icon: Consumer<CartProvider>(
                 builder: (context, cart, child) {

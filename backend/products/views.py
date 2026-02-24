@@ -139,3 +139,46 @@ class VendorProductDetailView(generics.RetrieveUpdateDestroyAPIView):
             return self.request.user.vendor_profile.products.all()
         except AttributeError:
             return Product.objects.none()
+
+# ═══════════════════════════════════════════════════════════════════
+# WISHLIST VIEWS (Customer Features)
+# ═══════════════════════════════════════════════════════════════════
+from rest_framework.views import APIView
+from django.shortcuts import get_object_or_404
+from .models import Wishlist
+from .serializers import WishlistSerializer
+
+class WishlistListView(generics.ListAPIView):
+    """
+    GET /api/products/wishlist/
+    Lists all products in the authenticated user's wishlist.
+    """
+    serializer_class = WishlistSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Wishlist.objects.filter(user=self.request.user)
+
+class WishlistToggleView(APIView):
+    """
+    POST /api/products/wishlist/<product_id>/toggle/
+    Adds a product to the wishlist if it's not there, removing it if it is.
+    Returns: {"status": "added"} or {"status": "removed"}
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, product_id):
+        product = get_object_or_404(Product, id=product_id)
+        
+        # Check if it exists
+        wishlist_item, created = Wishlist.objects.get_or_create(
+            user=request.user,
+            product=product
+        )
+        
+        if not created:
+            # It already existed, so the user wants to remove it
+            wishlist_item.delete()
+            return Response({"status": "removed", "message": "Removed from wishlist."}, status=status.HTTP_200_OK)
+            
+        return Response({"status": "added", "message": "Added to wishlist."}, status=status.HTTP_201_CREATED)

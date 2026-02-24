@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../products/domain/entities/product.dart';
+import 'package:mobile/features/wishlist/presentation/providers/wishlist_provider.dart';
 
 /// Reusable product card used in the home screen grid.
 class ProductCard extends StatelessWidget {
@@ -38,28 +40,65 @@ class ProductCard extends StatelessWidget {
                     top: Radius.circular(AppTheme.radiusMd),
                   ),
                 ),
-                child: Center(
-                  child: product.image != null
-                      ? ClipRRect(
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(AppTheme.radiusMd),
-                          ),
-                          child: Image.network(
-                            product.image!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.image_outlined,
+                child: Stack(
+                  children: [
+                    Center(
+                      child: product.image != null
+                          ? ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(AppTheme.radiusMd),
+                              ),
+                              child: Image.network(
+                                product.image!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.image_outlined,
+                                  color: AppTheme.textSecondary,
+                                  size: 40,
+                                ),
+                              ),
+                            )
+                          : const Icon(
+                              Icons.shopping_bag_outlined,
                               color: AppTheme.textSecondary,
                               size: 40,
                             ),
-                          ),
-                        )
-                      : const Icon(
-                          Icons.shopping_bag_outlined,
-                          color: AppTheme.textSecondary,
-                          size: 40,
-                        ),
+                    ),
+                    // Wishlist Heart Icon
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Consumer<WishlistProvider>(
+                        builder: (context, wishlist, child) {
+                          final isWishlisted = wishlist.isWishlisted(
+                            product.id,
+                          );
+                          return IconButton(
+                            icon: Icon(
+                              isWishlisted
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              color: isWishlisted
+                                  ? Colors.red
+                                  : AppTheme.textSecondary,
+                            ),
+                            onPressed: () {
+                              wishlist.toggleWishlist(
+                                product.id,
+                                productDetails: {
+                                  'name': product.name,
+                                  'price': product.price,
+                                  'image': product.image,
+                                  'inStock': product.inStock,
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

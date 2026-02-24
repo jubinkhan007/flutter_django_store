@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../../../addresses/presentation/screens/address_management_screen.dart';
+import 'package:mobile/features/wishlist/presentation/screens/wishlist_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -117,6 +118,20 @@ class ProfileScreen extends StatelessWidget {
                     horizontal: AppTheme.spacingMd,
                   ),
                   children: [
+                    _MenuListItem(
+                      icon: Icons.favorite_border,
+                      title: 'Saved Items',
+                      subtitle: 'Your wishlisted products',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const WishlistScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(color: AppTheme.surfaceLight),
                     _MenuListItem(
                       icon: Icons.location_on_outlined,
                       title: 'My Addresses',

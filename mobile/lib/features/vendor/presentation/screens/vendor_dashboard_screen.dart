@@ -6,6 +6,7 @@ import 'vendor_products_screen.dart';
 import 'vendor_orders_screen.dart';
 import 'vendor_customers_screen.dart';
 import 'vendor_coupons_screen.dart';
+import 'vendor_returns_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class VendorDashboardScreen extends StatefulWidget {
@@ -35,6 +36,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
       const VendorOrdersScreen(),
       const VendorCustomersScreen(),
       const VendorCouponsScreen(),
+      const VendorReturnsScreen(),
     ];
 
     return Scaffold(
@@ -76,6 +78,11 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
               icon: Icon(Icons.discount_outlined),
               activeIcon: Icon(Icons.discount),
               label: 'Coupons',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.assignment_return_outlined),
+              activeIcon: Icon(Icons.assignment_return),
+              label: 'Returns',
             ),
           ],
         ),

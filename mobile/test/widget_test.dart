@@ -11,6 +11,8 @@ import 'package:mobile/features/orders/data/repositories/order_repository.dart';
 import 'package:mobile/features/vendor/data/repositories/vendor_repository.dart';
 import 'package:mobile/features/addresses/data/repositories/address_repository.dart';
 import 'package:mobile/features/reviews/data/repositories/review_repository.dart';
+import 'package:mobile/features/wishlist/data/repositories/wishlist_repository.dart';
+import 'package:mobile/features/returns/data/repositories/return_repository.dart';
 
 void main() {
   testWidgets('Boots to login when logged out', (WidgetTester tester) async {
@@ -28,6 +30,8 @@ void main() {
     final vendorRepo = VendorRepository(apiClient: apiClient);
     final addressRepo = AddressRepository(apiClient: apiClient);
     final reviewRepo = ReviewRepository(apiClient: apiClient);
+    final wishlistRepo = WishlistRepository(apiClient: apiClient);
+    final returnRepo = ReturnRepository(apiClient: apiClient);
 
     await tester.pumpWidget(
       MyApp(
@@ -37,6 +41,8 @@ void main() {
         vendorRepository: vendorRepo,
         addressRepository: addressRepo,
         reviewRepository: reviewRepo,
+        wishlistRepository: wishlistRepo,
+        returnRepository: returnRepo,
       ),
     );
     await tester.pumpAndSettle();
@@ -64,6 +70,8 @@ void main() {
     final vendorRepo = VendorRepository(apiClient: apiClient);
     final addressRepo = AddressRepository(apiClient: apiClient);
     final reviewRepo = ReviewRepository(apiClient: apiClient);
+    final wishlistRepo = WishlistRepository(apiClient: apiClient);
+    final returnRepo = ReturnRepository(apiClient: apiClient);
 
     await tester.pumpWidget(
       MyApp(
@@ -73,6 +81,8 @@ void main() {
         vendorRepository: vendorRepo,
         addressRepository: addressRepo,
         reviewRepository: reviewRepo,
+        wishlistRepository: wishlistRepo,
+        returnRepository: returnRepo,
       ),
     );
     await tester.pumpAndSettle();

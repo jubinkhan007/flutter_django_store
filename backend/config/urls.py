@@ -27,6 +27,7 @@ urlpatterns = [
     path('api/orders/', include('orders.urls')),       # Customer order endpoints
     path('api/reviews/', include('reviews.urls')),     # Review reply endpoint
     path('api/coupons/', include('coupons.urls')),     # Coupon validation endpoint
+    path('api/returns/', include('returns.urls')),     # Return/RMA endpoints
 ]
 
 # Serve media files during development

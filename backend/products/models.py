@@ -10,6 +10,10 @@ class Category(models.Model):
     slug = models.SlugField(max_length=120, unique=True, help_text="A URL-friendly version of the name.")
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to='categories/', blank=True, null=True)
+    is_sealed = models.BooleanField(
+        default=False,
+        help_text="Sealed items may have stricter return rules (e.g., must be unopened).",
+    )
 
     class Meta:
         verbose_name_plural = 'Categories'
@@ -46,3 +50,71 @@ class Product(models.Model):
     @property
     def in_stock(self):
         return self.stock_quantity > 0
+
+class ProductOption(models.Model):
+    """e.g., Size, Color"""
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='options')
+    name = models.CharField(max_length=50)
+
+    class Meta:
+        unique_together = ('product', 'name')
+
+    def __str__(self):
+        return f"{self.product.name} - {self.name}"
+
+class ProductOptionValue(models.Model):
+    """e.g., M, L, Red"""
+    option = models.ForeignKey(ProductOption, on_delete=models.CASCADE, related_name='values')
+    value = models.CharField(max_length=50)
+
+    class Meta:
+        unique_together = ('option', 'value')
+
+    def __str__(self):
+        return self.value
+
+class ProductVariant(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variants')
+    sku = models.CharField(max_length=100)
+    option_values = models.ManyToManyField(ProductOptionValue, blank=True)
+    
+    price_override = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    currency = models.CharField(max_length=10, default='USD')
+    
+    stock_on_hand = models.PositiveIntegerField(default=0)
+    reserved_stock = models.PositiveIntegerField(default=0)
+    low_stock_threshold = models.PositiveIntegerField(default=5)
+    
+    barcode = models.CharField(max_length=100, blank=True, null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['product', 'sku'], name='unique_product_sku')
+        ]
+
+    def __str__(self):
+        return f"{self.product.name} - {self.sku}"
+
+    @property
+    def effective_price(self):
+        return self.price_override if self.price_override is not None else self.product.price
+
+    @property
+    def available_stock(self):
+        return max(0, self.stock_on_hand - self.reserved_stock)
+
+class Wishlist(models.Model):
+    """
+    A user's saved items for later purchase.
+    """
+    from django.conf import settings
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='wishlist_items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='wishlisted_by')
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'product')
+        ordering = ['-added_at']
+
+    def __str__(self):
+        return f"{self.user.email} - {self.product.name}"

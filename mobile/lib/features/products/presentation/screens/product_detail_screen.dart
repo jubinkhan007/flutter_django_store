@@ -11,6 +11,7 @@ import '../../../reviews/presentation/widgets/review_card.dart';
 import '../../../reviews/presentation/widgets/star_rating.dart';
 import '../../../vendor/presentation/providers/vendor_provider.dart';
 import '../../domain/entities/product.dart';
+import 'package:mobile/features/wishlist/presentation/providers/wishlist_provider.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
@@ -48,8 +49,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       isScrollControlled: true,
       backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppTheme.radiusLg)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppTheme.radiusLg),
+        ),
       ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
@@ -82,8 +84,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               TextField(
                 controller: commentController,
                 maxLines: 4,
-                decoration:
-                    const InputDecoration(hintText: 'Share your experience...'),
+                decoration: const InputDecoration(
+                  hintText: 'Share your experience...',
+                ),
               ),
               const SizedBox(height: 16),
               SizedBox(
@@ -92,15 +95,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   onPressed: () async {
                     if (selectedRating == 0) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Please select a rating')),
+                        const SnackBar(content: Text('Please select a rating')),
                       );
                       return;
                     }
                     if (commentController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Please write a comment')),
+                        const SnackBar(content: Text('Please write a comment')),
                       );
                       return;
                     }
@@ -111,13 +112,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       commentController.text.trim(),
                     );
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(
-                          ok ? 'Review submitted!' : (provider.error ?? 'Failed'),
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            ok
+                                ? 'Review submitted!'
+                                : (provider.error ?? 'Failed'),
+                          ),
+                          backgroundColor: ok
+                              ? AppTheme.success
+                              : AppTheme.error,
                         ),
-                        backgroundColor:
-                            ok ? AppTheme.success : AppTheme.error,
-                      ));
+                      );
                     }
                   },
                   child: const Text('Submit Review'),
@@ -135,8 +141,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     ReviewModel review,
     bool isEditing,
   ) {
-    final controller =
-        TextEditingController(text: isEditing ? review.reply?.reply : '');
+    final controller = TextEditingController(
+      text: isEditing ? review.reply?.reply : '',
+    );
     final provider = context.read<ReviewProvider>();
 
     showModalBottomSheet(
@@ -144,8 +151,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       isScrollControlled: true,
       backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppTheme.radiusLg)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppTheme.radiusLg),
+        ),
       ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
@@ -171,7 +179,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               controller: controller,
               maxLines: 4,
               decoration: const InputDecoration(
-                  hintText: 'Write your response...'),
+                hintText: 'Write your response...',
+              ),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -182,16 +191,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   Navigator.pop(ctx);
                   final ok = isEditing
                       ? await provider.editReply(
-                          review.id, controller.text.trim())
+                          review.id,
+                          controller.text.trim(),
+                        )
                       : await provider.replyToReview(
-                          review.id, controller.text.trim());
+                          review.id,
+                          controller.text.trim(),
+                        );
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(
-                          ok ? 'Reply saved!' : (provider.error ?? 'Failed')),
-                      backgroundColor:
-                          ok ? AppTheme.success : AppTheme.error,
-                    ));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          ok ? 'Reply saved!' : (provider.error ?? 'Failed'),
+                        ),
+                        backgroundColor: ok ? AppTheme.success : AppTheme.error,
+                      ),
+                    );
                   }
                 },
                 child: Text(isEditing ? 'Save Changes' : 'Post Reply'),
@@ -229,6 +244,47 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: const Icon(Icons.arrow_back, size: 20),
               ),
             ),
+            actions: [
+              Consumer<WishlistProvider>(
+                builder: (context, wishlist, child) {
+                  final isWishlisted = wishlist.isWishlisted(widget.product.id);
+                  return IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.background.withOpacity(0.7),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isWishlisted ? Icons.favorite : Icons.favorite_border,
+                        color: isWishlisted ? Colors.red : AppTheme.textPrimary,
+                        size: 20,
+                      ),
+                    ),
+                    onPressed: () {
+                      if (!isLoggedIn) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please login to add to wishlist'),
+                          ),
+                        );
+                        return;
+                      }
+                      wishlist.toggleWishlist(
+                        widget.product.id,
+                        productDetails: {
+                          'name': widget.product.name,
+                          'price': widget.product.price,
+                          'image': widget.product.image,
+                          'inStock': widget.product.inStock,
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+              const SizedBox(width: AppTheme.spacingSm),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 color: AppTheme.surfaceLight,
@@ -237,13 +293,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         widget.product.image!,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => const Center(
-                          child: Icon(Icons.shopping_bag_outlined,
-                              color: AppTheme.textSecondary, size: 80),
+                          child: Icon(
+                            Icons.shopping_bag_outlined,
+                            color: AppTheme.textSecondary,
+                            size: 80,
+                          ),
                         ),
                       )
                     : const Center(
-                        child: Icon(Icons.shopping_bag_outlined,
-                            color: AppTheme.textSecondary, size: 80),
+                        child: Icon(
+                          Icons.shopping_bag_outlined,
+                          color: AppTheme.textSecondary,
+                          size: 80,
+                        ),
                       ),
               ),
             ),
@@ -271,11 +333,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           gradient: AppTheme.primaryGradient,
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusMd),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusMd,
+                          ),
                         ),
                         child: Text(
                           '\$${widget.product.price.toStringAsFixed(2)}',
@@ -295,13 +360,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: widget.product.inStock
                               ? AppTheme.success.withOpacity(0.15)
                               : AppTheme.error.withOpacity(0.15),
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusSm),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusSm,
+                          ),
                         ),
                         child: Text(
                           widget.product.inStock ? 'In Stock' : 'Out of Stock',
@@ -318,7 +386,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       Text(
                         '${widget.product.stockQuantity} available',
                         style: const TextStyle(
-                            color: AppTheme.textSecondary, fontSize: 12),
+                          color: AppTheme.textSecondary,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -369,11 +439,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 TextButton.icon(
                                   onPressed: () =>
                                       _showWriteReviewSheet(context),
-                                  icon: const Icon(Icons.rate_review_outlined,
-                                      size: 16),
+                                  icon: const Icon(
+                                    Icons.rate_review_outlined,
+                                    size: 16,
+                                  ),
                                   label: const Text('Write a Review'),
                                   style: TextButton.styleFrom(
-                                      foregroundColor: AppTheme.primary),
+                                    foregroundColor: AppTheme.primary,
+                                  ),
                                 ),
                             ],
                           ),
@@ -385,8 +458,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 color: AppTheme.surface,
-                                borderRadius:
-                                    BorderRadius.circular(AppTheme.radiusMd),
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusMd,
+                                ),
                               ),
                               child: Row(
                                 children: [
@@ -421,38 +495,47 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                             : count / reviews.length;
                                         return Padding(
                                           padding: const EdgeInsets.symmetric(
-                                              vertical: 2),
+                                            vertical: 2,
+                                          ),
                                           child: Row(
                                             children: [
-                                              Text('$star',
-                                                  style: const TextStyle(
-                                                      fontSize: 11,
-                                                      color: AppTheme
-                                                          .textSecondary)),
+                                              Text(
+                                                '$star',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: AppTheme.textSecondary,
+                                                ),
+                                              ),
                                               const SizedBox(width: 4),
-                                              const Icon(Icons.star,
-                                                  size: 10,
-                                                  color: AppTheme.warning),
+                                              const Icon(
+                                                Icons.star,
+                                                size: 10,
+                                                color: AppTheme.warning,
+                                              ),
                                               const SizedBox(width: 6),
                                               Expanded(
                                                 child: ClipRRect(
                                                   borderRadius:
                                                       BorderRadius.circular(4),
-                                                  child: LinearProgressIndicator(
-                                                    value: frac,
-                                                    backgroundColor:
-                                                        AppTheme.surfaceLight,
-                                                    color: AppTheme.warning,
-                                                    minHeight: 6,
-                                                  ),
+                                                  child:
+                                                      LinearProgressIndicator(
+                                                        value: frac,
+                                                        backgroundColor:
+                                                            AppTheme
+                                                                .surfaceLight,
+                                                        color: AppTheme.warning,
+                                                        minHeight: 6,
+                                                      ),
                                                 ),
                                               ),
                                               const SizedBox(width: 6),
-                                              Text('$count',
-                                                  style: const TextStyle(
-                                                      fontSize: 11,
-                                                      color: AppTheme
-                                                          .textSecondary)),
+                                              Text(
+                                                '$count',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: AppTheme.textSecondary,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         );
@@ -471,7 +554,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               child: Padding(
                                 padding: EdgeInsets.all(24),
                                 child: CircularProgressIndicator(
-                                    color: AppTheme.primary),
+                                  color: AppTheme.primary,
+                                ),
                               ),
                             )
                           else if (reviews.isEmpty)
@@ -480,24 +564,32 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               padding: const EdgeInsets.all(24),
                               decoration: BoxDecoration(
                                 color: AppTheme.surface,
-                                borderRadius:
-                                    BorderRadius.circular(AppTheme.radiusMd),
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusMd,
+                                ),
                               ),
                               child: Column(
                                 children: [
-                                  const Icon(Icons.rate_review_outlined,
-                                      color: AppTheme.textSecondary, size: 40),
+                                  const Icon(
+                                    Icons.rate_review_outlined,
+                                    color: AppTheme.textSecondary,
+                                    size: 40,
+                                  ),
                                   const SizedBox(height: 8),
-                                  const Text('No reviews yet',
-                                      style: TextStyle(
-                                          color: AppTheme.textSecondary)),
+                                  const Text(
+                                    'No reviews yet',
+                                    style: TextStyle(
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                  ),
                                   if (isLoggedIn && !isVendor) ...[
                                     const SizedBox(height: 12),
                                     TextButton(
                                       onPressed: () =>
                                           _showWriteReviewSheet(context),
-                                      child:
-                                          const Text('Be the first to review'),
+                                      child: const Text(
+                                        'Be the first to review',
+                                      ),
                                     ),
                                   ],
                                 ],
@@ -529,8 +621,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         padding: const EdgeInsets.all(AppTheme.spacingMd),
         decoration: const BoxDecoration(
           color: AppTheme.surface,
-          border:
-              Border(top: BorderSide(color: AppTheme.surfaceLight, width: 0.5)),
+          border: Border(
+            top: BorderSide(color: AppTheme.surfaceLight, width: 0.5),
+          ),
         ),
         child: SafeArea(
           child: CustomButton(
@@ -540,13 +633,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     context.read<CartProvider>().addToCart(widget.product);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content:
-                            Text('${widget.product.name} added to cart'),
+                        content: Text('${widget.product.name} added to cart'),
                         backgroundColor: AppTheme.primary,
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusSm),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusSm,
+                          ),
                         ),
                       ),
                     );

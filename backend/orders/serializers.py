@@ -56,6 +56,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'payment_status',
             'transaction_id',
             'val_id',
+            'delivered_at',
             'items',
             'created_at',
             'updated_at',
@@ -71,6 +72,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'payment_status',
             'transaction_id',
             'val_id',
+            'delivered_at',
             'created_at',
             'updated_at',
         ]

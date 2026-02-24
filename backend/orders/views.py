@@ -8,6 +8,7 @@ from vendors.models import WalletTransaction
 from coupons.models import Coupon
 from coupons.services import compute_coupon_discount
 from django.conf import settings
+from django.utils import timezone
 from sslcommerz_lib import SSLCOMMERZ
 import uuid
 from decimal import Decimal
@@ -234,6 +235,7 @@ class VendorUpdateOrderStatusView(generics.UpdateAPIView):
             )
 
         if new_status == Order.Status.DELIVERED and order.status != Order.Status.DELIVERED:
+            order.delivered_at = timezone.now()
             if order.payment_status == Order.PaymentStatus.PAID:
                 with transaction.atomic():
                     for item in order.items.all():

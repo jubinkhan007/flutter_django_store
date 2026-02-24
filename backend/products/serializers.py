@@ -37,3 +37,13 @@ class ProductSerializer(serializers.ModelSerializer):
         # The vendor should be tied to the logged-in user automatically,
         # so vendors cannot forge or edit the vendor ID manually.
         read_only_fields = ['vendor', 'created_at', 'updated_at', 'in_stock']
+
+from .models import Wishlist
+
+class WishlistSerializer(serializers.ModelSerializer):
+    product_detail = ProductSerializer(source='product', read_only=True)
+
+    class Meta:
+        model = Wishlist
+        fields = ['id', 'user', 'product', 'product_detail', 'added_at']
+        read_only_fields = ['user', 'added_at']

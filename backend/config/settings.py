@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'products',
     'orders',
     'coupons',
+    'returns',
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -154,3 +155,7 @@ SIMPLE_JWT = {
 # Media files (Images uploads for products/categories)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Returns / RMA configuration
+RMA_VENDOR_RESPONSE_HOURS = 48
+RMA_DEFAULT_RETURN_WINDOW_DAYS = 7
