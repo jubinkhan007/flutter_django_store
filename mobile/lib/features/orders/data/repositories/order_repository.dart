@@ -10,11 +10,16 @@ class OrderRepository {
 
   Future<OrderModel> placeOrder(
     List<Map<String, dynamic>> items,
-    int addressId,
-  ) async {
+    int addressId, {
+    String paymentMethod = 'ONLINE',
+  }) async {
     final response = await _apiClient.post(
       ApiConfig.placeOrderUrl,
-      body: {'items': items, 'address_id': addressId},
+      body: {
+        'items': items,
+        'address_id': addressId,
+        'payment_method': paymentMethod,
+      },
     );
 
     if (response.statusCode == 201) {

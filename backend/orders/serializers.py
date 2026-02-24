@@ -42,8 +42,8 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['id', 'customer', 'customer_detail', 'delivery_address', 'total_amount', 'status', 'payment_status', 'transaction_id', 'val_id', 'items', 'created_at', 'updated_at']
-        read_only_fields = ['customer', 'total_amount', 'status', 'payment_status', 'transaction_id', 'val_id', 'created_at', 'updated_at']
+        fields = ['id', 'customer', 'customer_detail', 'delivery_address', 'total_amount', 'status', 'payment_method', 'payment_status', 'transaction_id', 'val_id', 'items', 'created_at', 'updated_at']
+        read_only_fields = ['customer', 'total_amount', 'status', 'payment_method', 'payment_status', 'transaction_id', 'val_id', 'created_at', 'updated_at']
 
     def get_customer_detail(self, obj):
         return {
@@ -72,6 +72,11 @@ class OrderCreateSerializer(serializers.Serializer):
     """
     items = OrderCreateItemSerializer(many=True)
     address_id = serializers.IntegerField(required=True)
+    payment_method = serializers.ChoiceField(
+        choices=Order.PaymentMethod.choices,
+        required=False,
+        default=Order.PaymentMethod.ONLINE,
+    )
 
     def validate_items(self, value):
         if not value:

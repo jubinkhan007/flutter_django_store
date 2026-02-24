@@ -37,6 +37,10 @@ import 'features/vendor/presentation/screens/vendor_add_product_screen.dart';
 import 'features/addresses/data/repositories/address_repository.dart';
 import 'features/addresses/presentation/providers/address_provider.dart';
 
+// Reviews
+import 'features/reviews/data/repositories/review_repository.dart';
+import 'features/reviews/presentation/providers/review_provider.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -55,6 +59,7 @@ void main() {
   final orderRepository = OrderRepository(apiClient: apiClient);
   final vendorRepository = VendorRepository(apiClient: apiClient);
   final addressRepository = AddressRepository(apiClient: apiClient);
+  final reviewRepository = ReviewRepository(apiClient: apiClient);
 
   runApp(
     MyApp(
@@ -63,6 +68,7 @@ void main() {
       orderRepository: orderRepository,
       vendorRepository: vendorRepository,
       addressRepository: addressRepository,
+      reviewRepository: reviewRepository,
     ),
   );
 }
@@ -73,6 +79,7 @@ class MyApp extends StatelessWidget {
   final OrderRepository orderRepository;
   final VendorRepository vendorRepository;
   final AddressRepository addressRepository;
+  final ReviewRepository reviewRepository;
 
   const MyApp({
     super.key,
@@ -81,6 +88,7 @@ class MyApp extends StatelessWidget {
     required this.orderRepository,
     required this.vendorRepository,
     required this.addressRepository,
+    required this.reviewRepository,
   });
 
   @override
@@ -102,6 +110,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => AddressProvider(addressRepository: addressRepository),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ReviewProvider(repository: reviewRepository),
         ),
       ],
       child: MaterialApp(

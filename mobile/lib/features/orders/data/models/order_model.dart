@@ -5,6 +5,7 @@ class OrderModel {
   final double totalAmount;
   final String status;
   final String paymentStatus;
+  final String paymentMethod; // ONLINE, COD
   final String? transactionId;
   final String? valId;
   final List<OrderItemModel> items;
@@ -16,6 +17,7 @@ class OrderModel {
     required this.totalAmount,
     required this.status,
     required this.paymentStatus,
+    required this.paymentMethod,
     this.transactionId,
     this.valId,
     required this.items,
@@ -29,6 +31,7 @@ class OrderModel {
       totalAmount: double.tryParse(json['total_amount'].toString()) ?? 0.0,
       status: json['status'] ?? 'PENDING',
       paymentStatus: json['payment_status'] ?? 'UNPAID',
+      paymentMethod: json['payment_method'] ?? 'ONLINE',
       transactionId: json['transaction_id'],
       valId: json['val_id'],
       items:

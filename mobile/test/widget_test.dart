@@ -10,6 +10,7 @@ import 'package:mobile/features/products/data/repositories/product_repository_im
 import 'package:mobile/features/orders/data/repositories/order_repository.dart';
 import 'package:mobile/features/vendor/data/repositories/vendor_repository.dart';
 import 'package:mobile/features/addresses/data/repositories/address_repository.dart';
+import 'package:mobile/features/reviews/data/repositories/review_repository.dart';
 
 void main() {
   testWidgets('Boots to login when logged out', (WidgetTester tester) async {
@@ -26,6 +27,7 @@ void main() {
     final orderRepo = OrderRepository(apiClient: apiClient);
     final vendorRepo = VendorRepository(apiClient: apiClient);
     final addressRepo = AddressRepository(apiClient: apiClient);
+    final reviewRepo = ReviewRepository(apiClient: apiClient);
 
     await tester.pumpWidget(
       MyApp(
@@ -34,6 +36,7 @@ void main() {
         orderRepository: orderRepo,
         vendorRepository: vendorRepo,
         addressRepository: addressRepo,
+        reviewRepository: reviewRepo,
       ),
     );
     await tester.pumpAndSettle();
@@ -60,6 +63,7 @@ void main() {
     final orderRepo = OrderRepository(apiClient: apiClient);
     final vendorRepo = VendorRepository(apiClient: apiClient);
     final addressRepo = AddressRepository(apiClient: apiClient);
+    final reviewRepo = ReviewRepository(apiClient: apiClient);
 
     await tester.pumpWidget(
       MyApp(
@@ -68,6 +72,7 @@ void main() {
         orderRepository: orderRepo,
         vendorRepository: vendorRepo,
         addressRepository: addressRepo,
+        reviewRepository: reviewRepo,
       ),
     );
     await tester.pumpAndSettle();

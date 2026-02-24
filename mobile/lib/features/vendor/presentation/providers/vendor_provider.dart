@@ -164,10 +164,12 @@ class VendorProvider extends ChangeNotifier {
           totalAmount: existing.totalAmount,
           status: newStatus,
           paymentStatus: existing.paymentStatus,
+          paymentMethod: existing.paymentMethod,
           transactionId: existing.transactionId,
           valId: existing.valId,
           items: existing.items,
           createdAt: existing.createdAt,
+          deliveryAddress: existing.deliveryAddress,
         );
       }
       notifyListeners();

@@ -20,6 +20,9 @@ class ApiConfig {
   static String get productsUrl => '$baseUrl/products/';
   static String get categoriesUrl => '$baseUrl/products/categories/';
 
+  // Review endpoints
+  static String get reviewsUrl => '$baseUrl/reviews/';
+
   // Order endpoints
   static String get ordersUrl => '$baseUrl/orders/';
   static String get placeOrderUrl => '$baseUrl/orders/place/';

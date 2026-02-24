@@ -12,6 +12,10 @@ class Order(models.Model):
         DELIVERED = 'DELIVERED', 'Delivered'
         CANCELED = 'CANCELED', 'Canceled'
 
+    class PaymentMethod(models.TextChoices):
+        ONLINE = 'ONLINE', 'Online'
+        COD = 'COD', 'Cash on Delivery'
+
     class PaymentStatus(models.TextChoices):
         UNPAID = 'UNPAID', 'Unpaid'
         PAID = 'PAID', 'Paid'
@@ -21,6 +25,7 @@ class Order(models.Model):
     delivery_address = models.ForeignKey(Address, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.ONLINE)
     payment_status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.UNPAID)
     transaction_id = models.CharField(max_length=255, blank=True, null=True, help_text="System generated trxn_id for SSLCommerz")
     val_id = models.CharField(max_length=255, blank=True, null=True, help_text="Validation ID from SSLCommerz (needed for refunds)")

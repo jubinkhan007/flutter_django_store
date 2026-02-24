@@ -6,10 +6,74 @@ import '../providers/cart_provider.dart';
 import '../../../orders/presentation/providers/order_provider.dart';
 import '../../../addresses/data/models/address_model.dart';
 import '../../../addresses/presentation/screens/address_management_screen.dart';
+import '../../../orders/presentation/screens/order_history_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
+
+  Future<String?> _selectPaymentMethod(BuildContext context) async {
+    return showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        var selected = 'ONLINE';
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.spacingLg,
+                AppTheme.spacingLg,
+                AppTheme.spacingLg,
+                AppTheme.spacingLg,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Choose payment method',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingSm),
+                  RadioListTile<String>(
+                    value: 'ONLINE',
+                    groupValue: selected,
+                    onChanged: (v) => setState(() => selected = v ?? 'ONLINE'),
+                    title: const Text('Pay online'),
+                    subtitle: const Text('SSLCommerz payment gateway'),
+                    activeColor: AppTheme.primary,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  RadioListTile<String>(
+                    value: 'COD',
+                    groupValue: selected,
+                    onChanged: (v) => setState(() => selected = v ?? 'COD'),
+                    title: const Text('Cash on delivery'),
+                    subtitle: const Text('Pay when your order arrives'),
+                    activeColor: AppTheme.primary,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  const SizedBox(height: AppTheme.spacingMd),
+                  CustomButton(
+                    text: 'Continue',
+                    onPressed: () => Navigator.pop(context, selected),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   Future<void> _handleCheckout(
     BuildContext context,
@@ -26,37 +90,106 @@ class CartScreen extends StatelessWidget {
 
     if (selectedAddress == null || !context.mounted) return;
 
+    // 2. Choose payment method
+    final paymentMethod = await _selectPaymentMethod(context);
+    if (paymentMethod == null || !context.mounted) return;
+
     final order = await orderProvider.placeOrder(
       cart.toOrderItems(),
       selectedAddress.id,
+      paymentMethod: paymentMethod,
     );
 
     if (order != null && context.mounted) {
       // Clear cart
       cart.clear();
 
-      // Initiate SSLCommerz Payment
-      final paymentUrl = await orderProvider.initiatePayment(order.id);
+      if (paymentMethod == 'COD') {
+        // Show a confirmation dialog for COD
+        if (context.mounted) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => AlertDialog(
+              backgroundColor: AppTheme.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: AppTheme.success, size: 28),
+                  SizedBox(width: 8),
+                  Text('Order Placed!'),
+                ],
+              ),
+              content: Text(
+                'Order #${order.id} has been placed successfully.\nPayment: Cash on Delivery',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('View Orders'),
+                ),
+              ],
+            ),
+          );
+          if (context.mounted) {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+            );
+          }
+        }
+      } else {
+        // Initiate SSLCommerz Payment
+        final paymentUrl = await orderProvider.initiatePayment(order.id);
 
-      if (paymentUrl != null && context.mounted) {
-        final uri = Uri.parse(paymentUrl);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not launch payment gateway')),
+        if (context.mounted) {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => AlertDialog(
+              backgroundColor: AppTheme.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: AppTheme.success, size: 28),
+                  SizedBox(width: 8),
+                  Text('Order Placed!'),
+                ],
+              ),
+              content: Text(
+                'Order #${order.id} created.\nYou will now be redirected to the payment gateway.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Proceed to Payment'),
+                ),
+              ],
+            ),
           );
         }
-      }
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('🎉 Order placed! Redirecting to payment...'),
-            backgroundColor: AppTheme.success,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (paymentUrl != null && context.mounted) {
+          final uri = Uri.parse(paymentUrl);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } else if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Could not launch payment gateway')),
+            );
+          }
+        }
+
+        if (context.mounted) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+          );
+        }
       }
     } else if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

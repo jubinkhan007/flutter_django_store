@@ -45,6 +45,7 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
 
         items_data = serializer.validated_data['items']
         address_id = serializer.validated_data['address_id']
+        payment_method = serializer.validated_data.get('payment_method', Order.PaymentMethod.ONLINE)
 
         # ── Step 1: Validate address ──
         from users.models import Address
@@ -90,7 +91,8 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
             order = Order.objects.create(
                 customer=request.user,
                 delivery_address=address,
-                total_amount=total
+                total_amount=total,
+                payment_method=payment_method,
             )
 
             for item_data in order_items:
@@ -284,6 +286,12 @@ class SSLCommerzPaymentInitiateView(generics.GenericAPIView):
             order = Order.objects.get(id=pk, customer=request.user)
         except Order.DoesNotExist:
             return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if order.payment_method == Order.PaymentMethod.COD:
+            return Response(
+                {"error": "Cash on delivery orders cannot be paid online."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if order.payment_status == Order.PaymentStatus.PAID:
             return Response({"error": "Order is already paid."}, status=status.HTTP_400_BAD_REQUEST)

@@ -18,14 +18,19 @@ class OrderProvider extends ChangeNotifier {
 
   Future<OrderModel?> placeOrder(
     List<Map<String, dynamic>> items,
-    int addressId,
-  ) async {
+    int addressId, {
+    String paymentMethod = 'ONLINE',
+  }) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final order = await _orderRepository.placeOrder(items, addressId);
+      final order = await _orderRepository.placeOrder(
+        items,
+        addressId,
+        paymentMethod: paymentMethod,
+      );
       _isLoading = false;
       notifyListeners();
       return order;
@@ -72,10 +77,12 @@ class OrderProvider extends ChangeNotifier {
           status: 'CANCELED',
           paymentStatus:
               existing.paymentStatus, // Backend will handle refund logic
+          paymentMethod: existing.paymentMethod,
           transactionId: existing.transactionId,
           valId: existing.valId,
           items: existing.items,
           createdAt: existing.createdAt,
+          deliveryAddress: existing.deliveryAddress,
         );
       }
       _isLoading = false;

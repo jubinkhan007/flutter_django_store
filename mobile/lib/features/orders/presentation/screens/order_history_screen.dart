@@ -85,6 +85,16 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     }
   }
 
+  String _paymentMethodLabel(String method) {
+    switch (method) {
+      case 'COD':
+        return 'Cash on Delivery';
+      case 'ONLINE':
+      default:
+        return 'Online Payment';
+    }
+  }
+
   Future<void> _payNow(BuildContext context, OrderModel order) async {
     final provider = context.read<OrderProvider>();
     final url = await provider.initiatePayment(order.id);
@@ -190,6 +200,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                       final order = provider.orders[index];
                       final statusColor = _statusColor(order.status);
                       final paymentColor = _paymentColor(order.paymentStatus);
+                      final isCod = order.paymentMethod == 'COD';
 
                       return Container(
                         margin: const EdgeInsets.only(
@@ -235,7 +246,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          '${order.items.length} item(s) • ${order.paymentStatus}',
+                                          '${order.items.length} item(s) • ${_paymentMethodLabel(order.paymentMethod)} • ${order.paymentStatus}',
                                           style: TextStyle(
                                             color: paymentColor,
                                             fontSize: 12,
@@ -291,7 +302,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                 ),
                                 child: Row(
                                   children: [
-                                    if (order.paymentStatus == 'UNPAID' &&
+                                    if (!isCod &&
+                                        order.paymentStatus == 'UNPAID' &&
                                         order.status != 'CANCELED')
                                       Expanded(
                                         child: Padding(
