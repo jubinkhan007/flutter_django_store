@@ -1,33 +1,43 @@
 from rest_framework import serializers
-from .models import Order, OrderItem
+from .models import Order, SubOrder, OrderItem
 from products.serializers import ProductSerializer
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
     """
-    Serializer for individual items in an order.
-    
-    When CREATING an order, the customer sends:
-      {"product": 5, "quantity": 2}
-    
-    When READING an order, we show full product details:
-      {"product": 5, "product_detail": {"name": "...", "price": "..."}, "quantity": 2, ...}
+    Serializer for individual items in an order snapshot.
     """
-    # For read operations, include full product details
-    product_detail = ProductSerializer(source='product', read_only=True)
-
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'product_detail', 'vendor', 'quantity', 'price']
-        read_only_fields = ['vendor', 'price']  # Set automatically from the product
+        fields = [
+            'id', 'product', 'variant', 'quantity', 
+            'product_title', 'variant_name', 'sku', 
+            'unit_price', 'tax', 'discount', 'image_url', 'total_price'
+        ]
+
+
+class SubOrderSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(many=True, read_only=True)
+    vendor_store_name = serializers.CharField(source='vendor.store_name', read_only=True)
+    order_id = serializers.IntegerField(source='order.id', read_only=True)
+
+    class Meta:
+        model = SubOrder
+        fields = [
+            'id', 'order_id', 'vendor', 'vendor_store_name', 'status',
+            'accepted_at', 'packed_at', 'shipped_at', 'delivered_at', 'canceled_at',
+            'created_at', 'updated_at', 'items'
+        ]
+        read_only_fields = ['vendor', 'vendor_store_name', 'order_id', 'created_at', 'updated_at']
 
 
 class OrderCreateItemSerializer(serializers.Serializer):
     """
     A lightweight serializer just for creating orders.
-    The customer only needs to send product ID + quantity.
+    The customer only needs to send product ID + quantity + optional variant.
     """
     product = serializers.IntegerField()
+    variant = serializers.IntegerField(required=False, allow_null=True)
     quantity = serializers.IntegerField(min_value=1)
 
 
@@ -36,7 +46,8 @@ class OrderSerializer(serializers.ModelSerializer):
     Full order serializer — used when viewing orders.
     Shows the customer, status, total, and all items with their details.
     """
-    items = OrderItemSerializer(many=True, read_only=True)
+    sub_orders = SubOrderSerializer(many=True, read_only=True)
+    items = serializers.SerializerMethodField()
     customer_detail = serializers.SerializerMethodField()
     delivery_address = serializers.SerializerMethodField()
 
@@ -58,6 +69,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'val_id',
             'delivered_at',
             'items',
+            'sub_orders',
             'created_at',
             'updated_at',
         ]
@@ -73,6 +85,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'transaction_id',
             'val_id',
             'delivered_at',
+            'items',
             'created_at',
             'updated_at',
         ]
@@ -96,6 +109,32 @@ class OrderSerializer(serializers.ModelSerializer):
             'area': address.area,
             'city': address.city,
         }
+
+    def get_items(self, obj):
+        """
+        Backward-compatible flattened items list for mobile clients.
+        """
+        items = []
+        for oi in OrderItem.objects.select_related('product').filter(sub_order__order=obj).order_by('id'):
+            product_detail = None
+            if oi.product_id:
+                try:
+                    product_detail = ProductSerializer(oi.product).data
+                except Exception:
+                    product_detail = None
+            if product_detail is None:
+                product_detail = {'name': oi.product_title}
+
+            items.append(
+                {
+                    'id': oi.id,
+                    'product': oi.product_id,
+                    'quantity': oi.quantity,
+                    'price': str(oi.unit_price),
+                    'product_detail': product_detail,
+                }
+            )
+        return items
 
 
 class OrderCreateSerializer(serializers.Serializer):

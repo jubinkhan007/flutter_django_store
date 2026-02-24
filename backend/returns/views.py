@@ -60,8 +60,8 @@ class CustomerReturnListCreateView(generics.GenericAPIView):
 
         order_item_ids = [i['order_item_id'] for i in items_data]
         order_items = list(
-            OrderItem.objects.select_related('product', 'vendor', 'product__category')
-            .filter(order=order, id__in=order_item_ids)
+            OrderItem.objects.select_related('product', 'sub_order__vendor', 'product__category')
+            .filter(sub_order__order=order, id__in=order_item_ids)
         )
         if len(order_items) != len(set(order_item_ids)):
             return Response({'error': 'Some order items are invalid.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -71,9 +71,10 @@ class CustomerReturnListCreateView(generics.GenericAPIView):
         grouped: dict[int, list[dict]] = {}
         for item in items_data:
             oi = items_by_id[item['order_item_id']]
-            if oi.vendor_id is None:
+            vendor_id = oi.sub_order.vendor_id if getattr(oi, 'sub_order_id', None) else None
+            if vendor_id is None:
                 return Response({'error': 'Invalid vendor for an order item.'}, status=status.HTTP_400_BAD_REQUEST)
-            grouped.setdefault(oi.vendor_id, []).append(
+            grouped.setdefault(vendor_id, []).append(
                 {
                     'order_item': oi,
                     'quantity': item['quantity'],

@@ -17,6 +17,8 @@ class ApiConfig {
   static String get addressesUrl => '$baseUrl/auth/addresses/';
 
   // Coupons
+  static String get couponsUrl => '$baseUrl/coupons/';
+  static String get couponAvailableUrl => '$baseUrl/coupons/available/';
   static String get couponValidateUrl => '$baseUrl/coupons/validate/';
 
   // Returns / RMA

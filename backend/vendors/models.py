@@ -9,9 +9,55 @@ class Vendor(models.Model):
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # SLA metrics
+    cancellation_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text="Percentage of canceled orders")
+    late_shipment_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text="Percentage of late shipped orders")
+    avg_handling_time_days = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text="Average days to ship")
+
     def __str__(self):
         return self.store_name
 
+class Permission(models.Model):
+    codename = models.CharField(max_length=50, unique=True)
+    description = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.codename
+
+class Role(models.Model):
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='roles')
+    name = models.CharField(max_length=50) # e.g. Owner, Manager, Packer, Support
+    permissions = models.ManyToManyField(Permission, blank=True)
+
+    class Meta:
+        unique_together = ('vendor', 'name')
+
+    def __str__(self):
+        return f"{self.vendor.store_name} - {self.name}"
+
+class VendorStaff(models.Model):
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='staff')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='vendor_staff_profile')
+    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('vendor', 'user')
+
+    def __str__(self):
+        return f"{self.user.email} - {self.vendor.store_name}"
+
+class AuditLog(models.Model):
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='audit_logs')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    action = models.CharField(max_length=100) # e.g. 'PRICE_CHANGE', 'ORDER_STATUS_UPDATE'
+    details = models.TextField() # JSON or text representation of changes
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.action} by {self.user} on {self.created_at}"
 
 class WalletTransaction(models.Model):
     class TransactionType(models.TextChoices):
@@ -22,7 +68,52 @@ class WalletTransaction(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     transaction_type = models.CharField(max_length=20, choices=TransactionType.choices)
     description = models.TextField()
+    reference_id = models.CharField(max_length=100, blank=True, null=True) # E.g., Order ID, Payout ID
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.get_transaction_type_display()} amount {self.amount} for Vendor '{self.vendor.store_name}'"
+
+class PayoutRequest(models.Model):
+    class Status(models.TextChoices):
+        REQUESTED = 'REQUESTED', 'Requested'
+        APPROVED = 'APPROVED', 'Approved'
+        PROCESSING = 'PROCESSING', 'Processing'
+        PAID = 'PAID', 'Paid'
+        REJECTED = 'REJECTED', 'Rejected'
+
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='payout_requests')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.REQUESTED)
+    bank_details = models.TextField() # e.g. "Bank: Chase, Acct: ****1234"
+    admin_note = models.TextField(blank=True)
+    requested_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Payout {self.amount} for {self.vendor.store_name} ({self.status})"
+
+class BulkJob(models.Model):
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', 'Pending'
+        PROCESSING = 'PROCESSING', 'Processing'
+        COMPLETED = 'COMPLETED', 'Completed'
+        FAILED = 'FAILED', 'Failed'
+        PARTIAL_SUCCESS = 'PARTIAL_SUCCESS', 'Partial Success'
+
+    class JobType(models.TextChoices):
+        PRODUCT_UPLOAD = 'PRODUCT_UPLOAD', 'Product Upload'
+        PRICE_UPDATE = 'PRICE_UPDATE', 'Price Update'
+        STOCK_UPDATE = 'STOCK_UPDATE', 'Stock Update'
+
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='bulk_jobs')
+    job_type = models.CharField(max_length=50, choices=JobType.choices)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    file = models.FileField(upload_to='bulk_jobs/')
+    result_report = models.JSONField(blank=True, null=True) # To store validation errors / success rows
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"BulkJob {self.id} ({self.job_type}) for {self.vendor.store_name}"
+

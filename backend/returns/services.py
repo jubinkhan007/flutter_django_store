@@ -73,7 +73,7 @@ def check_return_eligibility(
         product = order_item.product
         if product is None:
             return EligibilityResult(False, 'One of the products in your order is no longer available for return.')
-        if product.vendor_id != vendor.id:
+        if order_item.sub_order.vendor_id != vendor.id:
             return EligibilityResult(False, 'All return items must belong to the same vendor.')
 
         policy = resolve_return_policy(vendor=vendor, product=product)
@@ -102,7 +102,7 @@ def compute_refund_amount(*, return_request: ReturnRequest) -> Decimal:
     total = Decimal('0.00')
     for item in return_request.items.select_related('order_item').all():
         oi = item.order_item
-        total += (oi.price * item.quantity)
+        total += (oi.unit_price * item.quantity)
     return total.quantize(Decimal('0.01'))
 
 
@@ -180,4 +180,3 @@ def escalate_overdue_returns() -> int:
         rr.save(update_fields=['status', 'escalated_at', 'updated_at'])
         updated += 1
     return updated
-

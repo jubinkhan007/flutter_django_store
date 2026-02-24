@@ -8,6 +8,7 @@ import '../../../addresses/data/models/address_model.dart';
 import '../../../addresses/presentation/screens/address_management_screen.dart';
 import '../../../orders/presentation/screens/order_history_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../coupons/presentation/screens/coupon_picker_sheet.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -17,49 +18,6 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  final _couponController = TextEditingController();
-  String? _appliedCouponCode;
-  double _discountAmount = 0.0;
-  String? _couponError;
-
-  @override
-  void dispose() {
-    _couponController.dispose();
-    super.dispose();
-  }
-
-  void _clearCoupon() {
-    setState(() {
-      _appliedCouponCode = null;
-      _discountAmount = 0.0;
-      _couponError = null;
-    });
-  }
-
-  Future<void> _applyCoupon(CartProvider cart, OrderProvider orderProvider) async {
-    final code = _couponController.text.trim();
-    if (code.isEmpty) return;
-
-    final result = await orderProvider.validateCoupon(code, cart.toOrderItems());
-    if (!mounted) return;
-
-    if (result == null) {
-      setState(() {
-        _appliedCouponCode = null;
-        _discountAmount = 0.0;
-        _couponError = orderProvider.error ?? 'Invalid coupon';
-      });
-      return;
-    }
-
-    final discount = double.tryParse(result['discount']?.toString() ?? '0') ?? 0.0;
-    setState(() {
-      _appliedCouponCode = result['code']?.toString() ?? code.toUpperCase();
-      _discountAmount = discount;
-      _couponError = null;
-    });
-  }
-
   Future<String?> _selectPaymentMethod(BuildContext context) async {
     return showModalBottomSheet<String>(
       context: context,
@@ -146,7 +104,7 @@ class _CartScreenState extends State<CartScreen> {
       cart.toOrderItems(),
       selectedAddress.id,
       paymentMethod: paymentMethod,
-      couponCode: _appliedCouponCode,
+      couponCode: cart.couponCode,
     );
 
     if (order != null && context.mounted) {
@@ -257,7 +215,10 @@ class _CartScreenState extends State<CartScreen> {
       child: Consumer<CartProvider>(
         builder: (context, cart, _) {
           final subtotal = cart.totalPrice;
-          final total = (subtotal - _discountAmount).clamp(0.0, double.infinity);
+          final total = (subtotal - cart.couponDiscount).clamp(
+            0.0,
+            double.infinity,
+          );
           return Column(
             children: [
               // ── Header ──
@@ -467,113 +428,66 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                   child: Column(
                     children: [
-                      Consumer<OrderProvider>(
-                        builder: (context, orderProvider, _) {
-                          return Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _couponController,
-                                      decoration: InputDecoration(
-                                        hintText: 'Coupon code',
-                                        isDense: true,
-                                        filled: true,
-                                        fillColor: AppTheme.surfaceLight,
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            AppTheme.radiusSm,
-                                          ),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                      ),
-                                      textInputAction: TextInputAction.done,
-                                      onChanged: (_) {
-                                        if (_appliedCouponCode != null) {
-                                          _clearCoupon();
-                                        }
-                                      },
-                                    ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Coupon',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.textPrimary,
                                   ),
-                                  const SizedBox(width: 10),
-                                  SizedBox(
-                                    width: 110,
-                                    height: 44,
-                                    child: ElevatedButton(
-                                      onPressed: orderProvider.isLoading
-                                          ? null
-                                          : () {
-                                              if (_appliedCouponCode != null) {
-                                                _couponController.clear();
-                                                _clearCoupon();
-                                                return;
-                                              }
-                                              _applyCoupon(cart, orderProvider);
-                                            },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: _appliedCouponCode == null
-                                            ? AppTheme.primary
-                                            : AppTheme.error,
-                                        foregroundColor: Colors.white,
-                                        padding: EdgeInsets.zero,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            AppTheme.radiusSm,
-                                          ),
-                                        ),
-                                      ),
-                                      child: orderProvider.isLoading
-                                          ? const SizedBox(
-                                              height: 18,
-                                              width: 18,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : Text(
-                                              _appliedCouponCode == null
-                                                  ? 'Apply'
-                                                  : 'Remove',
-                                            ),
-                                    ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  cart.couponCode == null
+                                      ? 'Select a coupon to save more'
+                                      : 'Applied: ${cart.couponCode} (-\$${cart.couponDiscount.toStringAsFixed(2)})',
+                                  style: TextStyle(
+                                    color: cart.couponCode == null
+                                        ? AppTheme.textSecondary
+                                        : AppTheme.success,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
                                   ),
-                                ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          OutlinedButton(
+                            onPressed: () async {
+                              await showModalBottomSheet<void>(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: AppTheme.surface,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(16),
+                                  ),
+                                ),
+                                builder: (_) => const FractionallySizedBox(
+                                  heightFactor: 0.85,
+                                  child: CouponPickerSheet(),
+                                ),
+                              );
+                            },
+                            child: Text(cart.couponCode == null ? 'Select' : 'Change'),
+                          ),
+                          if (cart.couponCode != null)
+                            TextButton(
+                              onPressed: () => cart.clearCoupon(),
+                              child: const Text(
+                                'Remove',
+                                style: TextStyle(color: AppTheme.error),
                               ),
-                              if (_couponError != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      _couponError!,
-                                      style: const TextStyle(
-                                        color: AppTheme.error,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              if (_appliedCouponCode != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      'Applied: $_appliedCouponCode',
-                                      style: const TextStyle(
-                                        color: AppTheme.success,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              const SizedBox(height: AppTheme.spacingMd),
-                            ],
-                          );
-                        },
+                            ),
+                        ],
                       ),
+                      const SizedBox(height: AppTheme.spacingMd),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -594,7 +508,7 @@ class _CartScreenState extends State<CartScreen> {
                           ),
                         ],
                       ),
-                      if (_discountAmount > 0)
+                      if (cart.couponDiscount > 0)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Row(
@@ -608,7 +522,7 @@ class _CartScreenState extends State<CartScreen> {
                                 ),
                               ),
                               Text(
-                                '-\$${_discountAmount.toStringAsFixed(2)}',
+                                '-\$${cart.couponDiscount.toStringAsFixed(2)}',
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,

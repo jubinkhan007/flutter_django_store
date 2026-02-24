@@ -7,7 +7,6 @@ import '../../../products/presentation/providers/product_provider.dart';
 import '../../data/models/vendor_coupon_model.dart';
 import '../providers/vendor_provider.dart';
 
-
 class VendorCouponsScreen extends StatefulWidget {
   const VendorCouponsScreen({super.key});
 
@@ -134,7 +133,8 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                 left: AppTheme.spacingLg,
                 right: AppTheme.spacingLg,
                 top: AppTheme.spacingLg,
-                bottom: MediaQuery.of(context).viewInsets.bottom +
+                bottom:
+                    MediaQuery.of(context).viewInsets.bottom +
                     AppTheme.spacingLg,
               ),
               child: Column(
@@ -152,31 +152,46 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                   const SizedBox(height: AppTheme.spacingMd),
                   TextField(
                     controller: codeController,
-                    decoration: const InputDecoration(labelText: 'Code (e.g., SAVE10)'),
+                    decoration: const InputDecoration(
+                      labelText: 'Code (e.g., SAVE10)',
+                    ),
                   ),
                   const SizedBox(height: AppTheme.spacingMd),
                   DropdownButtonFormField<String>(
                     value: discountType,
-                    decoration: const InputDecoration(labelText: 'Discount Type'),
+                    decoration: const InputDecoration(
+                      labelText: 'Discount Type',
+                    ),
                     items: const [
-                      DropdownMenuItem(value: 'PERCENT', child: Text('Percent')),
-                      DropdownMenuItem(value: 'FIXED', child: Text('Fixed Amount')),
+                      DropdownMenuItem(
+                        value: 'PERCENT',
+                        child: Text('Percent'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'FIXED',
+                        child: Text('Fixed Amount'),
+                      ),
                     ],
-                    onChanged: (v) => setState(() => discountType = v ?? 'PERCENT'),
+                    onChanged: (v) =>
+                        setState(() => discountType = v ?? 'PERCENT'),
                   ),
                   const SizedBox(height: AppTheme.spacingMd),
                   TextField(
                     controller: valueController,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
-                      labelText: discountType == 'PERCENT' ? 'Percent (1-100)' : 'Amount',
+                      labelText: discountType == 'PERCENT'
+                          ? 'Percent (1-100)'
+                          : 'Amount',
                     ),
                   ),
                   const SizedBox(height: AppTheme.spacingMd),
                   TextField(
                     controller: minController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Min eligible amount (optional)'),
+                    decoration: const InputDecoration(
+                      labelText: 'Min eligible amount (optional)',
+                    ),
                   ),
                   const SizedBox(height: AppTheme.spacingMd),
                   Row(
@@ -218,14 +233,20 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                         isLoading: vendor.isLoading,
                         onPressed: () async {
                           final code = codeController.text.trim();
-                          final value = double.tryParse(valueController.text.trim());
+                          final value = double.tryParse(
+                            valueController.text.trim(),
+                          );
                           final min = minController.text.trim().isEmpty
                               ? null
                               : double.tryParse(minController.text.trim());
 
                           if (code.isEmpty || value == null || value <= 0) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enter a valid code and discount.')),
+                              const SnackBar(
+                                content: Text(
+                                  'Please enter a valid code and discount.',
+                                ),
+                              ),
                             );
                             return;
                           }
@@ -251,7 +272,9 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(vendor.error ?? 'Failed to create coupon'),
+                                content: Text(
+                                  vendor.error ?? 'Failed to create coupon',
+                                ),
                                 backgroundColor: AppTheme.error,
                               ),
                             );
@@ -273,7 +296,9 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
     final valueLabel = c.discountType == 'PERCENT'
         ? '${c.discountValue.toStringAsFixed(0)}%'
         : '\$${c.discountValue.toStringAsFixed(2)}';
-    final minLabel = c.minOrderAmount == null ? null : 'Min: \$${c.minOrderAmount!.toStringAsFixed(2)}';
+    final minLabel = c.minOrderAmount == null
+        ? null
+        : 'Min: \$${c.minOrderAmount!.toStringAsFixed(2)}';
     final scopeLabelParts = <String>[
       valueLabel,
       if (minLabel != null) minLabel,
@@ -342,71 +367,78 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingMd),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Coupons',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => _showCreateCouponSheet(context),
-                  icon: const Icon(Icons.add),
-                  tooltip: 'Create Coupon',
-                ),
-              ],
-            ),
-            const SizedBox(height: AppTheme.spacingMd),
-            Expanded(
-              child: Consumer<VendorProvider>(
-                builder: (context, vendor, _) {
-                  if (vendor.isLoading && vendor.coupons.isEmpty) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: AppTheme.primary),
-                    );
-                  }
-
-                  if (vendor.error != null && vendor.coupons.isEmpty) {
-                    return Center(
-                      child: Text(
-                        vendor.error!,
-                        style: const TextStyle(color: AppTheme.textSecondary),
-                      ),
-                    );
-                  }
-
-                  if (vendor.coupons.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'No coupons yet',
-                        style: TextStyle(color: AppTheme.textSecondary),
-                      ),
-                    );
-                  }
-
-                  return RefreshIndicator(
-                    color: AppTheme.primary,
-                    onRefresh: () => vendor.loadCoupons(),
-                    child: ListView.builder(
-                      itemCount: vendor.coupons.length,
-                      itemBuilder: (context, index) =>
-                          _couponTile(vendor.coupons[index]),
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppTheme.spacingMd),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Coupons',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
                     ),
-                  );
-                },
+                  ),
+                  IconButton(
+                    onPressed: () => _showCreateCouponSheet(context),
+                    icon: const Icon(Icons.add),
+                    tooltip: 'Create Coupon',
+                  ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: AppTheme.spacingMd),
+              Expanded(
+                child: Consumer<VendorProvider>(
+                  builder: (context, vendor, _) {
+                    if (vendor.isLoading && vendor.coupons.isEmpty) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: AppTheme.primary,
+                        ),
+                      );
+                    }
+
+                    if (vendor.error != null && vendor.coupons.isEmpty) {
+                      return Center(
+                        child: Text(
+                          vendor.error!,
+                          style: const TextStyle(color: AppTheme.error),
+                        ),
+                      );
+                    }
+
+                    if (vendor.coupons.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No coupons yet',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 16,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return RefreshIndicator(
+                      color: AppTheme.primary,
+                      onRefresh: () => vendor.loadCoupons(),
+                      child: ListView.builder(
+                        itemCount: vendor.coupons.length,
+                        itemBuilder: (context, index) =>
+                            _couponTile(vendor.coupons[index]),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

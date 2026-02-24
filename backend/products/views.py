@@ -140,6 +140,30 @@ class VendorProductDetailView(generics.RetrieveUpdateDestroyAPIView):
         except AttributeError:
             return Product.objects.none()
 
+    def perform_update(self, serializer):
+        from vendors.models import AuditLog
+        product = self.get_object()
+        old_price = product.price
+        old_stock = product.stock_quantity
+        
+        updated_product = serializer.save()
+        
+        if old_price != updated_product.price:
+            AuditLog.objects.create(
+                vendor=updated_product.vendor,
+                user=self.request.user,
+                action='PRICE_UPDATE',
+                details=f"Product '{updated_product.name}' price changed from {old_price} to {updated_product.price}"
+            )
+            
+        if old_stock != updated_product.stock_quantity:
+            AuditLog.objects.create(
+                vendor=updated_product.vendor,
+                user=self.request.user,
+                action='STOCK_UPDATE',
+                details=f"Product '{updated_product.name}' stock changed from {old_stock} to {updated_product.stock_quantity}"
+            )
+
 # ═══════════════════════════════════════════════════════════════════
 # WISHLIST VIEWS (Customer Features)
 # ═══════════════════════════════════════════════════════════════════

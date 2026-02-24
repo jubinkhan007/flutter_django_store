@@ -1,22 +1,9 @@
 # ═══════════════════════════════════════════════════════════════════
 # VENDORS SERIALIZERS
 # ═══════════════════════════════════════════════════════════════════
-#
-# CONCEPT: What is a Serializer?
-# ──────────────────────────────
-# Remember from users/serializers.py — a serializer is a TRANSLATOR.
-# It converts between Python objects (Django models) ⟷ JSON (for the API).
-#
-# But serializers also do VALIDATION:
-#   - Is store_name provided? Is it unique?
-#   - Is the data in the correct format?
-# Think of a serializer as a SECURITY GUARD at the entrance of your database.
-# It checks every piece of data before letting it in.
-#
-# ═══════════════════════════════════════════════════════════════════
 
 from rest_framework import serializers
-from .models import Vendor
+from .models import Vendor, WalletTransaction, PayoutRequest, BulkJob
 
 
 class VendorSerializer(serializers.ModelSerializer):
@@ -29,11 +16,39 @@ class VendorSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Vendor
-        fields = ('id', 'store_name', 'description', 'balance', 'is_approved', 'created_at')
-        read_only_fields = ('id', 'balance', 'is_approved', 'created_at')
+        fields = (
+            'id', 'store_name', 'description', 'balance', 'is_approved', 
+            'cancellation_rate', 'late_shipment_rate', 'avg_handling_time_days',
+            'created_at'
+        )
+        read_only_fields = (
+            'id', 'balance', 'is_approved', 
+            'cancellation_rate', 'late_shipment_rate', 'avg_handling_time_days',
+            'created_at'
+        )
 
-    # ─── WHY NO create() override here? ─────────────────────────
-    # Unlike UserRegistrationSerializer, we DON'T override create().
-    # That's because the default ModelSerializer.create() works fine here.
-    # We'll handle linking the vendor to the user in the VIEW, not the serializer.
-    # Rule of thumb: Serializer = data validation. View = business logic.
+
+class WalletTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WalletTransaction
+        fields = ['id', 'amount', 'transaction_type', 'description', 'reference_id', 'created_at']
+        read_only_fields = fields
+
+
+class PayoutRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PayoutRequest
+        fields = ['id', 'amount', 'status', 'bank_details', 'admin_note', 'requested_at', 'processed_at']
+        read_only_fields = ['id', 'status', 'admin_note', 'requested_at', 'processed_at']
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Payout amount must be greater than zero.")
+        return value
+
+
+class BulkJobSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BulkJob
+        fields = ['id', 'job_type', 'status', 'file', 'result_report', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'status', 'result_report', 'created_at', 'updated_at']

@@ -1,33 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../providers/auth_provider.dart';
-import '../../../addresses/presentation/screens/address_management_screen.dart';
-import 'package:mobile/features/wishlist/presentation/screens/wishlist_screen.dart';
-import '../../../coupons/presentation/screens/coupon_center_screen.dart';
-import '../../../returns/presentation/screens/return_list_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+import '../../../../core/theme/app_theme.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../providers/vendor_provider.dart';
+import 'vendor_coupons_screen.dart';
+import 'vendor_returns_screen.dart';
+
+
+class VendorProfileScreen extends StatelessWidget {
+  const VendorProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Consumer<AuthProvider>(
-        builder: (context, auth, _) {
+      child: Consumer2<AuthProvider, VendorProvider>(
+        builder: (context, auth, vendor, _) {
           final user = auth.user;
-          if (user == null) {
-            return const Center(child: Text('Not logged in'));
-          }
+          final storeName = vendor.dashboard?['store_name'] ?? 'My Store';
 
           return Column(
             children: [
-              // ── Header ──
               Padding(
                 padding: const EdgeInsets.all(AppTheme.spacingMd),
                 child: Row(
-                  children: [
-                    const Text(
+                  children: const [
+                    Text(
                       'Profile',
                       style: TextStyle(
                         fontSize: 28,
@@ -38,12 +36,8 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // ── User Info ──
               Container(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacingMd,
-                ),
+                margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
                 padding: const EdgeInsets.all(AppTheme.spacingMd),
                 decoration: BoxDecoration(
                   color: AppTheme.surface,
@@ -55,9 +49,7 @@ class ProfileScreen extends StatelessWidget {
                       radius: 30,
                       backgroundColor: AppTheme.primary.withOpacity(0.2),
                       child: Text(
-                        user.username.isNotEmpty
-                            ? user.username[0].toUpperCase()
-                            : 'U',
+                        storeName.isNotEmpty ? storeName[0].toUpperCase() : 'V',
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -71,7 +63,7 @@ class ProfileScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            user.username,
+                            storeName,
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -80,7 +72,7 @@ class ProfileScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            user.email,
+                            user?.email ?? '',
                             style: const TextStyle(
                               fontSize: 14,
                               color: AppTheme.textSecondary,
@@ -88,17 +80,14 @@ class ProfileScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
                               color: AppTheme.surfaceLight,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Text(
-                              user.isVendor ? 'Vendor' : 'Customer',
-                              style: const TextStyle(
+                            child: const Text(
+                              'Vendor',
+                              style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: AppTheme.primary,
@@ -112,67 +101,40 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppTheme.spacingLg),
-
-              // ── Menu Options ──
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTheme.spacingMd,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
                   children: [
                     _MenuListItem(
-                      icon: Icons.favorite_border,
-                      title: 'Saved Items',
-                      subtitle: 'Your wishlisted products',
+                      icon: Icons.discount_outlined,
+                      title: 'Coupons',
+                      subtitle: 'Create and manage coupons',
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const WishlistScreen(),
-                          ),
+                          MaterialPageRoute(builder: (_) => const VendorCouponsScreen()),
                         );
                       },
                     ),
                     const Divider(color: AppTheme.surfaceLight),
                     _MenuListItem(
                       icon: Icons.assignment_return_outlined,
-                      title: 'Returns',
-                      subtitle: 'Track or start a return (RMA)',
+                      title: 'Returns (RMA)',
+                      subtitle: 'Approve, schedule pickup, refund',
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const ReturnListScreen(),
-                          ),
+                          MaterialPageRoute(builder: (_) => const VendorReturnsScreen()),
                         );
                       },
                     ),
                     const Divider(color: AppTheme.surfaceLight),
                     _MenuListItem(
-                      icon: Icons.local_offer_outlined,
-                      title: 'Coupons',
-                      subtitle: 'Apply coupons to your cart',
+                      icon: Icons.storefront_outlined,
+                      title: 'Switch to Shop',
+                      subtitle: 'Go to customer shopping view',
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CouponCenterScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(color: AppTheme.surfaceLight),
-                    _MenuListItem(
-                      icon: Icons.location_on_outlined,
-                      title: 'My Addresses',
-                      subtitle: 'Manage delivery addresses',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AddressManagementScreen(),
-                          ),
-                        );
+                        Navigator.pushReplacementNamed(context, '/home');
                       },
                     ),
                     const Divider(color: AppTheme.surfaceLight),
@@ -248,3 +210,4 @@ class _MenuListItem extends StatelessWidget {
     );
   }
 }
+

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/return_provider.dart';
 import 'return_detail_screen.dart';
+import 'return_select_order_screen.dart';
 
 
 class ReturnListScreen extends StatefulWidget {
@@ -26,6 +27,20 @@ class _ReturnListScreenState extends State<ReturnListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('My Returns')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final submitted = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (_) => const ReturnSelectOrderScreen()),
+          );
+          if (submitted == true && context.mounted) {
+            await context.read<ReturnProvider>().loadMyReturns();
+          }
+        },
+        backgroundColor: AppTheme.primary,
+        icon: const Icon(Icons.add),
+        label: const Text('Start return'),
+      ),
       body: Consumer<ReturnProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading && provider.myReturns.isEmpty) {
@@ -43,9 +58,13 @@ class _ReturnListScreenState extends State<ReturnListScreen> {
           }
           if (provider.myReturns.isEmpty) {
             return const Center(
-              child: Text(
-                'No return requests yet',
-                style: TextStyle(color: AppTheme.textSecondary),
+              child: Padding(
+                padding: EdgeInsets.all(AppTheme.spacingMd),
+                child: Text(
+                  'No return requests yet.\nTap "Start return" to create one.',
+                  style: TextStyle(color: AppTheme.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
               ),
             );
           }
@@ -119,4 +138,3 @@ class _ReturnListScreenState extends State<ReturnListScreen> {
     );
   }
 }
-

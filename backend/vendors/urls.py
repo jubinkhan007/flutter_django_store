@@ -22,7 +22,11 @@
 # ═══════════════════════════════════════════════════════════════════
 
 from django.urls import path, include
-from .views import VendorOnboardingView, VendorDashboardView, VendorStatsView, VendorCustomersView
+from .views import (
+    VendorOnboardingView, VendorDashboardView, VendorStatsView, VendorCustomersView,
+    WalletTransactionListView, PayoutRequestListCreateView, 
+    BulkJobListCreateView, BulkJobDetailView
+)
 from products.views import VendorProductListCreateView, VendorProductDetailView
 from orders.views import VendorOrderListView, VendorUpdateOrderStatusView, VendorOrderCancelView
 
@@ -36,6 +40,10 @@ urlpatterns = [
     path('orders/<int:pk>/cancel/', VendorOrderCancelView.as_view(), name='vendor-order-cancel'),
     path('stats/', VendorStatsView.as_view(), name='vendor-stats'),
     path('customers/', VendorCustomersView.as_view(), name='vendor-customers'),
+    path('ledger/', WalletTransactionListView.as_view(), name='vendor-ledger'),
+    path('payouts/', PayoutRequestListCreateView.as_view(), name='vendor-payouts'),
+    path('bulk-jobs/', BulkJobListCreateView.as_view(), name='vendor-bulk-jobs'),
+    path('bulk-jobs/<int:pk>/', BulkJobDetailView.as_view(), name='vendor-bulk-job-detail'),
     path('coupons/', include('coupons.vendor_urls')),
     path('returns/', include('returns.vendor_urls')),
 ]

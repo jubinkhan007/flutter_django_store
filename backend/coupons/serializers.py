@@ -14,6 +14,9 @@ class CouponValidateSerializer(serializers.Serializer):
     code = serializers.CharField()
     items = CouponValidateItemSerializer(many=True)
 
+class CouponAvailableSerializer(serializers.Serializer):
+    items = CouponValidateItemSerializer(many=True)
+
 
 class VendorCouponSerializer(serializers.ModelSerializer):
     product_ids = serializers.ListField(
@@ -99,3 +102,33 @@ class VendorCouponSerializer(serializers.ModelSerializer):
 
         return instance
 
+
+class PublicCouponSerializer(serializers.ModelSerializer):
+    vendor_name = serializers.CharField(source='vendor.store_name', read_only=True)
+    applicable_product_ids = serializers.PrimaryKeyRelatedField(
+        many=True,
+        read_only=True,
+        source='applicable_products',
+    )
+    applicable_category_ids = serializers.PrimaryKeyRelatedField(
+        many=True,
+        read_only=True,
+        source='applicable_categories',
+    )
+
+    class Meta:
+        model = Coupon
+        fields = [
+            'id',
+            'code',
+            'scope',
+            'vendor',
+            'vendor_name',
+            'discount_type',
+            'discount_value',
+            'min_order_amount',
+            'applicable_product_ids',
+            'applicable_category_ids',
+            'created_at',
+            'updated_at',
+        ]

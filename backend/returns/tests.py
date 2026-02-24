@@ -58,22 +58,29 @@ class ReturnsFlowTest(APITestCase):
             is_default=True,
         )
 
-        self.order = Order.objects.create(
-            customer=self.customer,
-            delivery_address=self.address,
-            subtotal_amount=Decimal("20.00"),
-            discount_amount=Decimal("0.00"),
-            total_amount=Decimal("20.00"),
-            status=Order.Status.DELIVERED,
-            delivered_at=timezone.now(),
+        # Create an order via the real API to ensure SubOrder/OrderItem snapshots exist.
+        self.client.force_authenticate(user=self.customer)
+        resp = self.client.post(
+            "/api/orders/place/",
+            data={
+                "items": [{"product": self.product.id, "quantity": 2}],
+                "address_id": self.address.id,
+                "payment_method": "COD",
+            },
+            format="json",
         )
-        self.order_item = OrderItem.objects.create(
-            order=self.order,
-            product=self.product,
-            vendor=self.vendor,
-            quantity=2,
-            price=Decimal("10.00"),
+        assert resp.status_code == 201, resp.data
+        self.order = Order.objects.get(id=resp.data["id"])
+        self.order.status = Order.Status.DELIVERED
+        self.order.delivered_at = timezone.now()
+        self.order.save(update_fields=["status", "delivered_at"])
+
+        self.order_item = (
+            OrderItem.objects.select_related("product", "sub_order", "sub_order__vendor", "product__category")
+            .filter(sub_order__order=self.order)
+            .first()
         )
+        assert self.order_item is not None
 
         ReturnPolicy.objects.create(
             name="Default sealed policy",

@@ -49,6 +49,10 @@ import 'features/wishlist/presentation/providers/wishlist_provider.dart';
 import 'features/returns/data/repositories/return_repository.dart';
 import 'features/returns/presentation/providers/return_provider.dart';
 
+// Coupons (Customer)
+import 'features/coupons/data/repositories/coupon_repository.dart';
+import 'features/coupons/presentation/providers/coupon_provider.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -70,6 +74,7 @@ void main() {
   final reviewRepository = ReviewRepository(apiClient: apiClient);
   final wishlistRepository = WishlistRepository(apiClient: apiClient);
   final returnRepository = ReturnRepository(apiClient: apiClient);
+  final couponRepository = CouponRepository(apiClient: apiClient);
 
   runApp(
     MyApp(
@@ -81,6 +86,7 @@ void main() {
       reviewRepository: reviewRepository,
       wishlistRepository: wishlistRepository,
       returnRepository: returnRepository,
+      couponRepository: couponRepository,
     ),
   );
 }
@@ -94,6 +100,7 @@ class MyApp extends StatelessWidget {
   final ReviewRepository reviewRepository;
   final WishlistRepository wishlistRepository;
   final ReturnRepository returnRepository;
+  final CouponRepository couponRepository;
 
   const MyApp({
     super.key,
@@ -105,6 +112,7 @@ class MyApp extends StatelessWidget {
     required this.reviewRepository,
     required this.wishlistRepository,
     required this.returnRepository,
+    required this.couponRepository,
   });
 
   @override
@@ -117,7 +125,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => ProductProvider(productRepository: productRepository),
         ),
-        ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(
+          create: (_) => CartProvider(),
+        ),
         ChangeNotifierProvider(
           create: (_) => OrderProvider(orderRepository: orderRepository),
         ),
@@ -137,6 +147,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => ReturnProvider(repository: returnRepository),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => CouponProvider(repository: couponRepository),
         ),
       ],
       child: MaterialApp(

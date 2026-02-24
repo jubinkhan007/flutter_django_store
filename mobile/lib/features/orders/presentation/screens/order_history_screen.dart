@@ -4,8 +4,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/order_model.dart';
 import '../providers/order_provider.dart';
-import '../../../returns/presentation/screens/return_create_screen.dart';
-import '../../../returns/presentation/screens/return_list_screen.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -150,7 +148,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
           Padding(
             padding: const EdgeInsets.all(AppTheme.spacingMd),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 const Text(
                   'My Orders',
@@ -159,16 +157,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textPrimary,
                   ),
-                ),
-                IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ReturnListScreen()),
-                    );
-                  },
-                  icon: const Icon(Icons.assignment_return_outlined),
-                  tooltip: 'My Returns',
                 ),
               ],
             ),
@@ -363,38 +351,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                         ),
                                       ),
                                   ],
-                                ),
-                              ),
-                            if (order.status == 'DELIVERED')
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  14,
-                                  0,
-                                  14,
-                                  8,
-                                ),
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () async {
-                                      final submitted = await Navigator.push<bool>(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => ReturnCreateScreen(order: order),
-                                        ),
-                                      );
-                                      if (submitted == true && context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Return request submitted'),
-                                            backgroundColor: AppTheme.success,
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    icon: const Icon(Icons.assignment_return_outlined, size: 16),
-                                    label: const Text('Return / Replace'),
-                                  ),
                                 ),
                               ),
                             const SizedBox(height: 8),

@@ -1,91 +1,33 @@
 # ═══════════════════════════════════════════════════════════════════
 # VENDORS VIEWS
 # ═══════════════════════════════════════════════════════════════════
-#
-# CONCEPT: What are Views?
-# ────────────────────────
-# Views are the HEART of your API. Each view answers one question:
-#   "What happens when someone sends a request to this URL?"
-#
-# DRF (Django Rest Framework) gives us pre-built view classes:
-#   - CreateAPIView   → handles POST (creating new things)
-#   - RetrieveAPIView → handles GET (viewing one thing)
-#   - ListAPIView     → handles GET (viewing a list of things)
-#   - UpdateAPIView   → handles PUT/PATCH (editing things)
-#   - DestroyAPIView  → handles DELETE (removing things)
-#
-# You can also COMBINE them. For example:
-#   - RetrieveUpdateAPIView → handles both GET and PUT/PATCH
-#
-# NEW CONCEPT: permissions.IsAuthenticated
-# ─────────────────────────────────────────
-# Unlike registration (which used AllowAny), these vendor endpoints
-# REQUIRE a valid JWT token. Only logged-in users can become vendors
-# or view their dashboard. DRF checks the token automatically for us.
-#
-# ═══════════════════════════════════════════════════════════════════
 
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from django.db.models import Sum, Count, Q
-from .models import Vendor
-from .serializers import VendorSerializer
+from .models import Vendor, WalletTransaction, PayoutRequest, BulkJob
+from .serializers import VendorSerializer, WalletTransactionSerializer, PayoutRequestSerializer, BulkJobSerializer
+from rest_framework.parsers import MultiPartParser, FormParser
+from .services import process_bulk_job_async
 
 
 class VendorOnboardingView(generics.CreateAPIView):
-    """
-    WHAT: POST /api/vendors/onboarding/
-    WHO:  Any logged-in user who wants to become a vendor
-    WHY:  A user needs to create a "store" to start selling products
-
-    FLOW:
-    1. User sends: {"store_name": "My Shop", "description": "We sell cool stuff"}
-    2. We check: Does this user already have a vendor profile?
-       - YES → Return error "You already have a store"
-       - NO  → Create the vendor profile and link it to the user
-    3. Return the created vendor profile as JSON
-    """
     serializer_class = VendorSerializer
-    permission_classes = [IsAuthenticated]  # Must be logged in (JWT token required)
+    permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
-        # ─── Step 1: Check if user already has a vendor profile ───
-        # hasattr() checks if the user object has a 'vendor_profile' attribute.
-        # Remember in models.py we defined:
-        #   user = OneToOneField(..., related_name='vendor_profile')
-        # That 'related_name' lets us access the Vendor FROM the User like this:
-        #   user.vendor_profile → returns the Vendor object (or raises an error if none)
         if hasattr(request.user, 'vendor_profile'):
             return Response(
                 {"error": "You already have a vendor profile."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # ─── Step 2: Validate the incoming data ──────────────────
-        # Pass the JSON data from the request body to our serializer
         serializer = self.get_serializer(data=request.data)
-
-        # is_valid() runs all the validation rules:
-        #   - Is store_name provided? Is it unique?
-        #   - raise_exception=True means: if validation fails,
-        #     automatically return a 400 error with details. We don't
-        #     need to write error handling ourselves!
         serializer.is_valid(raise_exception=True)
-
-        # ─── Step 3: Save to database ────────────────────────────
-        # serializer.save() calls the serializer's create() method.
-        # We pass user=request.user to LINK this vendor to the logged-in user.
-        #
-        # HOW THIS WORKS:
-        # save(user=request.user) adds 'user' to the validated_data dict,
-        # then create() does: Vendor.objects.create(**validated_data)
-        # So it becomes: Vendor.objects.create(store_name="...", description="...", user=<current_user>)
         serializer.save(user=request.user)
 
-        # ─── Step 4: Update user type to VENDOR ──────────────────
-        # When someone creates a store, they transition from CUSTOMER to VENDOR.
         request.user.type = 'VENDOR'
         request.user.save()
 
@@ -93,29 +35,10 @@ class VendorOnboardingView(generics.CreateAPIView):
 
 
 class VendorDashboardView(generics.RetrieveUpdateAPIView):
-    """
-    WHAT: GET/PUT /api/vendors/me/
-    WHO:  Only the vendor themselves
-    WHY:  A vendor needs to see and edit their store details
-
-    GET  → Returns: {"id": 1, "store_name": "My Shop", "description": "...", ...}
-    PUT  → Accepts: {"store_name": "New Name", "description": "Updated desc"}
-           Returns: the updated vendor profile
-
-    NEW CONCEPT: get_object()
-    ─────────────────────────
-    Normally, RetrieveAPIView needs a URL like /api/vendors/5/ (with an ID).
-    But for "my dashboard", the user shouldn't need to know their vendor ID.
-    So we override get_object() to say: "don't look at the URL, just return
-    the vendor profile for the currently logged-in user."
-    """
     serializer_class = VendorSerializer
     permission_classes = [IsAuthenticated]
 
     def get_object(self):
-        # request.user = the logged-in user (decoded from the JWT token)
-        # .vendor_profile = the related Vendor object (from our OneToOneField)
-        # If the user is NOT a vendor, this will raise a 404 automatically.
         return self.request.user.vendor_profile
 
 
@@ -135,26 +58,28 @@ class VendorStatsView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        from orders.models import OrderItem, Order
+        from orders.models import SubOrder, OrderItem
 
         total_products = vendor.products.count()
-        vendor_order_ids = OrderItem.objects.filter(vendor=vendor).values_list('order_id', flat=True).distinct()
-        total_orders = vendor_order_ids.count()
-        pending_orders = Order.objects.filter(id__in=vendor_order_ids, status='PENDING').count()
+        total_suborders = SubOrder.objects.filter(vendor=vendor).count()
+        pending_suborders = SubOrder.objects.filter(vendor=vendor, status='PENDING').count()
 
         from django.db.models import F, Sum, DecimalField, ExpressionWrapper
-        # Revenue = sum of (price * quantity) for all this vendor's order items
-        revenue_expr = ExpressionWrapper(F('price') * F('quantity'), output_field=DecimalField())
-        revenue = OrderItem.objects.filter(vendor=vendor).aggregate(
+        # Revenue = sum of (unit_price * quantity) for all this vendor's order items
+        revenue_expr = ExpressionWrapper(F('unit_price') * F('quantity'), output_field=DecimalField())
+        revenue = OrderItem.objects.filter(sub_order__vendor=vendor).aggregate(
             total=Sum(revenue_expr)
         )['total'] or 0
 
         return Response({
             'total_products': total_products,
-            'total_orders': total_orders,
-            'pending_orders': pending_orders,
+            'total_orders': total_suborders,
+            'pending_orders': pending_suborders,
             'total_revenue': float(revenue),
             'wallet_balance': float(vendor.balance),
+            'cancellation_rate': float(vendor.cancellation_rate),
+            'late_shipment_rate': float(vendor.late_shipment_rate),
+            'avg_handling_time_days': float(vendor.avg_handling_time_days),
         })
 
 
@@ -175,35 +100,119 @@ class VendorCustomersView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        from orders.models import OrderItem, Order
+        from orders.models import OrderItem
         from django.db.models import F, Sum, Count, DecimalField, ExpressionWrapper
 
         # Find all completed or shipped orders for this vendor
-        vendor_order_items = OrderItem.objects.filter(vendor=vendor)
-        # We need the customer form the order
-        # We can annotate the total spend
+        vendor_order_items = OrderItem.objects.filter(sub_order__vendor=vendor)
         
-        spend_expr = ExpressionWrapper(F('price') * F('quantity'), output_field=DecimalField())
+        spend_expr = ExpressionWrapper(F('unit_price') * F('quantity'), output_field=DecimalField())
 
         customers = vendor_order_items.values(
-            'order__customer__id',
-            'order__customer__username',
-            'order__customer__email'
+            'sub_order__order__customer__id',
+            'sub_order__order__customer__username',
+            'sub_order__order__customer__email'
         ).annotate(
-            total_orders=Count('order__id', distinct=True),
+            total_orders=Count('sub_order__order__id', distinct=True),
             total_spend=Sum(spend_expr)
         ).order_by('-total_spend')
 
         # Format the response
         result = [
             {
-                'id': c['order__customer__id'],
-                'username': c['order__customer__username'],
-                'email': c['order__customer__email'],
+                'id': c['sub_order__order__customer__id'],
+                'username': c['sub_order__order__customer__username'],
+                'email': c['sub_order__order__customer__email'],
                 'total_orders': c['total_orders'],
-                'total_spend': float(c['total_spend']),
+                'total_spend': float(c['total_spend']) if c['total_spend'] else 0.0,
             }
             for c in customers
         ]
 
         return Response(result)
+
+# ═══════════════════════════════════════════════════════════════════
+# LEDGER AND PAYOUTS
+# ═══════════════════════════════════════════════════════════════════
+
+class WalletTransactionListView(generics.ListAPIView):
+    serializer_class = WalletTransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        try:
+            vendor = self.request.user.vendor_profile
+            return WalletTransaction.objects.filter(vendor=vendor).order_by('-created_at')
+        except AttributeError:
+            return WalletTransaction.objects.none()
+
+class PayoutRequestListCreateView(generics.ListCreateAPIView):
+    serializer_class = PayoutRequestSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        try:
+            vendor = self.request.user.vendor_profile
+            return PayoutRequest.objects.filter(vendor=vendor).order_by('-requested_at')
+        except AttributeError:
+            return PayoutRequest.objects.none()
+
+    def perform_create(self, serializer):
+        vendor = self.request.user.vendor_profile
+        amount = serializer.validated_data['amount']
+        
+        if vendor.balance < amount:
+            raise serializers.ValidationError("Insufficient wallet balance for this payout.")
+            
+        with transaction.atomic():
+            # Create payout request
+            payout = serializer.save(vendor=vendor)
+            
+            # Deduct from vendor balance
+            vendor.balance -= amount
+            vendor.save()
+            
+            # Log deduction in ledger
+            WalletTransaction.objects.create(
+                vendor=vendor,
+                amount=amount,
+                transaction_type=WalletTransaction.TransactionType.DEBIT,
+                description=f"Requested Payout of {amount}",
+                reference_id=f"PAYOUT_{payout.id}"
+            )
+
+# ═══════════════════════════════════════════════════════════════════
+# BULK OPERATIONS
+# ═══════════════════════════════════════════════════════════════════
+from django.db import transaction
+
+class BulkJobListCreateView(generics.ListCreateAPIView):
+    serializer_class = BulkJobSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_queryset(self):
+        try:
+            vendor = self.request.user.vendor_profile
+            return BulkJob.objects.filter(vendor=vendor).order_by('-created_at')
+        except AttributeError:
+            return BulkJob.objects.none()
+
+    def perform_create(self, serializer):
+        vendor = self.request.user.vendor_profile
+        job = serializer.save(vendor=vendor)
+        # Trigger async processing
+        process_bulk_job_async(job.id)
+
+class BulkJobDetailView(generics.RetrieveAPIView):
+    serializer_class = BulkJobSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        try:
+            vendor = self.request.user.vendor_profile
+            return BulkJob.objects.filter(vendor=vendor)
+        except AttributeError:
+            return BulkJob.objects.none()
+
+

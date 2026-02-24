@@ -1,9 +1,9 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from django.db import transaction
-from .models import Order, OrderItem
+from .models import Order, SubOrder, OrderItem
 from .serializers import OrderSerializer, OrderCreateSerializer
-from products.models import Product
+from products.models import Product, ProductVariant
 from vendors.models import WalletTransaction
 from coupons.models import Coupon
 from coupons.services import compute_coupon_discount
@@ -21,24 +21,6 @@ from decimal import Decimal
 class CustomerPlaceOrderView(generics.CreateAPIView):
     """
     POST /api/orders/
-
-    A customer sends a list of products and quantities to place an order.
-
-    Request body:
-    {
-        "items": [
-            {"product": 1, "quantity": 2},
-            {"product": 5, "quantity": 1}
-        ]
-    }
-
-    The backend will:
-    1. Look up each product's price and vendor
-    2. Check stock availability
-    3. Calculate the total
-    4. Create the Order + OrderItems
-    5. Decrease stock quantities
-    6. Return the created order details
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -62,8 +44,9 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
             )
 
         # ── Step 2: Validate all products and stock ──
-        order_items = []
+        order_items_payload = []
         subtotal = Decimal('0.00')
+        vendors_set = set()
 
         for item in items_data:
             try:
@@ -74,20 +57,52 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            if product.stock_quantity < item['quantity']:
-                return Response(
-                    {"error": f"Not enough stock for '{product.name}'. Available: {product.stock_quantity}"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            variant = None
+            if 'variant' in item and item['variant']:
+                try:
+                    variant = ProductVariant.objects.get(id=item['variant'], product=product)
+                except ProductVariant.DoesNotExist:
+                    return Response(
+                        {"error": f"Variant not found for product '{product.name}'."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Check variant stock
+                if variant.available_stock < item['quantity']:
+                    return Response(
+                        {"error": f"Not enough stock for variant. Available: {variant.available_stock}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                unit_price = variant.effective_price
+                sku = variant.sku
+                variant_name = ", ".join([v.value for v in variant.option_values.all()])
+                
+            else:
+                # Fallback to product stock if no variant system is used for this item
+                if product.stock_quantity < item['quantity']:
+                    return Response(
+                        {"error": f"Not enough stock for '{product.name}'. Available: {product.stock_quantity}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                unit_price = product.price
+                sku = ""
+                variant_name = ""
 
-            line_total = product.price * item['quantity']
+            line_total = unit_price * item['quantity']
             subtotal += line_total
+            vendors_set.add(product.vendor)
 
-            order_items.append({
+            order_items_payload.append({
                 'product': product,
+                'variant': variant,
                 'vendor': product.vendor,
                 'quantity': item['quantity'],
-                'price': product.price,  # Snapshot
+                'unit_price': unit_price,
+                'product_title': product.name,
+                'variant_name': variant_name,
+                'sku': sku,
+                'image_url': product.image.url if product.image else '',
                 'line_total': line_total,
             })
 
@@ -96,19 +111,24 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
         if coupon_code:
             try:
                 coupon = Coupon.objects.get(code=coupon_code, is_active=True)
+                # Note: You'll need to adapt `compute_coupon_discount` if it relies on old OrderItem dict
+                # It currently expects a dict with 'product', 'vendor', 'price', etc.
+                # For compatibility we inject 'price' = 'unit_price' temporarily.
+                for oi in order_items_payload:
+                    oi['price'] = oi['unit_price']
+                
+                coupon_result = compute_coupon_discount(coupon=coupon, order_items=order_items_payload)
+                if not coupon_result['ok']:
+                    return Response({"error": coupon_result['error']}, status=status.HTTP_400_BAD_REQUEST)
+                discount_amount = coupon_result['discount']
             except Coupon.DoesNotExist:
                 return Response({"error": "Invalid coupon code."}, status=status.HTTP_400_BAD_REQUEST)
-
-            coupon_result = compute_coupon_discount(coupon=coupon, order_items=order_items)
-            if not coupon_result['ok']:
-                return Response({"error": coupon_result['error']}, status=status.HTTP_400_BAD_REQUEST)
-            discount_amount = coupon_result['discount']
 
         total = (subtotal - discount_amount).quantize(Decimal('0.01'))
         if total < 0:
             total = Decimal('0.00')
 
-        # ── Step 3: Create order + items in a single transaction ──
+        # ── Step 3: Create order + suborders + items in a single transaction ──
         with transaction.atomic():
             order = Order.objects.create(
                 customer=request.user,
@@ -120,14 +140,40 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
                 payment_method=payment_method,
             )
 
-            for item_data in order_items:
-                item_data.pop('line_total', None)
-                OrderItem.objects.create(order=order, **item_data)
+            # Create SubOrders
+            sub_orders = {}
+            for vendor in vendors_set:
+                sub_orders[vendor.id] = SubOrder.objects.create(
+                    order=order,
+                    vendor=vendor
+                )
 
+            for item_data in order_items_payload:
+                vendor_id = item_data['vendor'].id
+                sub_order = sub_orders[vendor_id]
+                
                 # Decrease stock
+                variant = item_data['variant']
                 product = item_data['product']
-                product.stock_quantity -= item_data['quantity']
-                product.save()
+                
+                if variant:
+                    variant.stock_on_hand -= item_data['quantity']
+                    variant.save()
+                else:
+                    product.stock_quantity -= item_data['quantity']
+                    product.save()
+
+                OrderItem.objects.create(
+                    sub_order=sub_order,
+                    product=item_data['product'],
+                    variant=item_data['variant'],
+                    quantity=item_data['quantity'],
+                    product_title=item_data['product_title'],
+                    variant_name=item_data['variant_name'],
+                    sku=item_data['sku'],
+                    unit_price=item_data['unit_price'],
+                    image_url=item_data['image_url']
+                )
 
         # ── Step 4: Return the created order ──
         result = OrderSerializer(order).data
@@ -137,8 +183,6 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
 class CustomerOrderListView(generics.ListAPIView):
     """
     GET /api/orders/
-
-    Returns all orders placed by the currently logged-in customer.
     """
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -150,8 +194,6 @@ class CustomerOrderListView(generics.ListAPIView):
 class CustomerOrderDetailView(generics.RetrieveAPIView):
     """
     GET /api/orders/<id>/
-
-    Returns the detail of a specific order (only if owned by the customer).
     """
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -178,6 +220,10 @@ class CustomerOrderCancelView(generics.GenericAPIView):
 
         order.status = Order.Status.CANCELED
         order.save()
+        
+        # Also cancel suborders
+        order.sub_orders.update(status=Order.Status.CANCELED, canceled_at=timezone.now())
+        
         return Response({"message": "Order cancelled successfully.", "order": OrderSerializer(order).data})
 
 
@@ -188,43 +234,38 @@ class CustomerOrderCancelView(generics.GenericAPIView):
 class VendorOrderListView(generics.ListAPIView):
     """
     GET /api/vendors/orders/
-
-    Returns all orders that contain products from the logged-in vendor.
-    Vendors need this to know what to ship.
+    Returns suborders for the logged-in vendor.
     """
-    serializer_class = OrderSerializer
+    from orders.serializers import SubOrderSerializer
+    serializer_class = SubOrderSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         try:
             vendor = self.request.user.vendor_profile
-            # Get all orders that have at least one item from this vendor
-            order_ids = OrderItem.objects.filter(vendor=vendor).values_list('order_id', flat=True)
-            return Order.objects.filter(id__in=order_ids).order_by('-created_at')
+            return SubOrder.objects.filter(vendor=vendor).order_by('-created_at')
         except AttributeError:
-            return Order.objects.none()
+            return SubOrder.objects.none()
 
 
 class VendorUpdateOrderStatusView(generics.UpdateAPIView):
     """
     PATCH /api/vendors/orders/<id>/
-
-    Allows a vendor to update the status of an order (e.g., PENDING → SHIPPED).
-    Only works if the vendor has items in that order.
+    Allows a vendor to update the status of their SubOrder.
     """
-    serializer_class = OrderSerializer
+    from orders.serializers import SubOrderSerializer
+    serializer_class = SubOrderSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         try:
             vendor = self.request.user.vendor_profile
-            order_ids = OrderItem.objects.filter(vendor=vendor).values_list('order_id', flat=True)
-            return Order.objects.filter(id__in=order_ids)
+            return SubOrder.objects.filter(vendor=vendor)
         except AttributeError:
-            return Order.objects.none()
+            return SubOrder.objects.none()
 
     def partial_update(self, request, *args, **kwargs):
-        order = self.get_object()
+        sub_order = self.get_object()
         new_status = request.data.get('status')
 
         valid_statuses = [s[0] for s in Order.Status.choices]
@@ -234,14 +275,15 @@ class VendorUpdateOrderStatusView(generics.UpdateAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if new_status == Order.Status.DELIVERED and order.status != Order.Status.DELIVERED:
-            order.delivered_at = timezone.now()
+        if new_status == Order.Status.DELIVERED and sub_order.status != Order.Status.DELIVERED:
+            sub_order.delivered_at = timezone.now()
+            # Mark payouts logic...
+            order = sub_order.order
             if order.payment_status == Order.PaymentStatus.PAID:
                 with transaction.atomic():
-                    for item in order.items.all():
-                        # 10% commission deduction -> Vendor gets 90%
-                        earnings = (item.price * item.quantity) * Decimal('0.90')
-                        vendor = item.vendor
+                    for item in sub_order.items.all():
+                        earnings = (item.unit_price * item.quantity) * Decimal('0.90')
+                        vendor = sub_order.vendor
                         vendor.balance += earnings
                         vendor.save()
                         
@@ -249,50 +291,64 @@ class VendorUpdateOrderStatusView(generics.UpdateAPIView):
                             vendor=vendor,
                             amount=earnings,
                             transaction_type=WalletTransaction.TransactionType.CREDIT,
-                            description=f"Earnings from Order #{order.id} for {item.quantity}x {item.product.name}"
+                            description=f"Earnings from SubOrder #{sub_order.id} for {item.quantity}x {item.product_title}"
                         )
 
-        order.status = new_status
-        order.save()
-        return Response(OrderSerializer(order).data)
+        # Update SLA timers
+        now = timezone.now()
+        if new_status == Order.Status.PAID and not sub_order.accepted_at:
+            sub_order.accepted_at = now
+        elif new_status == Order.Status.SHIPPED and not sub_order.shipped_at:
+            sub_order.shipped_at = now
+
+        sub_order.status = new_status
+        sub_order.save()
+        
+        # Optionally, check if all suborders are delivered, update main Order status
+        order = sub_order.order
+        if not order.sub_orders.exclude(status=Order.Status.DELIVERED).exists():
+            order.status = Order.Status.DELIVERED
+            order.delivered_at = now
+            order.save()
+            
+        return Response(self.get_serializer(sub_order).data)
 
 class VendorOrderCancelView(generics.GenericAPIView):
     """
     POST /api/vendors/orders/<id>/cancel/
-    Allows vendor to cancel and refund an order.
+    Allows vendor to cancel their SubOrder.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         try:
             vendor = self.request.user.vendor_profile
-            order_ids = OrderItem.objects.filter(vendor=vendor).values_list('order_id', flat=True)
-            return Order.objects.filter(id__in=order_ids)
+            return SubOrder.objects.filter(vendor=vendor)
         except AttributeError:
-            return Order.objects.none()
+            return SubOrder.objects.none()
 
     def post(self, request, pk, *args, **kwargs):
         queryset = self.get_queryset()
         try:
-            order = queryset.get(id=pk)
-        except Order.DoesNotExist:
-            return Response({"error": "Order not found or not mapped to you."}, status=status.HTTP_404_NOT_FOUND)
+            sub_order = queryset.get(id=pk)
+        except SubOrder.DoesNotExist:
+            return Response({"error": "SubOrder not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if order.status in [Order.Status.CANCELED, Order.Status.DELIVERED]:
+        if sub_order.status in [Order.Status.CANCELED, Order.Status.DELIVERED]:
             return Response({"error": "Cannot cancel this order."}, status=status.HTTP_400_BAD_REQUEST)
 
-        process_refund_if_paid(order)
-
-        order.status = Order.Status.CANCELED
-        order.save()
-        return Response({"message": "Order cancelled & refunded successfully.", "order": OrderSerializer(order).data})
+        # We probably shouldn't refund full order unless all suborders are canceled. 
+        # But for MVP, let's just mark suborder canceled.
+        sub_order.status = Order.Status.CANCELED
+        sub_order.canceled_at = timezone.now()
+        sub_order.save()
+        
+        from orders.serializers import SubOrderSerializer
+        return Response({"message": "SubOrder cancelled.", "sub_order": SubOrderSerializer(sub_order).data})
 
 
 def process_refund_if_paid(order):
     if order.payment_status == Order.PaymentStatus.PAID and order.val_id:
-        # In a real app we'd call the SSLCOMMERZ refund API using the val_id or bank_tran_id
-        # SSLCOMMERZ refund API: https://sandbox.sslcommerz.com/validator/api/merchantTransIDvalidationAPI.php
-        # For our purposes, we just mark it as refunded.
         order.payment_status = Order.PaymentStatus.REFUNDED
         order.save()
 
