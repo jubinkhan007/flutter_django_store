@@ -2,6 +2,9 @@ import '../../../addresses/data/models/address_model.dart';
 
 class OrderModel {
   final int id;
+  final int? couponId;
+  final double subtotalAmount;
+  final double discountAmount;
   final double totalAmount;
   final String status;
   final String paymentStatus;
@@ -14,6 +17,9 @@ class OrderModel {
 
   const OrderModel({
     required this.id,
+    this.couponId,
+    required this.subtotalAmount,
+    required this.discountAmount,
     required this.totalAmount,
     required this.status,
     required this.paymentStatus,
@@ -28,6 +34,11 @@ class OrderModel {
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     return OrderModel(
       id: json['id'],
+      couponId: json['coupon'],
+      subtotalAmount:
+          double.tryParse(json['subtotal_amount']?.toString() ?? '') ?? 0.0,
+      discountAmount:
+          double.tryParse(json['discount_amount']?.toString() ?? '') ?? 0.0,
       totalAmount: double.tryParse(json['total_amount'].toString()) ?? 0.0,
       status: json['status'] ?? 'PENDING',
       paymentStatus: json['payment_status'] ?? 'UNPAID',

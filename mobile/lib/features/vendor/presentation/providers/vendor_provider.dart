@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../../../products/data/models/product_model.dart';
 import '../../../orders/data/models/order_model.dart';
 import '../../data/models/vendor_customer_model.dart';
+import '../../data/models/vendor_coupon_model.dart';
 import '../../data/repositories/vendor_repository.dart';
 
 class VendorProvider extends ChangeNotifier {
@@ -22,6 +23,7 @@ class VendorProvider extends ChangeNotifier {
   List<ProductModel> _products = [];
   List<OrderModel> _orders = [];
   List<VendorCustomerModel> _customers = [];
+  List<VendorCouponModel> _coupons = [];
   bool _isLoading = false;
   String? _error;
   Map<String, dynamic>? _dashboard;
@@ -29,6 +31,7 @@ class VendorProvider extends ChangeNotifier {
   List<ProductModel> get products => _products;
   List<OrderModel> get orders => _orders;
   List<VendorCustomerModel> get customers => _customers;
+  List<VendorCouponModel> get coupons => _coupons;
   bool get isLoading => _isLoading;
   String? get error => _error;
   Map<String, dynamic>? get dashboard => _dashboard;
@@ -161,6 +164,9 @@ class VendorProvider extends ChangeNotifier {
         final existing = _orders[index];
         _orders[index] = OrderModel(
           id: existing.id,
+          couponId: existing.couponId,
+          subtotalAmount: existing.subtotalAmount,
+          discountAmount: existing.discountAmount,
           totalAmount: existing.totalAmount,
           status: newStatus,
           paymentStatus: existing.paymentStatus,
@@ -232,6 +238,55 @@ class VendorProvider extends ChangeNotifier {
       _error = e.toString().replaceAll('Exception: ', '');
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> loadCoupons() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _coupons = await _vendorRepository.getCoupons();
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> createCoupon({
+    required String code,
+    required String discountType,
+    required double discountValue,
+    double? minOrderAmount,
+    List<int> productIds = const [],
+    List<int> categoryIds = const [],
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final coupon = await _vendorRepository.createCoupon(
+        code: code,
+        discountType: discountType,
+        discountValue: discountValue,
+        minOrderAmount: minOrderAmount,
+        productIds: productIds,
+        categoryIds: categoryIds,
+      );
+      _coupons = [coupon, ..._coupons];
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 }

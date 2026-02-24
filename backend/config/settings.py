@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'reviews',
     'products',
     'orders',
+    'coupons',
 ]
 
 AUTH_USER_MODEL = 'users.User'

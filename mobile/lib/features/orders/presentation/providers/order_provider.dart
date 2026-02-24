@@ -16,10 +16,32 @@ class OrderProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  Future<Map<String, dynamic>?> validateCoupon(
+    String code,
+    List<Map<String, dynamic>> items,
+  ) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final result = await _orderRepository.validateCoupon(code, items);
+      _isLoading = false;
+      notifyListeners();
+      return result;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    }
+  }
+
   Future<OrderModel?> placeOrder(
     List<Map<String, dynamic>> items,
     int addressId, {
     String paymentMethod = 'ONLINE',
+    String? couponCode,
   }) async {
     _isLoading = true;
     _error = null;
@@ -30,6 +52,7 @@ class OrderProvider extends ChangeNotifier {
         items,
         addressId,
         paymentMethod: paymentMethod,
+        couponCode: couponCode,
       );
       _isLoading = false;
       notifyListeners();
@@ -73,6 +96,9 @@ class OrderProvider extends ChangeNotifier {
         final existing = _orders[index];
         _orders[index] = OrderModel(
           id: existing.id,
+          couponId: existing.couponId,
+          subtotalAmount: existing.subtotalAmount,
+          discountAmount: existing.discountAmount,
           totalAmount: existing.totalAmount,
           status: 'CANCELED',
           paymentStatus:

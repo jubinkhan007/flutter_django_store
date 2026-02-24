@@ -5,6 +5,7 @@ import '../../../../core/network/api_client.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../orders/data/models/order_model.dart';
 import '../../data/models/vendor_customer_model.dart';
+import '../../data/models/vendor_coupon_model.dart';
 
 class VendorRepository {
   final ApiClient _apiClient;
@@ -151,6 +152,44 @@ class VendorRepository {
       return data.map((json) => VendorCustomerModel.fromJson(json)).toList();
     } else {
       throw Exception('Failed to load customers');
+    }
+  }
+
+  Future<List<VendorCouponModel>> getCoupons() async {
+    final response = await _apiClient.get(ApiConfig.vendorCouponsUrl);
+
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data.map((json) => VendorCouponModel.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load coupons');
+    }
+  }
+
+  Future<VendorCouponModel> createCoupon({
+    required String code,
+    required String discountType,
+    required double discountValue,
+    double? minOrderAmount,
+    List<int> productIds = const [],
+    List<int> categoryIds = const [],
+  }) async {
+    final body = <String, dynamic>{
+      'code': code,
+      'discount_type': discountType,
+      'discount_value': discountValue,
+      if (minOrderAmount != null) 'min_order_amount': minOrderAmount,
+      if (productIds.isNotEmpty) 'product_ids': productIds,
+      if (categoryIds.isNotEmpty) 'category_ids': categoryIds,
+    };
+
+    final response = await _apiClient.post(ApiConfig.vendorCouponsUrl, body: body);
+
+    if (response.statusCode == 201) {
+      return VendorCouponModel.fromJson(jsonDecode(response.body));
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error.toString());
     }
   }
 }

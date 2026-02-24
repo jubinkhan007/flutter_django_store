@@ -5,6 +5,8 @@ from .models import Order, OrderItem
 from .serializers import OrderSerializer, OrderCreateSerializer
 from products.models import Product
 from vendors.models import WalletTransaction
+from coupons.models import Coupon
+from coupons.services import compute_coupon_discount
 from django.conf import settings
 from sslcommerz_lib import SSLCOMMERZ
 import uuid
@@ -46,6 +48,7 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
         items_data = serializer.validated_data['items']
         address_id = serializer.validated_data['address_id']
         payment_method = serializer.validated_data.get('payment_method', Order.PaymentMethod.ONLINE)
+        coupon_code = (serializer.validated_data.get('coupon_code') or '').strip().upper()
 
         # ── Step 1: Validate address ──
         from users.models import Address
@@ -59,7 +62,7 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
 
         # ── Step 2: Validate all products and stock ──
         order_items = []
-        total = 0
+        subtotal = Decimal('0.00')
 
         for item in items_data:
             try:
@@ -77,25 +80,47 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
                 )
 
             line_total = product.price * item['quantity']
-            total += line_total
+            subtotal += line_total
 
             order_items.append({
                 'product': product,
                 'vendor': product.vendor,
                 'quantity': item['quantity'],
                 'price': product.price,  # Snapshot
+                'line_total': line_total,
             })
+
+        coupon = None
+        discount_amount = Decimal('0.00')
+        if coupon_code:
+            try:
+                coupon = Coupon.objects.get(code=coupon_code, is_active=True)
+            except Coupon.DoesNotExist:
+                return Response({"error": "Invalid coupon code."}, status=status.HTTP_400_BAD_REQUEST)
+
+            coupon_result = compute_coupon_discount(coupon=coupon, order_items=order_items)
+            if not coupon_result['ok']:
+                return Response({"error": coupon_result['error']}, status=status.HTTP_400_BAD_REQUEST)
+            discount_amount = coupon_result['discount']
+
+        total = (subtotal - discount_amount).quantize(Decimal('0.01'))
+        if total < 0:
+            total = Decimal('0.00')
 
         # ── Step 3: Create order + items in a single transaction ──
         with transaction.atomic():
             order = Order.objects.create(
                 customer=request.user,
                 delivery_address=address,
+                coupon=coupon,
+                subtotal_amount=subtotal,
+                discount_amount=discount_amount,
                 total_amount=total,
                 payment_method=payment_method,
             )
 
             for item_data in order_items:
+                item_data.pop('line_total', None)
                 OrderItem.objects.create(order=order, **item_data)
 
                 # Decrease stock

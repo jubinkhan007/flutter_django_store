@@ -8,10 +8,28 @@ class OrderRepository {
 
   OrderRepository({required ApiClient apiClient}) : _apiClient = apiClient;
 
+  Future<Map<String, dynamic>> validateCoupon(
+    String code,
+    List<Map<String, dynamic>> items,
+  ) async {
+    final response = await _apiClient.post(
+      ApiConfig.couponValidateUrl,
+      body: {'code': code, 'items': items},
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Invalid coupon');
+    }
+  }
+
   Future<OrderModel> placeOrder(
     List<Map<String, dynamic>> items,
     int addressId, {
     String paymentMethod = 'ONLINE',
+    String? couponCode,
   }) async {
     final response = await _apiClient.post(
       ApiConfig.placeOrderUrl,
@@ -19,6 +37,8 @@ class OrderRepository {
         'items': items,
         'address_id': addressId,
         'payment_method': paymentMethod,
+        if (couponCode != null && couponCode.trim().isNotEmpty)
+          'coupon_code': couponCode.trim(),
       },
     );
 

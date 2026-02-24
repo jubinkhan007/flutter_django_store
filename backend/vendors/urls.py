@@ -21,7 +21,7 @@
 #   PUT  /api/vendors/me/          → Edit my store details
 # ═══════════════════════════════════════════════════════════════════
 
-from django.urls import path
+from django.urls import path, include
 from .views import VendorOnboardingView, VendorDashboardView, VendorStatsView, VendorCustomersView
 from products.views import VendorProductListCreateView, VendorProductDetailView
 from orders.views import VendorOrderListView, VendorUpdateOrderStatusView, VendorOrderCancelView
@@ -36,4 +36,5 @@ urlpatterns = [
     path('orders/<int:pk>/cancel/', VendorOrderCancelView.as_view(), name='vendor-order-cancel'),
     path('stats/', VendorStatsView.as_view(), name='vendor-stats'),
     path('customers/', VendorCustomersView.as_view(), name='vendor-customers'),
+    path('coupons/', include('coupons.vendor_urls')),
 ]

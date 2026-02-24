@@ -16,6 +16,9 @@ class ApiConfig {
   static String get tokenRefreshUrl => '$baseUrl/token/refresh/';
   static String get addressesUrl => '$baseUrl/auth/addresses/';
 
+  // Coupons
+  static String get couponValidateUrl => '$baseUrl/coupons/validate/';
+
   // Product endpoints
   static String get productsUrl => '$baseUrl/products/';
   static String get categoriesUrl => '$baseUrl/products/categories/';
@@ -34,4 +37,5 @@ class ApiConfig {
   static String get vendorOrdersUrl => '$baseUrl/vendors/orders/';
   static String get vendorStatsUrl => '$baseUrl/vendors/stats/';
   static String get vendorCustomersUrl => '$baseUrl/vendors/customers/';
+  static String get vendorCouponsUrl => '$baseUrl/vendors/coupons/';
 }
