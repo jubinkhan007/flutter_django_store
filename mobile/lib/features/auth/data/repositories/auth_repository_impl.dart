@@ -84,16 +84,19 @@ class AuthRepositoryImpl implements AuthRepository {
 
     if (response.statusCode == 201) {
       final data = jsonDecode(response.body);
-      // Auto-login after registration by saving tokens if returned
-      if (data['access'] != null && data['refresh'] != null) {
-        await _tokenStorage.saveTokens(
-          access: data['access'],
-          refresh: data['refresh'],
-        );
+      // Auto-login after registration.
+      // Backend usually returns the created user only (no tokens), so we fall back to logging in.
+      final access = data['access'] as String?;
+      final refresh = data['refresh'] as String?;
+
+      if (access != null && refresh != null) {
+        await _tokenStorage.saveTokens(access: access, refresh: refresh);
+        final user = UserModel.fromJson(data['user'] ?? data);
+        await _tokenStorage.saveUserInfo(type: user.type, email: user.email);
+        return user;
       }
-      final user = UserModel.fromJson(data['user'] ?? data);
-      await _tokenStorage.saveUserInfo(type: user.type, email: user.email);
-      return user;
+
+      return login(email, password);
     } else {
       final error = jsonDecode(response.body);
       throw Exception(
@@ -123,27 +126,34 @@ class AuthRepositoryImpl implements AuthRepository {
     final hasToken = await _tokenStorage.hasTokens();
     if (!hasToken) return null;
 
+    // Stored values are always saved on login/vendor-onboarding — prefer them.
+    final storedEmail = await _tokenStorage.getUserEmail();
+    final storedType = await _tokenStorage.getUserType();
+
     final access = await _tokenStorage.getAccessToken();
     if (access != null && access.isNotEmpty) {
       final payload = _tryDecodeJwtPayload(access);
       if (payload != null) {
+        // Safely cast user_id — JWT may encode it as num/double on some runtimes.
+        final rawId = payload['user_id'] ?? payload['id'];
+        final id = rawId is int ? rawId : (rawId as num?)?.toInt() ?? 0;
         return User(
-          id: payload['user_id'] ?? payload['id'] ?? 0,
-          email: payload['email'] ?? '',
+          id: id,
+          email: payload['email'] ?? storedEmail ?? '',
           username: payload['username'] ?? '',
-          type: payload['type'] ?? 'CUSTOMER',
+          // Prefer stored type (updated on vendor onboarding) over JWT claim.
+          type: (storedType != null && storedType.isNotEmpty)
+              ? storedType
+              : (payload['type'] ?? 'CUSTOMER'),
         );
       }
     }
 
-    final email = await _tokenStorage.getUserEmail();
-    final type = await _tokenStorage.getUserType();
-
     return User(
       id: 0,
-      email: email ?? '',
+      email: storedEmail ?? '',
       username: '',
-      type: (type == null || type.isEmpty) ? 'CUSTOMER' : type,
+      type: (storedType == null || storedType.isEmpty) ? 'CUSTOMER' : storedType,
     );
   }
 

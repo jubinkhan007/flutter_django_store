@@ -24,7 +24,7 @@
 from django.urls import path
 from .views import VendorOnboardingView, VendorDashboardView, VendorStatsView, VendorCustomersView
 from products.views import VendorProductListCreateView, VendorProductDetailView
-from orders.views import VendorOrderListView, VendorUpdateOrderStatusView
+from orders.views import VendorOrderListView, VendorUpdateOrderStatusView, VendorOrderCancelView
 
 urlpatterns = [
     path('onboarding/', VendorOnboardingView.as_view(), name='vendor-onboarding'),
@@ -33,6 +33,7 @@ urlpatterns = [
     path('products/<int:pk>/', VendorProductDetailView.as_view(), name='vendor-product-detail'),
     path('orders/', VendorOrderListView.as_view(), name='vendor-order-list'),
     path('orders/<int:pk>/', VendorUpdateOrderStatusView.as_view(), name='vendor-order-update'),
+    path('orders/<int:pk>/cancel/', VendorOrderCancelView.as_view(), name='vendor-order-cancel'),
     path('stats/', VendorStatsView.as_view(), name='vendor-stats'),
     path('customers/', VendorCustomersView.as_view(), name='vendor-customers'),
 ]

@@ -32,4 +32,29 @@ class OrderRepository {
       throw Exception('Failed to load orders');
     }
   }
+
+  Future<String> initiatePayment(int orderId) async {
+    final response = await _apiClient.post(
+      '${ApiConfig.ordersUrl}$orderId/pay/',
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['GatewayPageURL'];
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to initiate payment');
+    }
+  }
+
+  Future<void> cancelOrder(int orderId) async {
+    final response = await _apiClient.post(
+      '${ApiConfig.ordersUrl}$orderId/cancel/',
+    );
+
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to cancel order');
+    }
+  }
 }

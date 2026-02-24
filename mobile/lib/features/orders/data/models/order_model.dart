@@ -2,6 +2,9 @@ class OrderModel {
   final int id;
   final double totalAmount;
   final String status;
+  final String paymentStatus;
+  final String? transactionId;
+  final String? valId;
   final List<OrderItemModel> items;
   final String createdAt;
 
@@ -9,6 +12,9 @@ class OrderModel {
     required this.id,
     required this.totalAmount,
     required this.status,
+    required this.paymentStatus,
+    this.transactionId,
+    this.valId,
     required this.items,
     required this.createdAt,
   });
@@ -18,6 +24,9 @@ class OrderModel {
       id: json['id'],
       totalAmount: double.tryParse(json['total_amount'].toString()) ?? 0.0,
       status: json['status'] ?? 'PENDING',
+      paymentStatus: json['payment_status'] ?? 'UNPAID',
+      transactionId: json['transaction_id'],
+      valId: json['val_id'],
       items:
           (json['items'] as List?)
               ?.map((item) => OrderItemModel.fromJson(item))

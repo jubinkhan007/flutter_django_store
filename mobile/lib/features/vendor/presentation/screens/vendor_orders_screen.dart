@@ -36,6 +36,18 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
     }
   }
 
+  Color _paymentColor(String status) {
+    switch (status) {
+      case 'PAID':
+        return AppTheme.success;
+      case 'REFUNDED':
+        return AppTheme.warning;
+      case 'UNPAID':
+      default:
+        return AppTheme.error;
+    }
+  }
+
   String? _nextStatus(String currentStatus) {
     switch (currentStatus) {
       case 'PENDING':
@@ -75,7 +87,6 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
               ),
             ),
           ),
-
           Expanded(
             child: Consumer<VendorProvider>(
               builder: (context, vendor, _) {
@@ -103,15 +114,6 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                             fontSize: 16,
                           ),
                         ),
-                        SizedBox(height: AppTheme.spacingSm),
-                        Text(
-                          'Orders will appear when customers buy your products',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 13,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
                       ],
                     ),
                   );
@@ -128,6 +130,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                     itemBuilder: (context, index) {
                       final order = vendor.orders[index];
                       final statusColor = _statusColor(order.status);
+                      final paymentColor = _paymentColor(order.paymentStatus);
                       final nextStatus = _nextStatus(order.status);
 
                       return Container(
@@ -144,16 +147,27 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Order header
                             Row(
                               children: [
-                                Text(
-                                  'Order #${order.id}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 15,
-                                    color: AppTheme.textPrimary,
-                                  ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Order #${order.id}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Payment: ${order.paymentStatus}',
+                                      style: TextStyle(
+                                        color: paymentColor,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const Spacer(),
                                 Container(
@@ -176,9 +190,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-
-                            // Order items
+                            const SizedBox(height: 12),
                             ...order.items.map(
                               (item) => Padding(
                                 padding: const EdgeInsets.only(bottom: 4),
@@ -210,10 +222,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                                 ),
                               ),
                             ),
-
-                            const SizedBox(height: 8),
-
-                            // Total + Action
+                            const SizedBox(height: 12),
                             Row(
                               children: [
                                 Text(
@@ -224,54 +233,70 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                                   ),
                                 ),
                                 const Spacer(),
-                                if (nextStatus != null)
-                                  GestureDetector(
-                                    onTap: () async {
-                                      final success = await vendor
-                                          .updateOrderStatus(
-                                            order.id,
-                                            nextStatus,
-                                          );
-                                      if (success && context.mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Order #${order.id} updated to $nextStatus',
-                                            ),
-                                            backgroundColor: AppTheme.success,
-                                            behavior: SnackBarBehavior.floating,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                    AppTheme.radiusSm,
-                                                  ),
-                                            ),
+                                if (order.status == 'PENDING' ||
+                                    (order.paymentStatus == 'PAID' &&
+                                        order.status != 'DELIVERED' &&
+                                        order.status != 'CANCELED'))
+                                  TextButton(
+                                    onPressed: () async {
+                                      final confirmed = await showDialog<bool>(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title: const Text('Cancel & Refund'),
+                                          content: const Text(
+                                            'Are you sure you want to cancel and refund this order?',
                                           ),
-                                        );
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context, false),
+                                              child: const Text('No'),
+                                            ),
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context, true),
+                                              child: const Text(
+                                                'Yes',
+                                                style: TextStyle(
+                                                  color: AppTheme.error,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirmed == true &&
+                                          context.mounted) {
+                                        await vendor.cancelOrder(order.id);
                                       }
                                     },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        gradient: AppTheme.primaryGradient,
-                                        borderRadius: BorderRadius.circular(
-                                          AppTheme.radiusSm,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        _nextStatusLabel(nextStatus),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                    child: const Text(
+                                      'Cancel',
+                                      style: TextStyle(
+                                        color: AppTheme.error,
+                                        fontSize: 12,
                                       ),
                                     ),
+                                  ),
+                                if (nextStatus != null)
+                                  ElevatedButton(
+                                    onPressed: () => vendor.updateOrderStatus(
+                                      order.id,
+                                      nextStatus,
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primary,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 0,
+                                      ),
+                                      textStyle: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    child: Text(_nextStatusLabel(nextStatus)),
                                   ),
                               ],
                             ),

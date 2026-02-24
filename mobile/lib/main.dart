@@ -34,29 +34,47 @@ import 'features/vendor/presentation/screens/vendor_onboarding_screen.dart';
 import 'features/vendor/presentation/screens/vendor_add_product_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // ── Shared Dependencies (created once for the app lifetime) ──
+  final tokenStorage = TokenStorage();
+  final apiClient = ApiClient(tokenStorage: tokenStorage);
+
+  // ── Repository Instances ──
+  final AuthRepository authRepository = AuthRepositoryImpl(
+    apiClient: apiClient,
+    tokenStorage: tokenStorage,
+  );
+  final ProductRepository productRepository = ProductRepositoryImpl(
+    apiClient: apiClient,
+  );
+  final orderRepository = OrderRepository(apiClient: apiClient);
+  final vendorRepository = VendorRepository(apiClient: apiClient);
+
+  runApp(MyApp(
+    authRepository: authRepository,
+    productRepository: productRepository,
+    orderRepository: orderRepository,
+    vendorRepository: vendorRepository,
+  ));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final AuthRepository authRepository;
+  final ProductRepository productRepository;
+  final OrderRepository orderRepository;
+  final VendorRepository vendorRepository;
+
+  const MyApp({
+    super.key,
+    required this.authRepository,
+    required this.productRepository,
+    required this.orderRepository,
+    required this.vendorRepository,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // ── Shared Dependencies (DRY — created once, injected everywhere) ──
-    final tokenStorage = TokenStorage();
-    final apiClient = ApiClient(tokenStorage: tokenStorage);
-
-    // ── Repository Instances ──
-    final AuthRepository authRepository = AuthRepositoryImpl(
-      apiClient: apiClient,
-      tokenStorage: tokenStorage,
-    );
-    final ProductRepository productRepository = ProductRepositoryImpl(
-      apiClient: apiClient,
-    );
-    final orderRepository = OrderRepository(apiClient: apiClient);
-    final vendorRepository = VendorRepository(apiClient: apiClient);
-
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(

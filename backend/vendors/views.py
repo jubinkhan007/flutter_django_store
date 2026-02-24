@@ -154,6 +154,7 @@ class VendorStatsView(APIView):
             'total_orders': total_orders,
             'pending_orders': pending_orders,
             'total_revenue': float(revenue),
+            'wallet_balance': float(vendor.balance),
         })
 
 

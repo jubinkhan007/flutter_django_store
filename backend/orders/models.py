@@ -11,9 +11,17 @@ class Order(models.Model):
         DELIVERED = 'DELIVERED', 'Delivered'
         CANCELED = 'CANCELED', 'Canceled'
 
+    class PaymentStatus(models.TextChoices):
+        UNPAID = 'UNPAID', 'Unpaid'
+        PAID = 'PAID', 'Paid'
+        REFUNDED = 'REFUNDED', 'Refunded'
+
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='orders')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    payment_status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.UNPAID)
+    transaction_id = models.CharField(max_length=255, blank=True, null=True, help_text="System generated trxn_id for SSLCommerz")
+    val_id = models.CharField(max_length=255, blank=True, null=True, help_text="Validation ID from SSLCommerz (needed for refunds)")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

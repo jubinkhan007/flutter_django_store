@@ -4,9 +4,55 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../providers/cart_provider.dart';
 import '../../../orders/presentation/providers/order_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
+
+  Future<void> _handleCheckout(
+    BuildContext context,
+    CartProvider cart,
+    OrderProvider orderProvider,
+  ) async {
+    final order = await orderProvider.placeOrder(cart.toOrderItems());
+
+    if (order != null && context.mounted) {
+      // Clear cart
+      cart.clear();
+
+      // Initiate SSLCommerz Payment
+      final paymentUrl = await orderProvider.initiatePayment(order.id);
+
+      if (paymentUrl != null && context.mounted) {
+        final uri = Uri.parse(paymentUrl);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not launch payment gateway')),
+          );
+        }
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('🎉 Order placed! Redirecting to payment...'),
+            backgroundColor: AppTheme.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(orderProvider.error ?? 'Order failed'),
+          backgroundColor: AppTheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -248,38 +294,8 @@ class CartScreen extends StatelessWidget {
                           return CustomButton(
                             text: 'Place Order',
                             isLoading: orderProvider.isLoading,
-                            onPressed: () async {
-                              final success = await orderProvider.placeOrder(
-                                cart.toOrderItems(),
-                              );
-                              if (success && context.mounted) {
-                                cart.clear();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: const Text(
-                                      '🎉 Order placed successfully!',
-                                    ),
-                                    backgroundColor: AppTheme.success,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        AppTheme.radiusSm,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              } else if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      orderProvider.error ?? 'Order failed',
-                                    ),
-                                    backgroundColor: AppTheme.error,
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              }
-                            },
+                            onPressed: () =>
+                                _handleCheckout(context, cart, orderProvider),
                           );
                         },
                       ),

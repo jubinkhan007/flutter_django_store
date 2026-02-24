@@ -16,6 +16,7 @@ class VendorProvider extends ChangeNotifier {
   int totalOrders = 0;
   int pendingOrders = 0;
   double totalRevenue = 0;
+  double walletBalance = 0;
 
   // Products & Orders & Customers
   List<ProductModel> _products = [];
@@ -39,6 +40,7 @@ class VendorProvider extends ChangeNotifier {
       totalOrders = stats['total_orders'] ?? 0;
       pendingOrders = stats['pending_orders'] ?? 0;
       totalRevenue = (stats['total_revenue'] ?? 0).toDouble();
+      walletBalance = (stats['wallet_balance'] ?? 0).toDouble();
       notifyListeners();
     } catch (e) {
       // Stats are supplementary, don't block UI
@@ -156,12 +158,16 @@ class VendorProvider extends ChangeNotifier {
       // Update locally
       final index = _orders.indexWhere((o) => o.id == orderId);
       if (index >= 0) {
+        final existing = _orders[index];
         _orders[index] = OrderModel(
-          id: _orders[index].id,
-          totalAmount: _orders[index].totalAmount,
+          id: existing.id,
+          totalAmount: existing.totalAmount,
           status: newStatus,
-          items: _orders[index].items,
-          createdAt: _orders[index].createdAt,
+          paymentStatus: existing.paymentStatus,
+          transactionId: existing.transactionId,
+          valId: existing.valId,
+          items: existing.items,
+          createdAt: existing.createdAt,
         );
       }
       notifyListeners();
@@ -169,6 +175,25 @@ class VendorProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> cancelOrder(int orderId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _vendorRepository.cancelOrder(orderId);
+      await loadOrders();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
       notifyListeners();
       return false;
     }

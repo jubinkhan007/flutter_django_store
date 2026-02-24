@@ -131,6 +131,17 @@ class VendorRepository {
     }
   }
 
+  /// Cancel and refund order
+  Future<void> cancelOrder(int orderId) async {
+    final response = await _apiClient.post(
+      '${ApiConfig.vendorOrdersUrl}$orderId/cancel/',
+    );
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to cancel order');
+    }
+  }
+
   /// Load customers for the vendor
   Future<List<VendorCustomerModel>> loadCustomers() async {
     final response = await _apiClient.get(ApiConfig.vendorCustomersUrl);

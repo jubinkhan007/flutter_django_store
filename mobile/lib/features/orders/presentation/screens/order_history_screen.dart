@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/models/order_model.dart';
 import '../providers/order_provider.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
@@ -53,13 +55,67 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     }
   }
 
+  Color _paymentColor(String status) {
+    switch (status) {
+      case 'PAID':
+        return AppTheme.success;
+      case 'REFUNDED':
+        return AppTheme.warning;
+      case 'UNPAID':
+      default:
+        return AppTheme.error;
+    }
+  }
+
+  Future<void> _payNow(BuildContext context, OrderModel order) async {
+    final provider = context.read<OrderProvider>();
+    final url = await provider.initiatePayment(order.id);
+    if (url != null) {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    }
+  }
+
+  Future<void> _cancelOrder(BuildContext context, OrderModel order) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Order'),
+        content: const Text('Are you sure you want to cancel this order?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes', style: TextStyle(color: AppTheme.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      final success = await context.read<OrderProvider>().cancelOrder(order.id);
+      if (success && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Order cancelled successfully'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header ──
           const Padding(
             padding: EdgeInsets.all(AppTheme.spacingMd),
             child: Text(
@@ -71,8 +127,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
               ),
             ),
           ),
-
-          // ── Order List ──
           Expanded(
             child: Consumer<OrderProvider>(
               builder: (context, provider, _) {
@@ -100,14 +154,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                             fontSize: 16,
                           ),
                         ),
-                        SizedBox(height: AppTheme.spacingSm),
-                        Text(
-                          'Your order history will appear here',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 13,
-                          ),
-                        ),
                       ],
                     ),
                   );
@@ -124,6 +170,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                     itemBuilder: (context, index) {
                       final order = provider.orders[index];
                       final statusColor = _statusColor(order.status);
+                      final paymentColor = _paymentColor(order.paymentStatus);
 
                       return Container(
                         margin: const EdgeInsets.only(
@@ -137,7 +184,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                         ),
                         child: Column(
                           children: [
-                            // Order Header
                             Padding(
                               padding: const EdgeInsets.all(14),
                               child: Row(
@@ -166,15 +212,15 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                                           'Order #${order.id}',
                                           style: const TextStyle(
                                             fontWeight: FontWeight.w600,
-                                            color: AppTheme.textPrimary,
                                           ),
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          '${order.items.length} item(s)',
-                                          style: const TextStyle(
-                                            color: AppTheme.textSecondary,
+                                          '${order.items.length} item(s) • ${order.paymentStatus}',
+                                          style: TextStyle(
+                                            color: paymentColor,
                                             fontSize: 12,
+                                            fontWeight: FontWeight.w500,
                                           ),
                                         ),
                                       ],
@@ -217,10 +263,63 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                                 ],
                               ),
                             ),
-
-                            // Order Items
+                            if (order.status == 'PENDING' ||
+                                (order.paymentStatus == 'UNPAID' &&
+                                    order.status != 'CANCELED'))
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                ),
+                                child: Row(
+                                  children: [
+                                    if (order.paymentStatus == 'UNPAID' &&
+                                        order.status != 'CANCELED')
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 8,
+                                          ),
+                                          child: ElevatedButton.icon(
+                                            onPressed: () =>
+                                                _payNow(context, order),
+                                            icon: const Icon(
+                                              Icons.payment,
+                                              size: 16,
+                                            ),
+                                            label: const Text('Pay Now'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppTheme.primary,
+                                              foregroundColor: Colors.white,
+                                              padding: EdgeInsets.zero,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    if (order.status == 'PENDING')
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: () =>
+                                              _cancelOrder(context, order),
+                                          icon: const Icon(
+                                            Icons.close,
+                                            size: 16,
+                                          ),
+                                          label: const Text('Cancel'),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: AppTheme.error,
+                                            side: const BorderSide(
+                                              color: AppTheme.error,
+                                            ),
+                                            padding: EdgeInsets.zero,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            const SizedBox(height: 8),
                             if (order.items.isNotEmpty)
-                              Container(
+                              Padding(
                                 padding: const EdgeInsets.fromLTRB(
                                   14,
                                   0,
