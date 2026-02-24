@@ -47,3 +47,15 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             type=validated_data.get('type', User.Types.CUSTOMER)
         )
         return user
+
+from .models import User, Address
+
+class AddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Address
+        fields = ['id', 'user', 'label', 'phone_number', 'address_line', 'area', 'city', 'is_default', 'created_at', 'updated_at']
+        read_only_fields = ['user', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        # Additional validation if needed
+        return attrs

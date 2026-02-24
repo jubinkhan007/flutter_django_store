@@ -12,13 +12,31 @@ class OrderHistoryScreen extends StatefulWidget {
   State<OrderHistoryScreen> createState() => _OrderHistoryScreenState();
 }
 
-class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
+class _OrderHistoryScreenState extends State<OrderHistoryScreen>
+    with WidgetsBindingObserver {
+  bool _awaitingPaymentReturn = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<OrderProvider>().loadOrders();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _awaitingPaymentReturn) {
+      _awaitingPaymentReturn = false;
+      context.read<OrderProvider>().loadOrders();
+    }
   }
 
   Color _statusColor(String status) {
@@ -73,6 +91,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     if (url != null) {
       final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
+        _awaitingPaymentReturn = true;
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     }
@@ -318,6 +337,41 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                                 ),
                               ),
                             const SizedBox(height: 8),
+                            if (order.deliveryAddress != null)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Delivery Address:',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${order.deliveryAddress!.label} - ${order.deliveryAddress!.phoneNumber}',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${order.deliveryAddress!.addressLine}, ${order.deliveryAddress!.area}, ${order.deliveryAddress!.city}',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                  ],
+                                ),
+                              ),
                             if (order.items.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.fromLTRB(

@@ -27,11 +27,30 @@ class AuthProvider extends ChangeNotifier {
       final loggedIn = await _authRepository.isLoggedIn();
       if (!loggedIn) {
         _user = null;
+        assert(() {
+          // ignore: avoid_print
+          print('AuthProvider.restoreSession: no saved tokens');
+          return true;
+        }());
       } else {
         _user = await _authRepository.getSavedUser();
+        assert(() {
+          // ignore: avoid_print
+          print(
+            'AuthProvider.restoreSession: restored user (type=${_user?.type}, emailLen=${_user?.email.length ?? 0})',
+          );
+          return true;
+        }());
       }
-    } catch (_) {
+    } catch (e, st) {
       _user = null;
+      assert(() {
+        // ignore: avoid_print
+        print('AuthProvider.restoreSession: failed, clearing user: $e');
+        // ignore: avoid_print
+        print(st);
+        return true;
+      }());
     } finally {
       _isLoading = false;
       notifyListeners();

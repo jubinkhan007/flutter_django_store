@@ -4,6 +4,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../providers/cart_provider.dart';
 import '../../../orders/presentation/providers/order_provider.dart';
+import '../../../addresses/data/models/address_model.dart';
+import '../../../addresses/presentation/screens/address_management_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class CartScreen extends StatelessWidget {
@@ -14,7 +16,20 @@ class CartScreen extends StatelessWidget {
     CartProvider cart,
     OrderProvider orderProvider,
   ) async {
-    final order = await orderProvider.placeOrder(cart.toOrderItems());
+    // 1. Select Delivery Address
+    final selectedAddress = await Navigator.push<AddressModel>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const AddressManagementScreen(isSelectionMode: true),
+      ),
+    );
+
+    if (selectedAddress == null || !context.mounted) return;
+
+    final order = await orderProvider.placeOrder(
+      cart.toOrderItems(),
+      selectedAddress.id,
+    );
 
     if (order != null && context.mounted) {
       // Clear cart

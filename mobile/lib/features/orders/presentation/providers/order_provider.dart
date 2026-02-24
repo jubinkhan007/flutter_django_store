@@ -16,13 +16,16 @@ class OrderProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  Future<OrderModel?> placeOrder(List<Map<String, dynamic>> items) async {
+  Future<OrderModel?> placeOrder(
+    List<Map<String, dynamic>> items,
+    int addressId,
+  ) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final order = await _orderRepository.placeOrder(items);
+      final order = await _orderRepository.placeOrder(items, addressId);
       _isLoading = false;
       notifyListeners();
       return order;

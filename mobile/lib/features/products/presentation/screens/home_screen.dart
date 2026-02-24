@@ -8,6 +8,7 @@ import 'product_detail_screen.dart';
 import '../../../cart/presentation/screens/cart_screen.dart';
 import '../../../orders/presentation/screens/order_history_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/presentation/screens/profile_screen.dart';
 import '../widgets/search_filter_bar.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -36,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
       const _ShopPage(),
       const CartScreen(),
       const OrderHistoryScreen(),
+      const ProfileScreen(),
     ];
 
     return Scaffold(
@@ -83,6 +85,11 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: Icon(Icons.receipt_long_outlined),
               activeIcon: Icon(Icons.receipt_long),
               label: 'Orders',
+            ),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline),
+              activeIcon: Icon(Icons.person),
+              label: 'Profile',
             ),
           ],
         ),
@@ -170,14 +177,6 @@ class _ShopPage extends StatelessWidget {
                         }
                         return const SizedBox.shrink();
                       },
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        context.read<AuthProvider>().logout();
-                        Navigator.pushReplacementNamed(context, '/login');
-                      },
-                      icon: const Icon(Icons.logout_outlined),
-                      tooltip: 'Logout',
                     ),
                   ],
                 ),

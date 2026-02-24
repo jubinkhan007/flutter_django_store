@@ -1,3 +1,5 @@
+import '../../../addresses/data/models/address_model.dart';
+
 class OrderModel {
   final int id;
   final double totalAmount;
@@ -7,6 +9,7 @@ class OrderModel {
   final String? valId;
   final List<OrderItemModel> items;
   final String createdAt;
+  final AddressModel? deliveryAddress;
 
   const OrderModel({
     required this.id,
@@ -17,6 +20,7 @@ class OrderModel {
     this.valId,
     required this.items,
     required this.createdAt,
+    this.deliveryAddress,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -33,6 +37,9 @@ class OrderModel {
               .toList() ??
           [],
       createdAt: json['created_at'] ?? '',
+      deliveryAddress: json['delivery_address'] != null
+          ? AddressModel.fromJson(json['delivery_address'])
+          : null,
     );
   }
 }

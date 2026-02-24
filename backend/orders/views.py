@@ -44,8 +44,19 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
 
         items_data = serializer.validated_data['items']
+        address_id = serializer.validated_data['address_id']
 
-        # ── Step 1: Validate all products and stock ──
+        # ── Step 1: Validate address ──
+        from users.models import Address
+        try:
+            address = Address.objects.get(id=address_id, user=request.user)
+        except Address.DoesNotExist:
+            return Response(
+                {"error": "Address not found or does not belong to you."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ── Step 2: Validate all products and stock ──
         order_items = []
         total = 0
 
@@ -71,14 +82,14 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
                 'product': product,
                 'vendor': product.vendor,
                 'quantity': item['quantity'],
-                'price': product.price,  # Snapshot the price at time of purchase
+                'price': product.price,  # Snapshot
             })
 
-        # ── Step 2: Create order + items in a single transaction ──
-        # transaction.atomic() ensures that if ANY step fails, NOTHING is saved.
+        # ── Step 3: Create order + items in a single transaction ──
         with transaction.atomic():
             order = Order.objects.create(
                 customer=request.user,
+                delivery_address=address,
                 total_amount=total
             )
 
@@ -90,7 +101,7 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
                 product.stock_quantity -= item_data['quantity']
                 product.save()
 
-        # ── Step 3: Return the created order ──
+        # ── Step 4: Return the created order ──
         result = OrderSerializer(order).data
         return Response(result, status=status.HTTP_201_CREATED)
 
@@ -303,9 +314,16 @@ class SSLCommerzPaymentInitiateView(generics.GenericAPIView):
         post_body['emi_option'] = 0
         post_body['cus_name'] = order.customer.username
         post_body['cus_email'] = order.customer.email or "test@example.com"
-        post_body['cus_phone'] = "01700000000"
-        post_body['cus_add1'] = "Dhaka"
-        post_body['cus_city'] = "Dhaka"
+        
+        if order.delivery_address:
+            post_body['cus_phone'] = order.delivery_address.phone_number
+            post_body['cus_add1'] = order.delivery_address.address_line
+            post_body['cus_city'] = order.delivery_address.city
+        else:
+            post_body['cus_phone'] = "01700000000"
+            post_body['cus_add1'] = "Dhaka"
+            post_body['cus_city'] = "Dhaka"
+        
         post_body['cus_country'] = "Bangladesh"
         post_body['shipping_method'] = "NO"
         
@@ -342,18 +360,28 @@ class SSLCommerzSuccessView(generics.GenericAPIView):
         sslcz = SSLCOMMERZ(settings_env)
         
         if val_id:
-            response = sslcz.validationStep(val_id)
+            response = sslcz.validationTransactionOrder(val_id)
             if response.get('status') == 'VALID' or response.get('status') == 'VALIDATED':
                 try:
                     order = Order.objects.get(transaction_id=tran_id)
                     order.payment_status = Order.PaymentStatus.PAID
                     order.val_id = val_id
                     order.save()
-                    return HttpResponse("<html><body style='font-family:sans-serif; text-align:center; padding-top:50px;'><h1 style='color:green;'>Payment Successful!</h1><p>You can now close this window and return to the app.</p></body></html>")
+                    return HttpResponse(_deep_link_redirect(
+                        scheme_url='shopease://payment/success',
+                        title='Payment Successful!',
+                        color='green',
+                        message='Redirecting you back to the app...',
+                    ))
                 except Order.DoesNotExist:
                     pass
-                    
-        return HttpResponse("<html><body style='font-family:sans-serif; text-align:center; padding-top:50px;'><h1 style='color:red;'>Payment Validation Failed</h1><p>Please contact support.</p></body></html>", status=400)
+
+        return HttpResponse(_deep_link_redirect(
+            scheme_url='shopease://payment/fail',
+            title='Payment Validation Failed',
+            color='red',
+            message='Redirecting you back to the app...',
+        ), status=400)
 
 class SSLCommerzFailView(generics.GenericAPIView):
     """
@@ -362,7 +390,12 @@ class SSLCommerzFailView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
-        return HttpResponse("<html><body style='font-family:sans-serif; text-align:center; padding-top:50px;'><h1 style='color:red;'>Payment Failed</h1><p>Please try again or use a different method.</p></body></html>")
+        return HttpResponse(_deep_link_redirect(
+            scheme_url='shopease://payment/fail',
+            title='Payment Failed',
+            color='red',
+            message='Redirecting you back to the app...',
+        ))
 
 class SSLCommerzCancelView(generics.GenericAPIView):
     """
@@ -371,4 +404,27 @@ class SSLCommerzCancelView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
-        return HttpResponse("<html><body style='font-family:sans-serif; text-align:center; padding-top:50px;'><h1>Payment Cancelled</h1><p>You cancelled the transaction. No funds were deducted.</p></body></html>")
+        return HttpResponse(_deep_link_redirect(
+            scheme_url='shopease://payment/cancel',
+            title='Payment Cancelled',
+            color='orange',
+            message='Redirecting you back to the app...',
+        ))
+
+
+def _deep_link_redirect(scheme_url: str, title: str, color: str, message: str) -> str:
+    """Returns an HTML page that immediately opens the app via custom URL scheme."""
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title}</title>
+  <script>window.location.href = '{scheme_url}';</script>
+</head>
+<body style="font-family:sans-serif;text-align:center;padding-top:60px;">
+  <h1 style="color:{color};">{title}</h1>
+  <p>{message}</p>
+  <p><a href="{scheme_url}" style="color:{color};">Tap here if not redirected automatically</a></p>
+</body>
+</html>"""

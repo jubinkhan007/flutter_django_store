@@ -8,10 +8,13 @@ class OrderRepository {
 
   OrderRepository({required ApiClient apiClient}) : _apiClient = apiClient;
 
-  Future<OrderModel> placeOrder(List<Map<String, dynamic>> items) async {
+  Future<OrderModel> placeOrder(
+    List<Map<String, dynamic>> items,
+    int addressId,
+  ) async {
     final response = await _apiClient.post(
       ApiConfig.placeOrderUrl,
-      body: {'items': items},
+      body: {'items': items, 'address_id': addressId},
     );
 
     if (response.statusCode == 201) {

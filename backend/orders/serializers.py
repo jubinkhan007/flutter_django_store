@@ -38,11 +38,12 @@ class OrderSerializer(serializers.ModelSerializer):
     """
     items = OrderItemSerializer(many=True, read_only=True)
     customer_detail = serializers.SerializerMethodField()
+    delivery_address = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
-        fields = ['id', 'customer', 'customer_detail', 'total_amount', 'status', 'items', 'created_at', 'updated_at']
-        read_only_fields = ['customer', 'total_amount', 'status', 'created_at', 'updated_at']
+        fields = ['id', 'customer', 'customer_detail', 'delivery_address', 'total_amount', 'status', 'payment_status', 'transaction_id', 'val_id', 'items', 'created_at', 'updated_at']
+        read_only_fields = ['customer', 'total_amount', 'status', 'payment_status', 'transaction_id', 'val_id', 'created_at', 'updated_at']
 
     def get_customer_detail(self, obj):
         return {
@@ -50,27 +51,27 @@ class OrderSerializer(serializers.ModelSerializer):
             'username': obj.customer.username,
             'email': obj.customer.email,
         }
+        
+    def get_delivery_address(self, obj):
+        if not obj.delivery_address:
+            return None
+        address = obj.delivery_address
+        return {
+            'id': address.id,
+            'label': address.label,
+            'phone_number': address.phone_number,
+            'address_line': address.address_line,
+            'area': address.area,
+            'city': address.city,
+        }
 
 
 class OrderCreateSerializer(serializers.Serializer):
     """
     Used when a customer PLACES an order.
-    
-    The customer sends a list of items:
-    {
-        "items": [
-            {"product": 1, "quantity": 2},
-            {"product": 5, "quantity": 1}
-        ]
-    }
-    
-    The backend then:
-    1. Looks up each product to get the price and vendor
-    2. Calculates the total
-    3. Creates the Order and OrderItems
-    4. Decreases stock quantities
     """
     items = OrderCreateItemSerializer(many=True)
+    address_id = serializers.IntegerField(required=True)
 
     def validate_items(self, value):
         if not value:

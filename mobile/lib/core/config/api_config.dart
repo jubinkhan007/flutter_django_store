@@ -14,6 +14,7 @@ class ApiConfig {
   static String get loginUrl => '$baseUrl/login/';
   static String get registerUrl => '$baseUrl/register/';
   static String get tokenRefreshUrl => '$baseUrl/token/refresh/';
+  static String get addressesUrl => '$baseUrl/auth/addresses/';
 
   // Product endpoints
   static String get productsUrl => '$baseUrl/products/';

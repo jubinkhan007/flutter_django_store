@@ -33,6 +33,10 @@ import 'features/vendor/presentation/screens/vendor_dashboard_screen.dart';
 import 'features/vendor/presentation/screens/vendor_onboarding_screen.dart';
 import 'features/vendor/presentation/screens/vendor_add_product_screen.dart';
 
+// Addresses
+import 'features/addresses/data/repositories/address_repository.dart';
+import 'features/addresses/presentation/providers/address_provider.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -50,13 +54,17 @@ void main() {
   );
   final orderRepository = OrderRepository(apiClient: apiClient);
   final vendorRepository = VendorRepository(apiClient: apiClient);
+  final addressRepository = AddressRepository(apiClient: apiClient);
 
-  runApp(MyApp(
-    authRepository: authRepository,
-    productRepository: productRepository,
-    orderRepository: orderRepository,
-    vendorRepository: vendorRepository,
-  ));
+  runApp(
+    MyApp(
+      authRepository: authRepository,
+      productRepository: productRepository,
+      orderRepository: orderRepository,
+      vendorRepository: vendorRepository,
+      addressRepository: addressRepository,
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -64,6 +72,7 @@ class MyApp extends StatelessWidget {
   final ProductRepository productRepository;
   final OrderRepository orderRepository;
   final VendorRepository vendorRepository;
+  final AddressRepository addressRepository;
 
   const MyApp({
     super.key,
@@ -71,6 +80,7 @@ class MyApp extends StatelessWidget {
     required this.productRepository,
     required this.orderRepository,
     required this.vendorRepository,
+    required this.addressRepository,
   });
 
   @override
@@ -89,6 +99,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => VendorProvider(vendorRepository: vendorRepository),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AddressProvider(addressRepository: addressRepository),
         ),
       ],
       child: MaterialApp(

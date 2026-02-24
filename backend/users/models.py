@@ -18,3 +18,21 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.email
+
+
+class Address(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='addresses')
+    label = models.CharField(max_length=50, help_text="e.g., Home, Office")
+    phone_number = models.CharField(max_length=20)
+    address_line = models.TextField()
+    area = models.CharField(max_length=100)
+    city = models.CharField(max_length=100)
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.label} - {self.user.username}"
+
+    class Meta:
+        ordering = ['-is_default', '-created_at']

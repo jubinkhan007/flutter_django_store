@@ -33,6 +33,19 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  int _coerceInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  String _pickString(dynamic value, {required String fallback}) {
+    if (value is String && value.isNotEmpty) return value;
+    return fallback;
+  }
+
   @override
   Future<User> login(String email, String password) async {
     final response = await _apiClient.post(
@@ -59,10 +72,10 @@ class AuthRepositoryImpl implements AuthRepository {
       final user = UserModel.fromJson(
         data['user'] ??
             {
-              'id': payload?['user_id'] ?? payload?['id'] ?? 0,
-              'email': payload?['email'] ?? email,
-              'username': payload?['username'] ?? '',
-              'type': payload?['type'] ?? 'CUSTOMER',
+              'id': _coerceInt(payload?['user_id'] ?? payload?['id']),
+              'email': _pickString(payload?['email'], fallback: email),
+              'username': _pickString(payload?['username'], fallback: ''),
+              'type': _pickString(payload?['type'], fallback: 'CUSTOMER'),
             },
       );
       // Persist user type for role-based routing
@@ -134,17 +147,15 @@ class AuthRepositoryImpl implements AuthRepository {
     if (access != null && access.isNotEmpty) {
       final payload = _tryDecodeJwtPayload(access);
       if (payload != null) {
-        // Safely cast user_id — JWT may encode it as num/double on some runtimes.
-        final rawId = payload['user_id'] ?? payload['id'];
-        final id = rawId is int ? rawId : (rawId as num?)?.toInt() ?? 0;
+        final id = _coerceInt(payload['user_id'] ?? payload['id']);
         return User(
           id: id,
-          email: payload['email'] ?? storedEmail ?? '',
-          username: payload['username'] ?? '',
+          email: _pickString(payload['email'], fallback: storedEmail ?? ''),
+          username: _pickString(payload['username'], fallback: ''),
           // Prefer stored type (updated on vendor onboarding) over JWT claim.
           type: (storedType != null && storedType.isNotEmpty)
               ? storedType
-              : (payload['type'] ?? 'CUSTOMER'),
+              : _pickString(payload['type'], fallback: 'CUSTOMER'),
         );
       }
     }
