@@ -11,6 +11,7 @@ import '../../../reviews/presentation/widgets/review_card.dart';
 import '../../../reviews/presentation/widgets/star_rating.dart';
 import '../../../vendor/presentation/providers/vendor_provider.dart';
 import '../../domain/entities/product.dart';
+import '../../domain/entities/variant.dart';
 import 'package:mobile/features/wishlist/presentation/providers/wishlist_provider.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -23,12 +24,43 @@ class ProductDetailScreen extends StatefulWidget {
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
+  final Map<int, int> _selectedOptions = {};
+  ProductVariant? _currentVariant;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ReviewProvider>().loadReviews(widget.product.id);
     });
+    
+    // Auto-select first available option values if options exist
+    if (widget.product.options.isNotEmpty) {
+      for (var option in widget.product.options) {
+        if (option.values.isNotEmpty) {
+          _selectedOptions[option.id] = option.values.first.id;
+        }
+      }
+      _updateCurrentVariant();
+    }
+  }
+  
+  void _updateCurrentVariant() {
+    if (widget.product.variants.isEmpty) return;
+    
+    // Find the variant that matches all selected option values
+    final selectedValueIds = _selectedOptions.values.toSet();
+    
+    try {
+      _currentVariant = widget.product.variants.firstWhere((variant) {
+        final variantValueIds = variant.optionValueIds.toSet();
+        return selectedValueIds.length == variantValueIds.length && 
+               selectedValueIds.containsAll(variantValueIds);
+      });
+    } catch (e) {
+      _currentVariant = null; // No matching variant found
+    }
+    setState(() {});
   }
 
   bool _isVendorOfProduct(BuildContext context) {
@@ -223,6 +255,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final auth = context.watch<AuthProvider>();
     final isLoggedIn = auth.isLoggedIn;
     final isVendor = _isVendorOfProduct(context);
+    
+    final displayPrice = _currentVariant?.effectivePrice ?? widget.product.price;
+    final inStock = widget.product.options.isEmpty ? widget.product.inStock : (_currentVariant != null && _currentVariant!.stockAvailable > 0);
+    final stockQty = widget.product.options.isEmpty ? widget.product.stockQuantity : (_currentVariant?.stockAvailable ?? 0);
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -343,7 +379,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ),
                         ),
                         child: Text(
-                          '\$${widget.product.price.toStringAsFixed(2)}',
+                          '\$${displayPrice.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -364,7 +400,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: widget.product.inStock
+                          color: inStock
                               ? AppTheme.success.withOpacity(0.15)
                               : AppTheme.error.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(
@@ -372,9 +408,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ),
                         ),
                         child: Text(
-                          widget.product.inStock ? 'In Stock' : 'Out of Stock',
+                          inStock ? 'In Stock' : 'Out of Stock',
                           style: TextStyle(
-                            color: widget.product.inStock
+                            color: inStock
                                 ? AppTheme.success
                                 : AppTheme.error,
                             fontSize: 12,
@@ -384,7 +420,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${widget.product.stockQuantity} available',
+                        '$stockQty available',
                         style: const TextStyle(
                           color: AppTheme.textSecondary,
                           fontSize: 12,
@@ -393,6 +429,71 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: AppTheme.spacingLg),
+
+                  // Options Selector
+                  if (widget.product.options.isNotEmpty) ...[
+                    ...widget.product.options.map((option) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              option.name,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: option.values.map((val) {
+                                final isSelected = _selectedOptions[option.id] == val.id;
+                                return GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedOptions[option.id] = val.id;
+                                      _updateCurrentVariant();
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? AppTheme.primary : AppTheme.surface,
+                                      border: Border.all(
+                                        color: isSelected ? AppTheme.primary : AppTheme.surfaceLight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      val.value,
+                                      style: TextStyle(
+                                        color: isSelected ? Colors.white : AppTheme.textPrimary,
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            )
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    if (_currentVariant == null && widget.product.options.isNotEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 16.0),
+                        child: Text(
+                          'Selected variant is unavailable',
+                          style: TextStyle(color: AppTheme.error, fontSize: 12),
+                        ),
+                      ),
+                    const Divider(color: AppTheme.surfaceLight),
+                    const SizedBox(height: 16),
+                  ],
 
                   // Description
                   const Text(
@@ -627,10 +728,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ),
         child: SafeArea(
           child: CustomButton(
-            text: widget.product.inStock ? 'Add to Cart' : 'Out of Stock',
-            onPressed: widget.product.inStock
+            text: inStock ? 'Add to Cart' : 'Out of Stock',
+            onPressed: (inStock && (widget.product.options.isEmpty || _currentVariant != null))
                 ? () {
-                    context.read<CartProvider>().addToCart(widget.product);
+                    context.read<CartProvider>().addToCart(widget.product, variant: _currentVariant);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('${widget.product.name} added to cart'),

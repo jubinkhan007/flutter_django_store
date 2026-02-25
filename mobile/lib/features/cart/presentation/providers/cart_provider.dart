@@ -4,14 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../products/domain/entities/product.dart';
+import '../../../products/domain/entities/variant.dart';
 
 class CartItem {
   final Product product;
+  final ProductVariant? variant;
   int quantity;
 
-  CartItem({required this.product, this.quantity = 1});
+  CartItem({required this.product, this.variant, this.quantity = 1});
 
-  double get total => product.price * quantity;
+  double get effectivePrice => variant?.effectivePrice ?? product.price;
+
+  double get total => effectivePrice * quantity;
 }
 
 class CartProvider extends ChangeNotifier {
@@ -53,7 +57,13 @@ class CartProvider extends ChangeNotifier {
         final qty = int.tryParse(it['quantity']?.toString() ?? '') ?? 1;
         final product = _productFromStorage(productJson.cast<String, dynamic>());
         if (product.id <= 0) continue;
-        _items.add(CartItem(product: product, quantity: qty.clamp(1, 999)));
+        
+        ProductVariant? variant;
+        if (it['variant'] != null && it['variant'] is Map) {
+            variant = ProductVariant.fromJson(it['variant'].cast<String, dynamic>());
+        }
+
+        _items.add(CartItem(product: product, variant: variant, quantity: qty.clamp(1, 999)));
       }
 
       final coupon = decoded['coupon'];
@@ -108,6 +118,22 @@ class CartProvider extends ChangeNotifier {
       'createdAt': p.createdAt,
     };
   }
+  
+  Map<String, dynamic> _variantToStorage(ProductVariant v) {
+    return {
+        'id': v.id,
+        'sku': v.sku,
+        'barcode': v.barcode,
+        'price_override': v.priceOverride,
+        'effective_price': v.effectivePrice,
+        'stock_on_hand': v.stockOnHand,
+        'reserved_stock': v.reservedStock,
+        'low_stock_threshold': v.lowStockThreshold,
+        'stock_available': v.stockAvailable,
+        'is_active': v.isActive,
+        'option_value_ids': v.optionValueIds,
+    };
+  }
 
   Future<void> _saveToStorage() async {
     try {
@@ -117,6 +143,7 @@ class CartProvider extends ChangeNotifier {
             .map(
               (e) => {
                 'product': _productToStorage(e.product),
+                'variant': e.variant != null ? _variantToStorage(e.variant!) : null,
                 'quantity': e.quantity,
               },
             )
@@ -134,12 +161,14 @@ class CartProvider extends ChangeNotifier {
     }
   }
 
-  void addToCart(Product product) {
-    final existingIndex = _items.indexWhere((item) => item.product.id == product.id);
+  void addToCart(Product product, {ProductVariant? variant}) {
+    final existingIndex = _items.indexWhere(
+        (item) => item.product.id == product.id && item.variant?.id == variant?.id
+    );
     if (existingIndex >= 0) {
       _items[existingIndex].quantity++;
     } else {
-      _items.add(CartItem(product: product));
+      _items.add(CartItem(product: product, variant: variant));
     }
 
     // Avoid stale coupon discounts if cart changes.
@@ -152,8 +181,8 @@ class CartProvider extends ChangeNotifier {
     _saveToStorage();
   }
 
-  void removeFromCart(int productId) {
-    _items.removeWhere((item) => item.product.id == productId);
+  void removeFromCart(int productId, {int? variantId}) {
+    _items.removeWhere((item) => item.product.id == productId && item.variant?.id == variantId);
     if (_items.isEmpty) {
       clearCoupon();
       return;
@@ -166,8 +195,8 @@ class CartProvider extends ChangeNotifier {
     _saveToStorage();
   }
 
-  void updateQuantity(int productId, int quantity) {
-    final index = _items.indexWhere((item) => item.product.id == productId);
+  void updateQuantity(int productId, int quantity, {int? variantId}) {
+    final index = _items.indexWhere((item) => item.product.id == productId && item.variant?.id == variantId);
     if (index < 0) return;
 
     if (quantity <= 0) {
@@ -213,7 +242,11 @@ class CartProvider extends ChangeNotifier {
 
   List<Map<String, dynamic>> toOrderItems() {
     return _items
-        .map((item) => {'product': item.product.id, 'quantity': item.quantity})
+        .map((item) => {
+            'product': item.product.id,
+            'variant': item.variant?.id,
+            'quantity': item.quantity
+        })
         .toList();
   }
 }

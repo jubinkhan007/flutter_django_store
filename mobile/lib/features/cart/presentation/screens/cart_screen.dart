@@ -6,12 +6,12 @@ import '../providers/cart_provider.dart';
 import '../../../orders/presentation/providers/order_provider.dart';
 import '../../../addresses/data/models/address_model.dart';
 import '../../../addresses/presentation/screens/address_management_screen.dart';
-import '../../../orders/presentation/screens/order_history_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../coupons/presentation/screens/coupon_picker_sheet.dart';
 
 class CartScreen extends StatefulWidget {
-  const CartScreen({super.key});
+  final VoidCallback? onCheckoutComplete;
+  const CartScreen({super.key, this.onCheckoutComplete});
 
   @override
   State<CartScreen> createState() => _CartScreenState();
@@ -140,12 +140,7 @@ class _CartScreenState extends State<CartScreen> {
               ],
             ),
           );
-          if (context.mounted) {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
-            );
-          }
+          widget.onCheckoutComplete?.call();
         }
       } else {
         // Initiate SSLCommerz Payment
@@ -182,21 +177,20 @@ class _CartScreenState extends State<CartScreen> {
 
         if (paymentUrl != null && context.mounted) {
           final uri = Uri.parse(paymentUrl);
-          if (await canLaunchUrl(uri)) {
+          try {
+            orderProvider.setPendingPaymentOrder(order.id);
             await launchUrl(uri, mode: LaunchMode.externalApplication);
-          } else if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Could not launch payment gateway')),
-            );
+          } catch (_) {
+            orderProvider.clearPendingPaymentOrder();
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Could not launch payment gateway')),
+              );
+            }
           }
         }
 
-        if (context.mounted) {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
-          );
-        }
+        widget.onCheckoutComplete?.call();
       }
     } else if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -213,7 +207,7 @@ class _CartScreenState extends State<CartScreen> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Consumer<CartProvider>(
-        builder: (context, cart, _) {
+        builder: (_, cart, __) {
           final subtotal = cart.totalPrice;
           final total = (subtotal - cart.couponDiscount).clamp(
             0.0,
@@ -286,10 +280,10 @@ class _CartScreenState extends State<CartScreen> {
                         itemBuilder: (context, index) {
                           final item = cart.items[index];
                           return Dismissible(
-                            key: ValueKey(item.product.id),
+                            key: ValueKey('${item.product.id}_${item.variant?.id}'),
                             direction: DismissDirection.endToStart,
                             onDismissed: (_) =>
-                                cart.removeFromCart(item.product.id),
+                                cart.removeFromCart(item.product.id, variantId: item.variant?.id),
                             background: Container(
                               alignment: Alignment.centerRight,
                               padding: const EdgeInsets.only(right: 20),
@@ -352,6 +346,17 @@ class _CartScreenState extends State<CartScreen> {
                                             color: AppTheme.textPrimary,
                                           ),
                                         ),
+                                        if (item.variant != null)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 2),
+                                            child: Text(
+                                              'Variant: ${item.variant!.sku}',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: AppTheme.textSecondary,
+                                              ),
+                                            ),
+                                          ),
                                         const SizedBox(height: 4),
                                         Text(
                                           '\$${item.total.toStringAsFixed(2)}',
@@ -378,6 +383,7 @@ class _CartScreenState extends State<CartScreen> {
                                           onPressed: () => cart.updateQuantity(
                                             item.product.id,
                                             item.quantity - 1,
+                                            variantId: item.variant?.id,
                                           ),
                                           icon: const Icon(
                                             Icons.remove,
@@ -398,6 +404,7 @@ class _CartScreenState extends State<CartScreen> {
                                           onPressed: () => cart.updateQuantity(
                                             item.product.id,
                                             item.quantity + 1,
+                                            variantId: item.variant?.id,
                                           ),
                                           icon: const Icon(Icons.add, size: 16),
                                           constraints: const BoxConstraints(
@@ -557,7 +564,7 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                       const SizedBox(height: AppTheme.spacingMd),
                       Consumer<OrderProvider>(
-                        builder: (context, orderProvider, _) {
+                        builder: (_, orderProvider, __) {
                           return CustomButton(
                             text: 'Place Order',
                             isLoading: orderProvider.isLoading,

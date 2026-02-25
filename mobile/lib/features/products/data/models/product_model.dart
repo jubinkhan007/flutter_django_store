@@ -1,4 +1,5 @@
 import '../../domain/entities/product.dart';
+import '../../domain/entities/variant.dart';
 
 class ProductModel extends Product {
   const ProductModel({
@@ -13,9 +14,14 @@ class ProductModel extends Product {
     super.isAvailable,
     super.inStock,
     super.createdAt,
+    super.options,
+    super.variants,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
+    var optionsList = (json['options'] as List?) ?? [];
+    var variantsList = (json['variants'] as List?) ?? [];
+    
     return ProductModel(
       id: json['id'],
       name: json['name'] ?? '',
@@ -28,6 +34,8 @@ class ProductModel extends Product {
       isAvailable: json['is_available'] ?? true,
       inStock: json['in_stock'] ?? true,
       createdAt: json['created_at'],
+      options: optionsList.map((o) => ProductOption.fromJson(o)).toList(),
+      variants: variantsList.map((v) => ProductVariant.fromJson(v)).toList(),
     );
   }
 

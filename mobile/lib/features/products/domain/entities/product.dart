@@ -1,3 +1,5 @@
+import 'variant.dart';
+
 /// Domain entity for a Product.
 class Product {
   final int id;
@@ -11,6 +13,8 @@ class Product {
   final bool isAvailable;
   final bool inStock;
   final String? createdAt;
+  final List<ProductOption> options;
+  final List<ProductVariant> variants;
 
   const Product({
     required this.id,
@@ -24,5 +28,7 @@ class Product {
     this.isAvailable = true,
     this.inStock = true,
     this.createdAt,
+    this.options = const [],
+    this.variants = const [],
   });
 }
