@@ -206,3 +206,42 @@ class WishlistToggleView(APIView):
             return Response({"status": "removed", "message": "Removed from wishlist."}, status=status.HTTP_200_OK)
             
         return Response({"status": "added", "message": "Added to wishlist."}, status=status.HTTP_201_CREATED)
+
+from .serializers import ProductVariantSerializer
+from .models import ProductVariant
+
+class VendorProductVariantListCreateView(generics.ListCreateAPIView):
+    """
+    GET /api/vendors/products/<product_id>/variants/
+    POST /api/vendors/products/<product_id>/variants/
+    """
+    serializer_class = ProductVariantSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        try:
+            vendor = self.request.user.vendor_profile
+            return ProductVariant.objects.filter(product__vendor=vendor, product_id=self.kwargs['product_id'])
+        except AttributeError:
+            return ProductVariant.objects.none()
+
+    def perform_create(self, serializer):
+        product = generics.get_object_or_404(Product, id=self.kwargs['product_id'], vendor=self.request.user.vendor_profile)
+        serializer.save(product=product)
+
+class VendorProductVariantDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET /api/vendors/variants/<id>/
+    PUT/PATCH /api/vendors/variants/<id>/
+    DELETE /api/vendors/variants/<id>/
+    """
+    serializer_class = ProductVariantSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        try:
+            vendor = self.request.user.vendor_profile
+            return ProductVariant.objects.filter(product__vendor=vendor)
+        except AttributeError:
+            return ProductVariant.objects.none()
+

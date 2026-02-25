@@ -27,7 +27,10 @@ from .views import (
     WalletTransactionListView, PayoutRequestListCreateView, 
     BulkJobListCreateView, BulkJobDetailView
 )
-from products.views import VendorProductListCreateView, VendorProductDetailView
+from products.views import (
+    VendorProductListCreateView, VendorProductDetailView,
+    VendorProductVariantListCreateView, VendorProductVariantDetailView
+)
 from orders.views import VendorOrderListView, VendorUpdateOrderStatusView, VendorOrderCancelView
 
 urlpatterns = [
@@ -35,6 +38,8 @@ urlpatterns = [
     path('me/', VendorDashboardView.as_view(), name='vendor-dashboard'),
     path('products/', VendorProductListCreateView.as_view(), name='vendor-product-list'),
     path('products/<int:pk>/', VendorProductDetailView.as_view(), name='vendor-product-detail'),
+    path('products/<int:product_id>/variants/', VendorProductVariantListCreateView.as_view(), name='vendor-product-variant-list'),
+    path('variants/<int:pk>/', VendorProductVariantDetailView.as_view(), name='vendor-product-variant-detail'),
     path('orders/', VendorOrderListView.as_view(), name='vendor-order-list'),
     path('orders/<int:pk>/', VendorUpdateOrderStatusView.as_view(), name='vendor-order-update'),
     path('orders/<int:pk>/cancel/', VendorOrderCancelView.as_view(), name='vendor-order-cancel'),
