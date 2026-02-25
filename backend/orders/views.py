@@ -231,6 +231,7 @@ class CustomerOrderCancelView(generics.GenericAPIView):
 # ═══════════════════════════════════════════════════════════════════
 # VENDOR VIEWS
 # ═══════════════════════════════════════════════════════════════════
+from vendors.permissions import IsVendorSupportOrAbove, IsVendorPackerOrAbove, IsVendorOwnerOrManager
 
 class VendorOrderListView(generics.ListAPIView):
     """
@@ -239,14 +240,10 @@ class VendorOrderListView(generics.ListAPIView):
     """
     from orders.serializers import SubOrderSerializer
     serializer_class = SubOrderSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsVendorSupportOrAbove]
 
     def get_queryset(self):
-        try:
-            vendor = self.request.user.vendor_profile
-            return SubOrder.objects.filter(vendor=vendor).order_by('-created_at')
-        except AttributeError:
-            return SubOrder.objects.none()
+        return SubOrder.objects.filter(vendor=self.request.vendor).order_by('-created_at')
 
 
 class VendorUpdateOrderStatusView(generics.UpdateAPIView):
@@ -256,14 +253,10 @@ class VendorUpdateOrderStatusView(generics.UpdateAPIView):
     """
     from orders.serializers import SubOrderSerializer
     serializer_class = SubOrderSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsVendorPackerOrAbove]
 
     def get_queryset(self):
-        try:
-            vendor = self.request.user.vendor_profile
-            return SubOrder.objects.filter(vendor=vendor)
-        except AttributeError:
-            return SubOrder.objects.none()
+        return SubOrder.objects.filter(vendor=self.request.vendor)
 
     def partial_update(self, request, *args, **kwargs):
         sub_order = self.get_object()
@@ -319,14 +312,10 @@ class VendorOrderCancelView(generics.GenericAPIView):
     POST /api/vendors/orders/<id>/cancel/
     Allows vendor to cancel their SubOrder.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsVendorOwnerOrManager]
 
     def get_queryset(self):
-        try:
-            vendor = self.request.user.vendor_profile
-            return SubOrder.objects.filter(vendor=vendor)
-        except AttributeError:
-            return SubOrder.objects.none()
+        return SubOrder.objects.filter(vendor=self.request.vendor)
 
     def post(self, request, pk, *args, **kwargs):
         queryset = self.get_queryset()

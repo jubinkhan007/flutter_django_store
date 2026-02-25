@@ -94,6 +94,8 @@ class PublicProductDetailView(generics.RetrieveAPIView):
 # VENDOR VIEWS (Must be logged in and own the product)
 # ═══════════════════════════════════════════════════════════════════
 
+from vendors.permissions import IsVendorOwnerOrManager
+
 class VendorProductListCreateView(generics.ListCreateAPIView):
     """
     GET /api/vendors/products/
@@ -102,22 +104,13 @@ class VendorProductListCreateView(generics.ListCreateAPIView):
     Vendors use this to SEE their own products and ADD new products.
     """
     serializer_class = ProductSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsVendorOwnerOrManager]
 
     def get_queryset(self):
-        # We only return products that belong to the logged-in vendor
-        try:
-            return self.request.user.vendor_profile.products.all()
-        except AttributeError:
-            # If the user is authenticated but somehow isn't a vendor, return nothing
-            return Product.objects.none()
+        return Product.objects.filter(vendor=self.request.vendor)
 
     def perform_create(self, serializer):
-        # When a vendor CREATES a product (POST), we automatically set the 'vendor' field
-        # to the currently logged-in user's vendor profile.
-        # This is CRITICAL for security so vendors can't add products to competing stores.
-        vendor = self.request.user.vendor_profile
-        serializer.save(vendor=vendor)
+        serializer.save(vendor=self.request.vendor)
 
 
 class VendorProductDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -129,16 +122,10 @@ class VendorProductDetailView(generics.RetrieveUpdateDestroyAPIView):
     Vendors use this to edit or delete a specific product.
     """
     serializer_class = ProductSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsVendorOwnerOrManager]
 
     def get_queryset(self):
-        # Restrict the queryset so they can ONLY edit products they own.
-        # If they try to edit product ID 5, but product 5 belongs to someone else,
-        # they will get a 404 Not Found error (as if it doesn't exist).
-        try:
-            return self.request.user.vendor_profile.products.all()
-        except AttributeError:
-            return Product.objects.none()
+        return Product.objects.filter(vendor=self.request.vendor)
 
     def perform_update(self, serializer):
         from vendors.models import AuditLog
@@ -216,17 +203,13 @@ class VendorProductVariantListCreateView(generics.ListCreateAPIView):
     POST /api/vendors/products/<product_id>/variants/
     """
     serializer_class = ProductVariantSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsVendorOwnerOrManager]
 
     def get_queryset(self):
-        try:
-            vendor = self.request.user.vendor_profile
-            return ProductVariant.objects.filter(product__vendor=vendor, product_id=self.kwargs['product_id'])
-        except AttributeError:
-            return ProductVariant.objects.none()
+        return ProductVariant.objects.filter(product__vendor=self.request.vendor, product_id=self.kwargs['product_id'])
 
     def perform_create(self, serializer):
-        product = generics.get_object_or_404(Product, id=self.kwargs['product_id'], vendor=self.request.user.vendor_profile)
+        product = generics.get_object_or_404(Product, id=self.kwargs['product_id'], vendor=self.request.vendor)
         serializer.save(product=product)
 
 class VendorProductVariantDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -236,12 +219,8 @@ class VendorProductVariantDetailView(generics.RetrieveUpdateDestroyAPIView):
     DELETE /api/vendors/variants/<id>/
     """
     serializer_class = ProductVariantSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsVendorOwnerOrManager]
 
     def get_queryset(self):
-        try:
-            vendor = self.request.user.vendor_profile
-            return ProductVariant.objects.filter(product__vendor=vendor)
-        except AttributeError:
-            return ProductVariant.objects.none()
+        return ProductVariant.objects.filter(product__vendor=self.request.vendor)
 
