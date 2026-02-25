@@ -11,6 +11,10 @@ from .models import Vendor, WalletTransaction, PayoutRequest, BulkJob
 from .serializers import VendorSerializer, WalletTransactionSerializer, PayoutRequestSerializer, BulkJobSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from .services import process_bulk_job_async
+from .permissions import IsVendorStaff, IsVendorOwnerOrManager
+from django.utils import timezone
+from datetime import timedelta
+from decimal import Decimal
 
 
 class VendorOnboardingView(generics.CreateAPIView):
@@ -36,10 +40,10 @@ class VendorOnboardingView(generics.CreateAPIView):
 
 class VendorDashboardView(generics.RetrieveUpdateAPIView):
     serializer_class = VendorSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsVendorOwnerOrManager]
 
     def get_object(self):
-        return self.request.user.vendor_profile
+        return self.request.vendor
 
 
 class VendorStatsView(APIView):
@@ -47,39 +51,78 @@ class VendorStatsView(APIView):
     GET /api/vendors/stats/
     Returns business stats for the vendor dashboard.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsVendorStaff]
 
     def get(self, request):
-        try:
-            vendor = request.user.vendor_profile
-        except AttributeError:
-            return Response(
-                {"error": "You are not a vendor."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
+        vendor = request.vendor
         from orders.models import SubOrder, OrderItem
-
-        total_products = vendor.products.count()
-        total_suborders = SubOrder.objects.filter(vendor=vendor).count()
-        pending_suborders = SubOrder.objects.filter(vendor=vendor, status='PENDING').count()
-
+        from products.models import Product, ProductVariant
         from django.db.models import F, Sum, DecimalField, ExpressionWrapper
-        # Revenue = sum of (unit_price * quantity) for all this vendor's order items
+        
+        now = timezone.now()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        seven_days_ago = now - timedelta(days=7)
+        thirty_days_ago = now - timedelta(days=30)
+
+        # Orders metrics
+        suborders = SubOrder.objects.filter(vendor=vendor)
+        today_orders = suborders.filter(created_at__gte=today_start).count()
+        pending_orders = suborders.filter(status='PENDING').count()
+        
+        # Late shipments (status is pending/paid/packed and current time > ship_by_date)
+        late_shipments_count = suborders.filter(
+            status__in=['PENDING', 'PAID', 'PACKED'],
+            ship_by_date__lt=now
+        ).count()
+
+        # Revenue
         revenue_expr = ExpressionWrapper(F('unit_price') * F('quantity'), output_field=DecimalField())
-        revenue = OrderItem.objects.filter(sub_order__vendor=vendor).aggregate(
-            total=Sum(revenue_expr)
-        )['total'] or 0
+        
+        revenue_7d = OrderItem.objects.filter(
+            sub_order__vendor=vendor,
+            sub_order__created_at__gte=seven_days_ago,
+            sub_order__status__in=['DELIVERED', 'SHIPPED', 'PACKED', 'PAID']
+        ).aggregate(total=Sum(revenue_expr))['total'] or Decimal('0.00')
+
+        revenue_30d = OrderItem.objects.filter(
+            sub_order__vendor=vendor,
+            sub_order__created_at__gte=thirty_days_ago,
+            sub_order__status__in=['DELIVERED', 'SHIPPED', 'PACKED', 'PAID']
+        ).aggregate(total=Sum(revenue_expr))['total'] or Decimal('0.00')
+
+        # Low stock
+        low_stock_variants = ProductVariant.objects.filter(product__vendor=vendor).annotate(
+            avail=F('stock_on_hand') - F('reserved_stock')
+        ).filter(avail__lte=F('low_stock_threshold')).count()
+        
+        low_stock_products = Product.objects.filter(
+            vendor=vendor, 
+            variants__isnull=True, 
+            stock_quantity__lte=5
+        ).count()
+        
+        low_stock_count = low_stock_variants + low_stock_products
+
+        # SLAs (Cancellation Rate & Fulfillment Rate 30d)
+        orders_30d = suborders.filter(created_at__gte=thirty_days_ago)
+        total_30d = orders_30d.count()
+        canceled_30d = orders_30d.filter(status='CANCELED').count()
+        fulfilled_30d = orders_30d.filter(status__in=['SHIPPED', 'DELIVERED']).count()
+
+        cancellation_rate_30d = (canceled_30d / total_30d * 100) if total_30d > 0 else 0
+        fulfillment_rate_30d = (fulfilled_30d / total_30d * 100) if total_30d > 0 else 0
 
         return Response({
-            'total_products': total_products,
-            'total_orders': total_suborders,
-            'pending_orders': pending_suborders,
-            'total_revenue': float(revenue),
+            'today_orders': today_orders,
+            'pending_orders': pending_orders,
+            'revenue_7d': float(revenue_7d),
+            'revenue_30d': float(revenue_30d),
+            'low_stock_count': low_stock_count,
+            'late_shipments_count': late_shipments_count,
+            'cancellation_rate_30d': round(cancellation_rate_30d, 2),
+            'fulfillment_rate_30d': round(fulfillment_rate_30d, 2),
             'wallet_balance': float(vendor.balance),
-            'cancellation_rate': float(vendor.cancellation_rate),
-            'late_shipment_rate': float(vendor.late_shipment_rate),
-            'avg_handling_time_days': float(vendor.avg_handling_time_days),
+            'total_orders': suborders.count(),
         })
 
 
