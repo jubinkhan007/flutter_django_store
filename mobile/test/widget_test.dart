@@ -14,6 +14,7 @@ import 'package:mobile/features/reviews/data/repositories/review_repository.dart
 import 'package:mobile/features/wishlist/data/repositories/wishlist_repository.dart';
 import 'package:mobile/features/returns/data/repositories/return_repository.dart';
 import 'package:mobile/features/coupons/data/repositories/coupon_repository.dart';
+import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
 
 void main() {
   testWidgets('Boots to login when logged out', (WidgetTester tester) async {
@@ -26,6 +27,7 @@ void main() {
       apiClient: apiClient,
       tokenStorage: tokenStorage,
     );
+    final authProvider = AuthProvider(authRepository: authRepo);
     final productRepo = ProductRepositoryImpl(apiClient: apiClient);
     final orderRepo = OrderRepository(apiClient: apiClient);
     final vendorRepo = VendorRepository(apiClient: apiClient);
@@ -37,7 +39,7 @@ void main() {
 
     await tester.pumpWidget(
       MyApp(
-        authRepository: authRepo,
+        authProvider: authProvider,
         productRepository: productRepo,
         orderRepository: orderRepo,
         vendorRepository: vendorRepo,
@@ -68,6 +70,7 @@ void main() {
       apiClient: apiClient,
       tokenStorage: tokenStorage,
     );
+    final authProvider = AuthProvider(authRepository: authRepo);
     final productRepo = ProductRepositoryImpl(apiClient: apiClient);
     final orderRepo = OrderRepository(apiClient: apiClient);
     final vendorRepo = VendorRepository(apiClient: apiClient);
@@ -79,7 +82,7 @@ void main() {
 
     await tester.pumpWidget(
       MyApp(
-        authRepository: authRepo,
+        authProvider: authProvider,
         productRepository: productRepo,
         orderRepository: orderRepo,
         vendorRepository: vendorRepo,

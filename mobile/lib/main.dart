@@ -53,6 +53,9 @@ import 'features/returns/presentation/providers/return_provider.dart';
 import 'features/coupons/data/repositories/coupon_repository.dart';
 import 'features/coupons/presentation/providers/coupon_provider.dart';
 
+// Global navigator key to allow showing SnackBars/dialogs without context
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -65,6 +68,27 @@ void main() {
     apiClient: apiClient,
     tokenStorage: tokenStorage,
   );
+
+  // We need AuthProvider early to wire up the global unauthenticated logout callback.
+  final authProvider = AuthProvider(authRepository: authRepository);
+
+  apiClient.onUnauthenticated = () {
+    // 1. Log out locally
+    authProvider.logout();
+
+    // 2. Try to show a snackbar using the global navigator key
+    final context = navigatorKey.currentContext;
+    if (context != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Session expired. Please log in again.'),
+          backgroundColor: AppTheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  };
+
   final ProductRepository productRepository = ProductRepositoryImpl(
     apiClient: apiClient,
   );
@@ -78,7 +102,7 @@ void main() {
 
   runApp(
     MyApp(
-      authRepository: authRepository,
+      authProvider: authProvider,
       productRepository: productRepository,
       orderRepository: orderRepository,
       vendorRepository: vendorRepository,
@@ -92,7 +116,7 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  final AuthRepository authRepository;
+  final AuthProvider authProvider;
   final ProductRepository productRepository;
   final OrderRepository orderRepository;
   final VendorRepository vendorRepository;
@@ -104,7 +128,7 @@ class MyApp extends StatelessWidget {
 
   const MyApp({
     super.key,
-    required this.authRepository,
+    required this.authProvider,
     required this.productRepository,
     required this.orderRepository,
     required this.vendorRepository,
@@ -119,15 +143,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) => AuthProvider(authRepository: authRepository),
-        ),
+        ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(
           create: (_) => ProductProvider(productRepository: productRepository),
         ),
-        ChangeNotifierProvider(
-          create: (_) => CartProvider(),
-        ),
+        ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(
           create: (_) => OrderProvider(orderRepository: orderRepository),
         ),
@@ -156,6 +176,7 @@ class MyApp extends StatelessWidget {
         title: 'ShopEase',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
+        navigatorKey: navigatorKey,
         home: const AuthGate(),
         routes: {
           '/login': (context) => const LoginScreen(),

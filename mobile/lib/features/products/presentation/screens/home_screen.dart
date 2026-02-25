@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
+import '../../../orders/presentation/providers/order_provider.dart';
 import '../providers/product_provider.dart';
 import '../widgets/product_card.dart';
 import 'product_detail_screen.dart';
@@ -36,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final pages = [
       const _ShopPage(),
-      const CartScreen(),
+      CartScreen(onCheckoutComplete: () => setState(() => _currentIndex = 2)),
       const OrderHistoryScreen(),
       const ProfileScreen(),
     ];
@@ -54,7 +55,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
+          onTap: (index) {
+            setState(() => _currentIndex = index);
+            if (index == 2) {
+              context.read<OrderProvider>().loadOrdersWithLoading(
+                showLoading: false,
+              );
+            }
+          },
           type: BottomNavigationBarType
               .fixed, // Ensure more than 3 items look good
           items: [

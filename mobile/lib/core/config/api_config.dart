@@ -13,7 +13,7 @@ class ApiConfig {
   // Auth endpoints
   static String get loginUrl => '$baseUrl/login/';
   static String get registerUrl => '$baseUrl/register/';
-  static String get tokenRefreshUrl => '$baseUrl/token/refresh/';
+  static String get tokenRefreshUrl => '$baseUrl/auth/refresh/';
   static String get addressesUrl => '$baseUrl/auth/addresses/';
 
   // Coupons

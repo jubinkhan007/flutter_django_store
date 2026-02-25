@@ -11,10 +11,24 @@ class OrderProvider extends ChangeNotifier {
   List<OrderModel> _orders = [];
   bool _isLoading = false;
   String? _error;
+  int? _pendingPaymentOrderId;
 
   List<OrderModel> get orders => _orders;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  int? get pendingPaymentOrderId => _pendingPaymentOrderId;
+  bool get hasPendingPayment => _pendingPaymentOrderId != null;
+
+  void setPendingPaymentOrder(int orderId) {
+    _pendingPaymentOrderId = orderId;
+    notifyListeners();
+  }
+
+  void clearPendingPaymentOrder() {
+    if (_pendingPaymentOrderId == null) return;
+    _pendingPaymentOrderId = null;
+    notifyListeners();
+  }
 
   Future<Map<String, dynamic>?> validateCoupon(
     String code,
@@ -123,17 +137,25 @@ class OrderProvider extends ChangeNotifier {
   }
 
   Future<void> loadOrders() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    await loadOrdersWithLoading(showLoading: true);
+  }
+
+  Future<void> loadOrdersWithLoading({required bool showLoading}) async {
+    if (showLoading) {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+    }
 
     try {
       _orders = await _orderRepository.getOrderHistory();
-      _isLoading = false;
-      notifyListeners();
+      _error = null;
     } catch (e) {
       _error = e.toString();
-      _isLoading = false;
+    } finally {
+      if (showLoading) {
+        _isLoading = false;
+      }
       notifyListeners();
     }
   }

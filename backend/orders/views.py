@@ -449,7 +449,7 @@ class SSLCommerzSuccessView(generics.GenericAPIView):
                     order.val_id = val_id
                     order.save()
                     return HttpResponse(_deep_link_redirect(
-                        scheme_url='shopease://payment/success',
+                        scheme_url=f"shopease://payment/success?order_id={order.id}",
                         title='Payment Successful!',
                         color='green',
                         message='Redirecting you back to the app...',
@@ -471,8 +471,10 @@ class SSLCommerzFailView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
+        tran_id = request.data.get('tran_id')
+        suffix = f"?tran_id={tran_id}" if tran_id else ""
         return HttpResponse(_deep_link_redirect(
-            scheme_url='shopease://payment/fail',
+            scheme_url=f"shopease://payment/fail{suffix}",
             title='Payment Failed',
             color='red',
             message='Redirecting you back to the app...',
@@ -485,8 +487,10 @@ class SSLCommerzCancelView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
+        tran_id = request.data.get('tran_id')
+        suffix = f"?tran_id={tran_id}" if tran_id else ""
         return HttpResponse(_deep_link_redirect(
-            scheme_url='shopease://payment/cancel',
+            scheme_url=f"shopease://payment/cancel{suffix}",
             title='Payment Cancelled',
             color='orange',
             message='Redirecting you back to the app...',

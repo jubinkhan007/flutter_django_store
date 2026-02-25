@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -14,28 +16,92 @@ class OrderHistoryScreen extends StatefulWidget {
 
 class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     with WidgetsBindingObserver {
-  bool _awaitingPaymentReturn = false;
+  Timer? _paymentRefreshTimer;
+  bool _paymentRefreshInFlight = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<OrderProvider>().loadOrders();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await context.read<OrderProvider>().loadOrders();
+      if (!mounted) return;
+      _startPaymentPolling();
     });
   }
 
   @override
   void dispose() {
+    _paymentRefreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
+  void _stopPaymentPolling() {
+    if (mounted) {
+      context.read<OrderProvider>().clearPendingPaymentOrder();
+    }
+    _paymentRefreshTimer?.cancel();
+    _paymentRefreshTimer = null;
+    _paymentRefreshInFlight = false;
+  }
+
+  void _startPaymentPolling() {
+    final orderId = context.read<OrderProvider>().pendingPaymentOrderId;
+    if (orderId == null) return;
+
+    _paymentRefreshTimer?.cancel();
+    _paymentRefreshInFlight = false;
+    var attempts = 0;
+
+    _paymentRefreshTimer = Timer.periodic(const Duration(seconds: 2), (
+      timer,
+    ) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+        return;
+      }
+
+      attempts += 1;
+      if (attempts > 30) {
+        _stopPaymentPolling();
+        return;
+      }
+
+      if (_paymentRefreshInFlight) return;
+      _paymentRefreshInFlight = true;
+      final provider = context.read<OrderProvider>();
+      await provider.loadOrdersWithLoading(showLoading: false);
+      _paymentRefreshInFlight = false;
+
+      OrderModel? updated;
+      for (final o in provider.orders) {
+        if (o.id == orderId) {
+          updated = o;
+          break;
+        }
+      }
+
+      if (updated == null) {
+        _stopPaymentPolling();
+        return;
+      }
+
+      if (updated.paymentStatus != 'UNPAID') {
+        _stopPaymentPolling();
+      }
+    });
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _awaitingPaymentReturn) {
-      _awaitingPaymentReturn = false;
-      context.read<OrderProvider>().loadOrders();
+    if (state == AppLifecycleState.resumed) {
+      context.read<OrderProvider>().loadOrdersWithLoading(showLoading: false);
+      _startPaymentPolling();
     }
   }
 
@@ -101,7 +167,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     if (url != null) {
       final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
-        _awaitingPaymentReturn = true;
+        provider.setPendingPaymentOrder(order.id);
+        _startPaymentPolling();
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     }
