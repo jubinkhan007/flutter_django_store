@@ -47,7 +47,10 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
       return;
     }
 
-    final result = await orderProvider.validateCoupon(code, cart.toOrderItems());
+    final result = await orderProvider.validateCoupon(
+      code,
+      cart.toOrderItems(),
+    );
     if (!mounted) return;
 
     if (result == null) {
@@ -244,16 +247,16 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: AppColors.lightSurface,
-                            borderRadius: BorderRadius.circular(
-                              AppRadius.md,
-                            ),
+                            borderRadius: BorderRadius.circular(AppRadius.md),
                           ),
                           child: Row(
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).primaryColor.withOpacity(0.15),
+                                  color: Theme.of(
+                                    context,
+                                  ).primaryColor.withOpacity(0.15),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Icon(

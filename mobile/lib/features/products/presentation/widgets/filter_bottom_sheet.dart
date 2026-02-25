@@ -45,9 +45,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: const BoxDecoration(
         color: AppColors.lightSurface,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.xl),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -159,7 +157,9 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
       selectedColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
       backgroundColor: AppColors.lightSurface,
       labelStyle: TextStyle(
-        color: isSelected ? Theme.of(context).primaryColor : AppColors.lightTextSecondary,
+        color: isSelected
+            ? Theme.of(context).primaryColor
+            : AppColors.lightTextSecondary,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
       onSelected: (bool selected) {

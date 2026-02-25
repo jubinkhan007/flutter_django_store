@@ -126,10 +126,12 @@ class ApiClient {
   Future<http.Response> post(
     String url, {
     Map<String, dynamic>? body,
+    Map<String, String>? extraHeaders,
     bool auth = true,
   }) async {
     return _requestWithRetry(() async {
       final headers = await _headers(auth: auth);
+      if (extraHeaders != null) headers.addAll(extraHeaders);
       return _httpClient.post(
         Uri.parse(url),
         headers: headers,

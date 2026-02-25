@@ -136,8 +136,7 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                 right: AppSpacing.lg,
                 top: AppSpacing.lg,
                 bottom:
-                    MediaQuery.of(context).viewInsets.bottom +
-                    AppSpacing.lg,
+                    MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -322,7 +321,7 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: (c.isActive ? AppColors.success : AppColors.warning)
-                  .withOpacity(0.12),
+                  .withAlpha(30), // 0.12 * 255 ≈ 30.6
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Icon(

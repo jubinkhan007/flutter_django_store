@@ -5,6 +5,7 @@ urlpatterns = [
     # Customer endpoints
     path('', views.CustomerOrderListView.as_view(), name='customer-order-list'),
     path('place/', views.CustomerPlaceOrderView.as_view(), name='customer-place-order'),
+    path('quote/', views.CheckoutQuoteView.as_view(), name='checkout-quote'),
     path('<int:pk>/', views.CustomerOrderDetailView.as_view(), name='customer-order-detail'),
     path('<int:pk>/cancel/', views.CustomerOrderCancelView.as_view(), name='customer-order-cancel'),
 

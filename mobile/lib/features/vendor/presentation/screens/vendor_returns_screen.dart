@@ -53,11 +53,12 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen> {
               lastDate: now.add(const Duration(days: 30)),
             );
             if (date == null) return null;
+            if (!context.mounted) return null;
             final time = await showTimePicker(
               context: context,
               initialTime: TimeOfDay.fromDateTime(initial ?? now),
             );
-            if (time == null) return null;
+            if (time == null || !context.mounted) return null;
             return DateTime(
               date.year,
               date.month,
@@ -171,7 +172,7 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: method,
+                initialValue: method,
                 decoration: const InputDecoration(labelText: 'Method'),
                 items: const [
                   DropdownMenuItem(
@@ -298,8 +299,9 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final headerColor =
-        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
+    final headerColor = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
 
     return SafeArea(
       child: Column(
@@ -449,12 +451,15 @@ class _ReturnCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = isDark ? AppColors.darkPrimary : AppColors.lightPrimary;
-    final primaryGradient =
-        isDark ? AppGradients.darkPrimary : AppGradients.lightPrimary;
-    final textPrimary =
-        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSecondary =
-        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final primaryGradient = isDark
+        ? AppGradients.darkPrimary
+        : AppGradients.lightPrimary;
+    final textPrimary = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSecondary = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
 
     final canDecide = rr.status == 'SUBMITTED' || rr.status == 'ESCALATED';
     final canReceive =
@@ -521,10 +526,7 @@ class _ReturnCard extends StatelessWidget {
                   ],
                 ),
               ),
-              chipBuilder(
-                rr.status,
-                statusColor,
-              ),
+              chipBuilder(rr.status, statusColor),
             ],
           ),
           const SizedBox(height: 12),
@@ -538,10 +540,7 @@ class _ReturnCard extends StatelessWidget {
               padding: const EdgeInsets.only(top: 6),
               child: Text(
                 'Pickup: ${rr.pickupWindowStart?.toLocal().toString() ?? '-'} → ${rr.pickupWindowEnd?.toLocal().toString() ?? '-'}',
-                style: TextStyle(
-                  color: textSecondary,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: textSecondary, fontSize: 13),
               ),
             ),
           if (rr.fulfillment == 'DROPOFF' && rr.dropoffInstructions.isNotEmpty)
@@ -549,10 +548,7 @@ class _ReturnCard extends StatelessWidget {
               padding: const EdgeInsets.only(top: 6),
               child: Text(
                 'Drop-off: ${rr.dropoffInstructions}',
-                style: TextStyle(
-                  color: textSecondary,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: textSecondary, fontSize: 13),
               ),
             ),
           const SizedBox(height: 8),
@@ -561,10 +557,7 @@ class _ReturnCard extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 4),
               child: Text(
                 '${it.productName} × ${it.quantity}',
-                style: TextStyle(
-                  color: textPrimary,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: textPrimary, fontSize: 14),
               ),
             ),
           ),

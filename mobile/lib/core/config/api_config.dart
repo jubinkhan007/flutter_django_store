@@ -37,6 +37,7 @@ class ApiConfig {
   // Order endpoints
   static String get ordersUrl => '$baseUrl/orders/';
   static String get placeOrderUrl => '$baseUrl/orders/place/';
+  static String get checkoutQuoteUrl => '$baseUrl/orders/quote/';
 
   // Vendor endpoints
   static String get vendorOnboardingUrl => '$baseUrl/vendors/onboarding/';

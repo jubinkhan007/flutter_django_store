@@ -2,6 +2,7 @@ import 'dart:convert';
 import '../../../../core/config/api_config.dart';
 import '../../../../core/network/api_client.dart';
 import '../models/order_model.dart';
+import '../models/checkout_quote_model.dart';
 
 class OrderRepository {
   final ApiClient _apiClient;
@@ -25,11 +26,37 @@ class OrderRepository {
     }
   }
 
+  Future<CheckoutQuote> fetchQuote({
+    required List<Map<String, dynamic>> items,
+    required int addressId,
+    String? couponCode,
+    String paymentMethod = 'ONLINE',
+  }) async {
+    final response = await _apiClient.post(
+      ApiConfig.checkoutQuoteUrl,
+      body: {
+        'items': items,
+        'address_id': addressId,
+        'payment_method': paymentMethod,
+        if (couponCode != null && couponCode.trim().isNotEmpty)
+          'coupon_code': couponCode.trim(),
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return CheckoutQuote.fromJson(jsonDecode(response.body));
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to fetch quote');
+    }
+  }
+
   Future<OrderModel> placeOrder(
     List<Map<String, dynamic>> items,
     int addressId, {
     String paymentMethod = 'ONLINE',
     String? couponCode,
+    String? idempotencyKey,
   }) async {
     final response = await _apiClient.post(
       ApiConfig.placeOrderUrl,
@@ -40,6 +67,9 @@ class OrderRepository {
         if (couponCode != null && couponCode.trim().isNotEmpty)
           'coupon_code': couponCode.trim(),
       },
+      extraHeaders: {
+        if (idempotencyKey != null) 'X-Idempotency-Key': idempotencyKey,
+      },
     );
 
     if (response.statusCode == 201) {
@@ -47,6 +77,16 @@ class OrderRepository {
     } else {
       final error = jsonDecode(response.body);
       throw Exception(error['error'] ?? 'Failed to place order');
+    }
+  }
+
+  Future<OrderModel> getOrderDetail(int orderId) async {
+    final response = await _apiClient.get('${ApiConfig.ordersUrl}$orderId/');
+
+    if (response.statusCode == 200) {
+      return OrderModel.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to load order details');
     }
   }
 

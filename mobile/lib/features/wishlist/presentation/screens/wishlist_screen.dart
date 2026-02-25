@@ -105,9 +105,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                       child: Row(
                         children: [
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(
-                              AppRadius.sm,
-                            ),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
                             child: item.productImage != null
                                 ? Image.network(
                                     item.productImage!,
@@ -118,7 +116,9 @@ class _WishlistScreenState extends State<WishlistScreen> {
                                 : Container(
                                     width: 80,
                                     height: 80,
-                                    color: Theme.of(context).scaffoldBackgroundColor,
+                                    color: Theme.of(
+                                      context,
+                                    ).scaffoldBackgroundColor,
                                     child: const Icon(
                                       Icons.image,
                                       color: AppColors.lightTextSecondary,

@@ -2,580 +2,135 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/primary_button.dart';
-import '../providers/cart_provider.dart';
-import '../../../orders/presentation/providers/order_provider.dart';
-import '../../../addresses/data/models/address_model.dart';
-import '../../../addresses/presentation/screens/address_management_screen.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../../coupons/presentation/screens/coupon_picker_sheet.dart';
+import '../../../../core/theme/typography.dart';
 import '../../../../core/widgets/app_empty_state.dart';
+import '../../../coupons/presentation/screens/coupon_picker_sheet.dart';
+import '../providers/cart_provider.dart';
+import '../widgets/cart_item_card.dart';
+import '../widgets/cart_checkout_panel.dart';
+import 'checkout_screen.dart';
 
-class CartScreen extends StatefulWidget {
-  final VoidCallback? onCheckoutComplete;
-  const CartScreen({super.key, this.onCheckoutComplete});
-
-  @override
-  State<CartScreen> createState() => _CartScreenState();
-}
-
-class _CartScreenState extends State<CartScreen> {
-  Future<String?> _selectPaymentMethod(BuildContext context) async {
-    return showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: AppColors.lightSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        var selected = 'ONLINE';
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.lg,
-                AppSpacing.lg,
-                AppSpacing.lg,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Choose payment method',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.lightTextPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  RadioListTile<String>(
-                    value: 'ONLINE',
-                    groupValue: selected,
-                    onChanged: (v) => setState(() => selected = v ?? 'ONLINE'),
-                    title: const Text('Pay online'),
-                    subtitle: const Text('SSLCommerz payment gateway'),
-                    activeColor: Theme.of(context).primaryColor,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  RadioListTile<String>(
-                    value: 'COD',
-                    groupValue: selected,
-                    onChanged: (v) => setState(() => selected = v ?? 'COD'),
-                    title: const Text('Cash on delivery'),
-                    subtitle: const Text('Pay when your order arrives'),
-                    activeColor: Theme.of(context).primaryColor,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  PrimaryButton(
-                    text: 'Continue',
-                    onPressed: () => Navigator.pop(context, selected),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _handleCheckout(
-    BuildContext context,
-    CartProvider cart,
-    OrderProvider orderProvider,
-  ) async {
-    // 1. Select Delivery Address
-    final selectedAddress = await Navigator.push<AddressModel>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const AddressManagementScreen(isSelectionMode: true),
-      ),
-    );
-
-    if (selectedAddress == null || !context.mounted) return;
-
-    // 2. Choose payment method
-    final paymentMethod = await _selectPaymentMethod(context);
-    if (paymentMethod == null || !context.mounted) return;
-
-    final order = await orderProvider.placeOrder(
-      cart.toOrderItems(),
-      selectedAddress.id,
-      paymentMethod: paymentMethod,
-      couponCode: cart.couponCode,
-    );
-
-    if (order != null && context.mounted) {
-      // Clear cart
-      cart.clear();
-
-      if (paymentMethod == 'COD') {
-        // Show a confirmation dialog for COD
-        if (context.mounted) {
-          await showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => AlertDialog(
-              backgroundColor: AppColors.lightSurface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              title: const Row(
-                children: [
-                  Icon(Icons.check_circle, color: AppColors.success, size: 28),
-                  SizedBox(width: 8),
-                  Text('Order Placed!'),
-                ],
-              ),
-              content: Text(
-                'Order #${order.id} has been placed successfully.\nPayment: Cash on Delivery',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('View Orders'),
-                ),
-              ],
-            ),
-          );
-          widget.onCheckoutComplete?.call();
-        }
-      } else {
-        // Initiate SSLCommerz Payment
-        final paymentUrl = await orderProvider.initiatePayment(order.id);
-
-        if (context.mounted) {
-          await showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => AlertDialog(
-              backgroundColor: AppColors.lightSurface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              title: const Row(
-                children: [
-                  Icon(Icons.check_circle, color: AppColors.success, size: 28),
-                  SizedBox(width: 8),
-                  Text('Order Placed!'),
-                ],
-              ),
-              content: Text(
-                'Order #${order.id} created.\nYou will now be redirected to the payment gateway.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Proceed to Payment'),
-                ),
-              ],
-            ),
-          );
-        }
-
-        if (paymentUrl != null && context.mounted) {
-          final uri = Uri.parse(paymentUrl);
-          try {
-            orderProvider.setPendingPaymentOrder(order.id);
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          } catch (_) {
-            orderProvider.clearPendingPaymentOrder();
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Could not launch payment gateway'),
-                ),
-              );
-            }
-          }
-        }
-
-        widget.onCheckoutComplete?.call();
-      }
-    } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(orderProvider.error ?? 'Order failed'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
+class CartScreen extends StatelessWidget {
+  const CartScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Consumer<CartProvider>(
-        builder: (_, cart, __) {
-          final subtotal = cart.totalPrice;
-          final total = (subtotal - cart.couponDiscount).clamp(
-            0.0,
-            double.infinity,
-          );
-          return Column(
-            children: [
-              // ── Header ──
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Your Cart',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.lightTextPrimary,
-                      ),
-                    ),
-                    if (!cart.isEmpty)
-                      TextButton(
-                        onPressed: () => cart.clear(),
-                        child: const Text(
-                          'Clear All',
-                          style: TextStyle(color: AppColors.error),
-                        ),
-                      ),
-                  ],
+    final cart = context.watch<CartProvider>();
+
+    return Scaffold(
+      backgroundColor: AppColors.lightBg,
+      appBar: AppBar(
+        backgroundColor: AppColors.lightSurface,
+        elevation: 0,
+        title: Text(
+          'Cart',
+          style: AppTextStyles.titleMedium.copyWith(
+            color: AppColors.lightTextPrimary,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          if (cart.items.isNotEmpty)
+            TextButton(
+              onPressed: () => _confirmClearCart(context, cart),
+              child: Text(
+                'Clear',
+                style: AppTextStyles.labelLarge.copyWith(
+                  color: AppColors.error,
                 ),
               ),
-
-              // ── Cart Items or Empty State ──
-              Expanded(
-                child: cart.isEmpty
-                    ? const AppEmptyState(
-                        icon: Icons.shopping_cart_outlined,
-                        title: 'Your cart is empty',
-                        message: 'Browse products and add items to your cart.',
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                        ),
-                        itemCount: cart.items.length,
-                        itemBuilder: (context, index) {
-                          final item = cart.items[index];
-                          return Dismissible(
-                            key: ValueKey(
-                              '${item.product.id}_${item.variant?.id}',
-                            ),
-                            direction: DismissDirection.endToStart,
-                            onDismissed: (_) => cart.removeFromCart(
-                              item.product.id,
-                              variantId: item.variant?.id,
-                            ),
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20),
-                              margin: const EdgeInsets.only(
-                                bottom: AppSpacing.sm,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.error.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.md,
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.delete_outline,
-                                color: AppColors.error,
-                              ),
-                            ),
-                            child: Container(
-                              margin: const EdgeInsets.only(
-                                bottom: AppSpacing.sm,
-                              ),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.lightSurface,
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.md,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  // Product Image
-                                  Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.lightSurface,
-                                      borderRadius: BorderRadius.circular(
-                                        AppRadius.sm,
-                                      ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.shopping_bag_outlined,
-                                      color: AppColors.lightTextSecondary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-
-                                  // Product Info
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item.product.name,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                            color: AppColors.lightTextPrimary,
-                                          ),
-                                        ),
-                                        if (item.variant != null)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 2,
-                                            ),
-                                            child: Text(
-                                              'Variant: ${item.variant!.sku}',
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                color: AppColors
-                                                    .lightTextSecondary,
-                                              ),
-                                            ),
-                                          ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '\$${item.total.toStringAsFixed(2)}',
-                                          style: TextStyle(
-                                            color: Theme.of(
-                                              context,
-                                            ).primaryColor,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                                  // Quantity Controls
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: AppColors.lightSurface,
-                                      borderRadius: BorderRadius.circular(
-                                        AppRadius.sm,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        IconButton(
-                                          onPressed: () => cart.updateQuantity(
-                                            item.product.id,
-                                            item.quantity - 1,
-                                            variantId: item.variant?.id,
-                                          ),
-                                          icon: const Icon(
-                                            Icons.remove,
-                                            size: 16,
-                                          ),
-                                          constraints: const BoxConstraints(
-                                            minWidth: 32,
-                                            minHeight: 32,
-                                          ),
-                                        ),
-                                        Text(
-                                          '${item.quantity}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        IconButton(
-                                          onPressed: () => cart.updateQuantity(
-                                            item.product.id,
-                                            item.quantity + 1,
-                                            variantId: item.variant?.id,
-                                          ),
-                                          icon: const Icon(Icons.add, size: 16),
-                                          constraints: const BoxConstraints(
-                                            minWidth: 32,
-                                            minHeight: 32,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-
-              // ── Bottom Checkout Bar ──
-              if (!cart.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: const BoxDecoration(
-                    color: AppColors.lightSurface,
-                    border: Border(
-                      top: BorderSide(
-                        color: AppColors.lightSurface,
-                        width: 0.5,
-                      ),
-                    ),
+            ),
+        ],
+      ),
+      body: cart.isEmpty
+          ? const AppEmptyState(
+              icon: Icons.shopping_cart_outlined,
+              title: 'Your cart is empty',
+              message: 'Browse products and add items to your cart',
+            )
+          : Stack(
+              children: [
+                // Item list
+                ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    220, // Space for bottom panel
                   ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Coupon',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.lightTextPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  cart.couponCode == null
-                                      ? 'Select a coupon to save more'
-                                      : 'Applied: ${cart.couponCode} (-\$${cart.couponDiscount.toStringAsFixed(2)})',
-                                  style: TextStyle(
-                                    color: cart.couponCode == null
-                                        ? AppColors.lightTextSecondary
-                                        : AppColors.success,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          OutlinedButton(
-                            onPressed: () async {
-                              await showModalBottomSheet<void>(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: AppColors.lightSurface,
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(16),
-                                  ),
-                                ),
-                                builder: (_) => const FractionallySizedBox(
-                                  heightFactor: 0.85,
-                                  child: CouponPickerSheet(),
-                                ),
-                              );
-                            },
-                            child: Text(
-                              cart.couponCode == null ? 'Select' : 'Change',
-                            ),
-                          ),
-                          if (cart.couponCode != null)
-                            TextButton(
-                              onPressed: () => cart.clearCoupon(),
-                              child: const Text(
-                                'Remove',
-                                style: TextStyle(color: AppColors.error),
-                              ),
-                            ),
-                        ],
+                  itemCount: cart.items.length,
+                  itemBuilder: (context, index) {
+                    final item = cart.items[index];
+                    return CartItemCard(
+                      item: item,
+                      onQuantityChanged: (qty) => cart.updateQuantity(
+                        item.product.id,
+                        qty,
+                        variantId: item.variant?.id,
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Subtotal',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: AppColors.lightTextSecondary,
-                            ),
-                          ),
-                          Text(
-                            '\$${subtotal.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).primaryColor,
-                            ),
-                          ),
-                        ],
+                      onRemove: () => cart.removeFromCart(
+                        item.product.id,
+                        variantId: item.variant?.id,
                       ),
-                      if (cart.couponDiscount > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Discount',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: AppColors.lightTextSecondary,
-                                ),
-                              ),
-                              Text(
-                                '-\$${cart.couponDiscount.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.success,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Total',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: AppColors.lightTextSecondary,
-                              ),
-                            ),
-                            Text(
-                              '\$${total.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Consumer<OrderProvider>(
-                        builder: (_, orderProvider, __) {
-                          return PrimaryButton(
-                            text: 'Place Order',
-                            isLoading: orderProvider.isLoading,
-                            onPressed: () =>
-                                _handleCheckout(context, cart, orderProvider),
-                          );
-                        },
-                      ),
-                    ],
+                    );
+                  },
+                ),
+
+                // Bottom checkout panel
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: CartCheckoutPanel(
+                    subtotal: cart.totalPrice,
+                    couponDiscount: cart.couponDiscount,
+                    couponCode: cart.couponCode,
+                    onCheckout: () => _navigateToCheckout(context),
+                    onApplyCoupon: () => _showCouponPicker(context, cart),
+                    onRemoveCoupon: () => cart.clearCoupon(),
                   ),
                 ),
-            ],
-          );
-        },
+              ],
+            ),
+    );
+  }
+
+  void _navigateToCheckout(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+    );
+  }
+
+  void _showCouponPicker(BuildContext context, CartProvider cart) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const CouponPickerSheet(),
+    );
+  }
+
+  void _confirmClearCart(BuildContext context, CartProvider cart) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear Cart?'),
+        content: const Text('This will remove all items from your cart.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              cart.clear();
+              Navigator.pop(ctx);
+            },
+            child: Text('Clear', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
       ),
     );
   }

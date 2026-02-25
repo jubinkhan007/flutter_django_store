@@ -34,7 +34,7 @@ class ReviewCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: Theme.of(context).primaryColor.withOpacity(0.15),
+                backgroundColor: Theme.of(context).primaryColor.withAlpha(38),
                 child: Text(
                   review.customerUsername.isNotEmpty
                       ? review.customerUsername[0].toUpperCase()
@@ -94,7 +94,7 @@ class ReviewCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadius.sm),
                 border: Border(
                   left: BorderSide(
-                    color: Theme.of(context).primaryColor.withOpacity(0.6),
+                    color: Theme.of(context).primaryColor.withAlpha(153),
                     width: 3,
                   ),
                 ),
@@ -150,7 +150,7 @@ class ReviewCard extends StatelessWidget {
               onTap: () => onReply?.call(review, false),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                  children: [
+                children: [
                   Icon(
                     Icons.reply,
                     size: 15,
@@ -160,7 +160,7 @@ class ReviewCard extends StatelessWidget {
                   Text(
                     'Reply as vendor',
                     style: TextStyle(
-                      color: Theme.of(context).primaryColor.withOpacity(0.85),
+                      color: Theme.of(context).primaryColor.withAlpha(217),
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),

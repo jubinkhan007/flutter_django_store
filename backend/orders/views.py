@@ -18,13 +18,142 @@ from decimal import Decimal
 # CUSTOMER VIEWS
 # ═══════════════════════════════════════════════════════════════════
 
+class CheckoutQuoteView(generics.GenericAPIView):
+    """
+    POST /api/orders/quote/
+    Server-side price revalidation before placing order.
+    Returns pricing breakdown + stock warnings without creating an order.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = OrderCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        items_data = serializer.validated_data['items']
+        address_id = serializer.validated_data['address_id']
+        coupon_code = (serializer.validated_data.get('coupon_code') or '').strip().upper()
+
+        # Validate address
+        from users.models import Address
+        try:
+            Address.objects.get(id=address_id, user=request.user)
+        except Address.DoesNotExist:
+            return Response(
+                {"error": "Address not found or does not belong to you."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate items + compute pricing
+        items_detail = []
+        stock_warnings = []
+        subtotal = Decimal('0.00')
+
+        for item in items_data:
+            try:
+                product = Product.objects.get(id=item['product'], is_available=True)
+            except Product.DoesNotExist:
+                return Response(
+                    {"error": f"Product with ID {item['product']} not found or unavailable."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            variant = None
+            available_stock = product.stock_quantity
+            unit_price = product.price
+
+            if 'variant' in item and item['variant']:
+                try:
+                    variant = ProductVariant.objects.get(id=item['variant'], product=product)
+                    available_stock = variant.available_stock
+                    unit_price = variant.effective_price
+                except ProductVariant.DoesNotExist:
+                    return Response(
+                        {"error": f"Variant not found for product '{product.name}'."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            requested_qty = item['quantity']
+            if available_stock < requested_qty:
+                stock_warnings.append({
+                    'product_id': product.id,
+                    'product_name': product.name,
+                    'variant_id': variant.id if variant else None,
+                    'requested': requested_qty,
+                    'available': available_stock,
+                })
+
+            line_total = unit_price * requested_qty
+            subtotal += line_total
+
+            items_detail.append({
+                'product_id': product.id,
+                'product_name': product.name,
+                'variant_id': variant.id if variant else None,
+                'unit_price': str(unit_price),
+                'quantity': requested_qty,
+                'line_total': str(line_total),
+                'image_url': product.image.url if product.image else '',
+            })
+
+        # Coupon computation
+        discount_amount = Decimal('0.00')
+        coupon_label = None
+        if coupon_code:
+            try:
+                coupon = Coupon.objects.get(code=coupon_code, is_active=True)
+                order_items_compat = []
+                for item in items_data:
+                    prod = Product.objects.get(id=item['product'])
+                    up = prod.price
+                    if 'variant' in item and item['variant']:
+                        vari = ProductVariant.objects.get(id=item['variant'], product=prod)
+                        up = vari.effective_price
+                    order_items_compat.append({
+                        'product': prod, 'vendor': prod.vendor,
+                        'price': up, 'unit_price': up, 'quantity': item['quantity'],
+                    })
+                coupon_result = compute_coupon_discount(coupon=coupon, order_items=order_items_compat)
+                if coupon_result['ok']:
+                    discount_amount = coupon_result['discount']
+                    coupon_label = f"{coupon.code}"
+            except Coupon.DoesNotExist:
+                pass
+
+        shipping = Decimal('0.00')
+        tax = Decimal('0.00')
+        total = (subtotal - discount_amount + shipping + tax).quantize(Decimal('0.01'))
+        if total < 0:
+            total = Decimal('0.00')
+
+        return Response({
+            'subtotal': str(subtotal.quantize(Decimal('0.01'))),
+            'discount': str(discount_amount.quantize(Decimal('0.01'))),
+            'shipping': str(shipping.quantize(Decimal('0.01'))),
+            'tax': str(tax.quantize(Decimal('0.01'))),
+            'total': str(total),
+            'coupon_label': coupon_label,
+            'items': items_detail,
+            'stock_warnings': stock_warnings,
+        })
+
+
 class CustomerPlaceOrderView(generics.CreateAPIView):
     """
-    POST /api/orders/
+    POST /api/orders/place/
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
+        # ── Idempotency check ──
+        idempotency_key = request.headers.get('X-Idempotency-Key', '').strip()
+        if idempotency_key:
+            try:
+                existing_order = Order.objects.get(idempotency_key=idempotency_key)
+                return Response(OrderSerializer(existing_order).data, status=status.HTTP_201_CREATED)
+            except Order.DoesNotExist:
+                pass
+
         serializer = OrderCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -138,6 +267,7 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
                 discount_amount=discount_amount,
                 total_amount=total,
                 payment_method=payment_method,
+                idempotency_key=idempotency_key if idempotency_key else None,
             )
 
             # Create SubOrders

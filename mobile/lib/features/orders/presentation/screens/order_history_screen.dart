@@ -262,14 +262,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                       final isCod = order.paymentMethod == 'COD';
 
                       return Container(
-                        margin: const EdgeInsets.only(
-                          bottom: AppSpacing.sm,
-                        ),
+                        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                         decoration: BoxDecoration(
                           color: AppColors.lightSurface,
-                          borderRadius: BorderRadius.circular(
-                            AppRadius.md,
-                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
                         ),
                         child: Column(
                           children: [
@@ -280,7 +276,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: statusColor.withOpacity(0.15),
+                                      color: statusColor.withAlpha(
+                                        38,
+                                      ), // 0.15 * 255 = 38.25
                                       borderRadius: BorderRadius.circular(
                                         AppRadius.sm,
                                       ),
@@ -378,7 +376,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                             ),
                                             label: const Text('Pay Now'),
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: Theme.of(context).primaryColor,
+                                              backgroundColor: Theme.of(
+                                                context,
+                                              ).primaryColor,
                                               foregroundColor: Colors.white,
                                               padding: EdgeInsets.zero,
                                             ),
@@ -467,7 +467,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                             child: Text(
                                               '${item.productName ?? 'Product'} × ${item.quantity}',
                                               style: const TextStyle(
-                                                color: AppColors.lightTextSecondary,
+                                                color: AppColors
+                                                    .lightTextSecondary,
                                                 fontSize: 13,
                                               ),
                                             ),
@@ -475,7 +476,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                           Text(
                                             '\$${(item.price * item.quantity).toStringAsFixed(2)}',
                                             style: const TextStyle(
-                                              color: AppColors.lightTextSecondary,
+                                              color:
+                                                  AppColors.lightTextSecondary,
                                               fontSize: 13,
                                             ),
                                           ),

@@ -42,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final pages = [
       const _ShopPage(),
-      CartScreen(onCheckoutComplete: () => setState(() => _currentIndex = 2)),
+      const CartScreen(),
       const OrderHistoryScreen(),
       const ProfileScreen(),
     ];
@@ -455,13 +455,8 @@ class _CategoryChip extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            gradient:
-                isSelected
-                    ? (Theme.of(context).brightness == Brightness.dark
-                        ? AppGradients.darkPrimary
-                        : AppGradients.lightPrimary)
-                    : null,
-            color: isSelected ? null : AppColors.surfaceLight,
+            gradient: isSelected ? AppGradients.lightPrimary : null,
+            color: isSelected ? null : AppColors.lightSurface,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Center(

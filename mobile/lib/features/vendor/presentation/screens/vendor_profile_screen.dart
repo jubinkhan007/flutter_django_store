@@ -50,7 +50,7 @@ class VendorProfileScreen extends StatelessWidget {
                       radius: 30,
                       backgroundColor: Theme.of(
                         context,
-                      ).primaryColor.withOpacity(0.2),
+                      ).primaryColor.withAlpha(51), // 0.2 * 255 = 51
                       child: Text(
                         storeName.isNotEmpty ? storeName[0].toUpperCase() : 'V',
                         style: TextStyle(

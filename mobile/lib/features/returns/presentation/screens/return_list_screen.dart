@@ -8,7 +8,6 @@ import '../providers/return_provider.dart';
 import 'return_detail_screen.dart';
 import 'return_select_order_screen.dart';
 
-
 class ReturnListScreen extends StatefulWidget {
   const ReturnListScreen({super.key});
 
@@ -44,14 +43,14 @@ class _ReturnListScreenState extends State<ReturnListScreen> {
         label: const Text('Start return'),
       ),
       body: Consumer<ReturnProvider>(
-          builder: (context, provider, _) {
-            if (provider.isLoading && provider.myReturns.isEmpty) {
-              return Center(
-                child: CircularProgressIndicator(
-                  color: Theme.of(context).primaryColor,
-                ),
-              );
-            }
+        builder: (context, provider, _) {
+          if (provider.isLoading && provider.myReturns.isEmpty) {
+            return Center(
+              child: CircularProgressIndicator(
+                color: Theme.of(context).primaryColor,
+              ),
+            );
+          }
           if (provider.error != null && provider.myReturns.isEmpty) {
             return Center(
               child: Text(
