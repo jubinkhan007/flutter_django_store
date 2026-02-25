@@ -16,6 +16,7 @@ import 'package:mobile/features/returns/data/repositories/return_repository.dart
 import 'package:mobile/features/coupons/data/repositories/coupon_repository.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
 import 'package:mobile/core/providers/theme_provider.dart';
+import 'package:mobile/features/home/data/repositories/home_repository.dart';
 
 void main() {
   testWidgets('Boots to login when logged out', (WidgetTester tester) async {
@@ -37,6 +38,7 @@ void main() {
     final wishlistRepo = WishlistRepository(apiClient: apiClient);
     final returnRepo = ReturnRepository(apiClient: apiClient);
     final couponRepo = CouponRepository(apiClient: apiClient);
+    final homeRepo = HomeRepository(apiClient: apiClient);
 
     final prefs = await SharedPreferences.getInstance();
     final themeProvider = ThemeProvider(prefs);
@@ -53,6 +55,7 @@ void main() {
         wishlistRepository: wishlistRepo,
         returnRepository: returnRepo,
         couponRepository: couponRepo,
+        homeRepository: homeRepo,
       ),
     );
     await tester.pumpAndSettle();
@@ -84,6 +87,7 @@ void main() {
     final wishlistRepo = WishlistRepository(apiClient: apiClient);
     final returnRepo = ReturnRepository(apiClient: apiClient);
     final couponRepo = CouponRepository(apiClient: apiClient);
+    final homeRepo = HomeRepository(apiClient: apiClient);
 
     final prefs = await SharedPreferences.getInstance();
     final themeProvider = ThemeProvider(prefs);
@@ -100,6 +104,7 @@ void main() {
         wishlistRepository: wishlistRepo,
         returnRepository: returnRepo,
         couponRepository: couponRepo,
+        homeRepository: homeRepo,
       ),
     );
     await tester.pumpAndSettle();

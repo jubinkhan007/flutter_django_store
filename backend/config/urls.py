@@ -28,6 +28,7 @@ urlpatterns = [
     path('api/reviews/', include('reviews.urls')),     # Review reply endpoint
     path('api/coupons/', include('coupons.urls')),     # Coupon validation endpoint
     path('api/returns/', include('returns.urls')),     # Return/RMA endpoints
+    path('api/promotions/', include('promotions.urls')),  # Promotions/Home feed
 ]
 
 # Serve media files during development

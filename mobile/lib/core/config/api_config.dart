@@ -16,6 +16,9 @@ class ApiConfig {
   static String get tokenRefreshUrl => '$baseUrl/auth/refresh/';
   static String get addressesUrl => '$baseUrl/auth/addresses/';
 
+  // Home / Promotions
+  static String get homeFeedUrl => '$baseUrl/promotions/home-feed/';
+
   // Coupons
   static String get couponsUrl => '$baseUrl/coupons/';
   static String get couponAvailableUrl => '$baseUrl/coupons/available/';

@@ -56,6 +56,10 @@ import 'features/returns/presentation/providers/return_provider.dart';
 import 'features/coupons/data/repositories/coupon_repository.dart';
 import 'features/coupons/presentation/providers/coupon_provider.dart';
 
+// Home Feed
+import 'features/home/data/repositories/home_repository.dart';
+import 'features/home/presentation/providers/home_provider.dart';
+
 // Global navigator key to allow showing SnackBars/dialogs without context
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -116,6 +120,7 @@ void main() async {
   final wishlistRepository = WishlistRepository(apiClient: apiClient);
   final returnRepository = ReturnRepository(apiClient: apiClient);
   final couponRepository = CouponRepository(apiClient: apiClient);
+  final homeRepository = HomeRepository(apiClient: apiClient);
 
   runApp(
     MyApp(
@@ -129,6 +134,7 @@ void main() async {
       wishlistRepository: wishlistRepository,
       returnRepository: returnRepository,
       couponRepository: couponRepository,
+      homeRepository: homeRepository,
     ),
   );
 }
@@ -144,6 +150,7 @@ class MyApp extends StatelessWidget {
   final WishlistRepository wishlistRepository;
   final ReturnRepository returnRepository;
   final CouponRepository couponRepository;
+  final HomeRepository homeRepository;
 
   const MyApp({
     super.key,
@@ -157,6 +164,7 @@ class MyApp extends StatelessWidget {
     required this.wishlistRepository,
     required this.returnRepository,
     required this.couponRepository,
+    required this.homeRepository,
   });
 
   @override
@@ -191,6 +199,10 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => CouponProvider(repository: couponRepository),
+        ),
+        ChangeNotifierProvider(
+          create: (_) =>
+              HomeProvider(homeRepository: homeRepository)..loadFeed(),
         ),
       ],
       child: Consumer<ThemeProvider>(

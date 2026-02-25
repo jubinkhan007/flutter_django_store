@@ -1,22 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_radius.dart';
-import '../../../../core/theme/app_gradients.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../cart/presentation/providers/cart_provider.dart';
-import '../../../orders/presentation/providers/order_provider.dart';
-import '../providers/product_provider.dart';
-import '../widgets/product_card.dart';
-import 'product_detail_screen.dart';
-import '../../../cart/presentation/screens/cart_screen.dart';
-import '../../../orders/presentation/screens/order_history_screen.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../auth/presentation/screens/profile_screen.dart';
+import 'package:mobile/core/theme/app_colors.dart';
+import 'package:mobile/core/theme/app_spacing.dart';
+import 'package:mobile/core/theme/app_radius.dart';
+import 'package:mobile/core/theme/app_gradients.dart';
+import 'package:mobile/core/theme/app_theme.dart';
+import 'package:mobile/features/cart/presentation/providers/cart_provider.dart';
+import 'package:mobile/features/orders/presentation/providers/order_provider.dart';
+import 'package:mobile/features/products/presentation/providers/product_provider.dart';
+import 'package:mobile/features/products/presentation/widgets/product_card.dart';
+import 'package:mobile/features/products/presentation/screens/product_detail_screen.dart';
+import 'package:mobile/features/cart/presentation/screens/cart_screen.dart';
+import 'package:mobile/features/orders/presentation/screens/order_history_screen.dart';
+import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
+import 'package:mobile/features/auth/presentation/screens/profile_screen.dart';
+import 'package:mobile/features/home/presentation/providers/home_provider.dart';
+import 'package:mobile/features/home/presentation/widgets/hero_banner_carousel.dart';
+import 'package:mobile/features/home/presentation/widgets/flash_sale_row.dart';
+import 'package:mobile/features/home/presentation/widgets/featured_section_row.dart';
+import 'package:mobile/features/home/presentation/widgets/home_skeleton.dart';
+import 'package:mobile/features/home/data/models/home_feed_model.dart';
 import 'dart:ui';
 
-import '../widgets/search_filter_bar.dart';
+import 'package:mobile/features/products/presentation/widgets/search_filter_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -48,7 +54,6 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     return Scaffold(
-      // Extend body to allow content to slide under the floating nav bar
       extendBody: true,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
@@ -197,193 +202,220 @@ class _NavBarItem extends StatelessWidget {
   }
 }
 
-/// The main shop/browse page within the home screen.
 class _ShopPage extends StatelessWidget {
   const _ShopPage();
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Column(
-        children: [
-          // ── Top Bar ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.md,
-              AppSpacing.md,
-              AppSpacing.sm,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Discover',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.lightTextPrimary,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Find amazing products',
-                      style: TextStyle(
-                        color: AppColors.lightTextSecondary,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
+      bottom: false,
+      child: RefreshIndicator(
+        onRefresh: () async {
+          await Future.wait([
+            context.read<HomeProvider>().refresh(),
+            context.read<ProductProvider>().loadProducts(),
+          ]);
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.sm,
                 ),
-                Row(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Vendor switch (only visible to vendors)
-                    Consumer<AuthProvider>(
-                      builder: (context, auth, _) {
-                        if (auth.user != null && auth.user!.isVendor) {
-                          return IconButton(
-                            onPressed: () {
-                              Navigator.pushReplacementNamed(
-                                context,
-                                '/vendor',
-                              );
-                            },
-                            icon: const Icon(Icons.dashboard_outlined),
-                            tooltip: 'Vendor Dashboard',
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
-                    // Vendor onboarding (for customers who want to become vendors)
-                    Consumer<AuthProvider>(
-                      builder: (context, auth, _) {
-                        if (auth.user != null && auth.user!.isCustomer) {
-                          return IconButton(
-                            onPressed: () {
-                              Navigator.pushNamed(
-                                context,
-                                '/vendor/onboarding',
-                              );
-                            },
-                            icon: const Icon(Icons.store_outlined),
-                            tooltip: 'Become a Vendor',
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // ── Search & Filter Bar ──
-          const SearchFilterBar(),
-          const SizedBox(height: AppSpacing.xs),
-
-          // ── Category Chips ──
-          Consumer<ProductProvider>(
-            builder: (context, provider, _) {
-              if (provider.categories.isEmpty) {
-                return const SizedBox.shrink();
-              }
-              return SizedBox(
-                height: 44,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                  ),
-                  children: [
-                    _CategoryChip(
-                      label: 'All',
-                      isSelected: provider.selectedCategoryId == null,
-                      onTap: () => provider.selectCategory(null),
-                    ),
-                    ...provider.categories.map(
-                      (cat) => _CategoryChip(
-                        label: cat.name,
-                        isSelected: provider.selectedCategoryId == cat.id,
-                        onTap: () => provider.selectCategory(cat.id),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: AppSpacing.sm),
-
-          // ── Product Grid ──
-          Expanded(
-            child: Consumer<ProductProvider>(
-              builder: (context, provider, _) {
-                if (provider.isLoading) {
-                  return Center(
-                    child: CircularProgressIndicator(
-                      color: Theme.of(context).primaryColor,
-                    ),
-                  );
-                }
-
-                if (provider.error != null) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.cloud_off,
-                          color: AppColors.lightTextSecondary,
-                          size: 48,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
                         Text(
-                          'Could not load products',
-                          style: const TextStyle(
-                            color: AppColors.lightTextSecondary,
+                          'Discover',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white
+                                : AppColors.lightTextPrimary,
+                            letterSpacing: -0.5,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.sm),
-                        TextButton(
-                          onPressed: () => provider.loadProducts(),
-                          child: const Text('Retry'),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Find amazing products',
+                          style: TextStyle(
+                            color: AppColors.lightTextSecondary,
+                            fontSize: 14,
+                          ),
                         ),
                       ],
                     ),
-                  );
-                }
-
-                if (provider.products.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Row(
                       children: [
-                        Icon(
-                          Icons.inventory_2_outlined,
-                          color: AppColors.lightTextSecondary,
-                          size: 48,
+                        Consumer<AuthProvider>(
+                          builder: (context, auth, _) {
+                            if (auth.user != null && auth.user!.isVendor) {
+                              return IconButton(
+                                onPressed: () {
+                                  Navigator.pushReplacementNamed(
+                                    context,
+                                    '/vendor',
+                                  );
+                                },
+                                icon: const Icon(Icons.dashboard_outlined),
+                                tooltip: 'Vendor Dashboard',
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
                         ),
-                        SizedBox(height: AppSpacing.md),
-                        Text(
-                          'No products available',
-                          style: TextStyle(color: AppColors.lightTextSecondary),
+                        Consumer<AuthProvider>(
+                          builder: (context, auth, _) {
+                            if (auth.user != null && auth.user!.isCustomer) {
+                              return IconButton(
+                                onPressed: () {
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/vendor/onboarding',
+                                  );
+                                },
+                                icon: const Icon(Icons.store_outlined),
+                                tooltip: 'Become a Vendor',
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
                         ),
                       ],
                     ),
+                  ],
+                ),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SearchFilterBar()),
+            Consumer<HomeProvider>(
+              builder: (context, provider, _) {
+                if (provider.isLoading && provider.feed == null) {
+                  return const SliverToBoxAdapter(child: HomeSkeleton());
+                }
+                if (provider.feed == null)
+                  return const SliverToBoxAdapter(child: SizedBox.shrink());
+
+                return SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final section = provider.feed!.sections[index];
+                    switch (section.type) {
+                      case HomeSectionType.banners:
+                        return HeroBannerCarousel(
+                          banners: (section as BannersSection).banners,
+                        );
+                      case HomeSectionType.flashSale:
+                        return FlashSaleRow(
+                          sale: (section as FlashSaleSection),
+                          serverNow: provider.feed!.serverNow,
+                        );
+                      case HomeSectionType.featuredRow:
+                        return FeaturedSectionRow(
+                          section: (section as FeaturedRowSection),
+                        );
+                      default:
+                        return const SizedBox.shrink();
+                    }
+                  }, childCount: provider.feed!.sections.length),
+                );
+              },
+            ),
+            SliverToBoxAdapter(
+              child: Consumer<ProductProvider>(
+                builder: (context, provider, _) {
+                  if (provider.categories.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.md,
+                    ),
+                    child: SizedBox(
+                      height: 44,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                        ),
+                        children: [
+                          _CategoryChip(
+                            label: 'All',
+                            isSelected: provider.selectedCategoryId == null,
+                            onTap: () => provider.selectCategory(null),
+                          ),
+                          ...provider.categories.map(
+                            (cat) => _CategoryChip(
+                              label: cat.name,
+                              isSelected: provider.selectedCategoryId == cat.id,
+                              onTap: () => provider.selectCategory(cat.id),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  'Recommended for You',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            Consumer<ProductProvider>(
+              builder: (context, provider, _) {
+                if (provider.isLoading && provider.products.isEmpty) {
+                  return const SliverFillRemaining(
+                    child: Center(child: CircularProgressIndicator()),
                   );
                 }
-
-                return RefreshIndicator(
-                  color: Theme.of(context).primaryColor,
-                  onRefresh: () => provider.loadProducts(),
-                  child: GridView.builder(
-                    padding: const EdgeInsets.all(AppSpacing.md),
+                if (provider.error != null && provider.products.isEmpty) {
+                  return SliverFillRemaining(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.cloud_off,
+                            size: 48,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text('Could not load products'),
+                          TextButton(
+                            onPressed: () => provider.loadProducts(),
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                if (provider.products.isEmpty) {
+                  return const SliverFillRemaining(
+                    child: Center(child: Text('No products available')),
+                  );
+                }
+                return SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  sliver: SliverGrid(
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
@@ -391,8 +423,7 @@ class _ShopPage extends StatelessWidget {
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                         ),
-                    itemCount: provider.products.length,
-                    itemBuilder: (context, index) {
+                    delegate: SliverChildBuilderDelegate((context, index) {
                       final product = provider.products[index];
                       return ProductCard(
                         product: product,
@@ -412,23 +443,19 @@ class _ShopPage extends StatelessWidget {
                               content: Text('${product.name} added to cart'),
                               backgroundColor: Theme.of(context).primaryColor,
                               behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.sm,
-                                ),
-                              ),
                               duration: const Duration(seconds: 1),
                             ),
                           );
                         },
                       );
-                    },
+                    }, childCount: provider.products.length),
                   ),
                 );
               },
             ),
-          ),
-        ],
+            const SliverToBoxAdapter(child: SizedBox(height: 80)),
+          ],
+        ),
       ),
     );
   }
