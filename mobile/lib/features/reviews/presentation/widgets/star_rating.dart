@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/app_theme.dart';
 
 /// Read-only star display.
@@ -11,7 +15,7 @@ class StarRating extends StatelessWidget {
     super.key,
     required this.rating,
     this.size = 16,
-    this.color = AppTheme.warning,
+    this.color = AppColors.warning,
   });
 
   @override
@@ -61,7 +65,7 @@ class StarPicker extends StatelessWidget {
             child: Icon(
               star <= value ? Icons.star : Icons.star_border,
               size: size,
-              color: AppTheme.warning,
+              color: AppColors.warning,
             ),
           ),
         );

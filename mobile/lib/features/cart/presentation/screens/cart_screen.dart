@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/custom_button.dart';
+
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/primary_button.dart';
 import '../providers/cart_provider.dart';
 import '../../../orders/presentation/providers/order_provider.dart';
 import '../../../addresses/data/models/address_model.dart';
 import '../../../addresses/presentation/screens/address_management_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../coupons/presentation/screens/coupon_picker_sheet.dart';
+import '../../../../core/widgets/app_empty_state.dart';
 
 class CartScreen extends StatefulWidget {
   final VoidCallback? onCheckoutComplete;
@@ -21,7 +25,7 @@ class _CartScreenState extends State<CartScreen> {
   Future<String?> _selectPaymentMethod(BuildContext context) async {
     return showModalBottomSheet<String>(
       context: context,
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppColors.lightSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -31,10 +35,10 @@ class _CartScreenState extends State<CartScreen> {
           builder: (context, setState) {
             return Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppTheme.spacingLg,
-                AppTheme.spacingLg,
-                AppTheme.spacingLg,
-                AppTheme.spacingLg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -45,17 +49,17 @@ class _CartScreenState extends State<CartScreen> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
+                      color: AppColors.lightTextPrimary,
                     ),
                   ),
-                  const SizedBox(height: AppTheme.spacingSm),
+                  const SizedBox(height: AppSpacing.sm),
                   RadioListTile<String>(
                     value: 'ONLINE',
                     groupValue: selected,
                     onChanged: (v) => setState(() => selected = v ?? 'ONLINE'),
                     title: const Text('Pay online'),
                     subtitle: const Text('SSLCommerz payment gateway'),
-                    activeColor: AppTheme.primary,
+                    activeColor: Theme.of(context).primaryColor,
                     contentPadding: EdgeInsets.zero,
                   ),
                   RadioListTile<String>(
@@ -64,11 +68,11 @@ class _CartScreenState extends State<CartScreen> {
                     onChanged: (v) => setState(() => selected = v ?? 'COD'),
                     title: const Text('Cash on delivery'),
                     subtitle: const Text('Pay when your order arrives'),
-                    activeColor: AppTheme.primary,
+                    activeColor: Theme.of(context).primaryColor,
                     contentPadding: EdgeInsets.zero,
                   ),
-                  const SizedBox(height: AppTheme.spacingMd),
-                  CustomButton(
+                  const SizedBox(height: AppSpacing.md),
+                  PrimaryButton(
                     text: 'Continue',
                     onPressed: () => Navigator.pop(context, selected),
                   ),
@@ -118,13 +122,13 @@ class _CartScreenState extends State<CartScreen> {
             context: context,
             barrierDismissible: false,
             builder: (_) => AlertDialog(
-              backgroundColor: AppTheme.surface,
+              backgroundColor: AppColors.lightSurface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                borderRadius: BorderRadius.circular(AppRadius.md),
               ),
               title: const Row(
                 children: [
-                  Icon(Icons.check_circle, color: AppTheme.success, size: 28),
+                  Icon(Icons.check_circle, color: AppColors.success, size: 28),
                   SizedBox(width: 8),
                   Text('Order Placed!'),
                 ],
@@ -151,13 +155,13 @@ class _CartScreenState extends State<CartScreen> {
             context: context,
             barrierDismissible: false,
             builder: (_) => AlertDialog(
-              backgroundColor: AppTheme.surface,
+              backgroundColor: AppColors.lightSurface,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                borderRadius: BorderRadius.circular(AppRadius.md),
               ),
               title: const Row(
                 children: [
-                  Icon(Icons.check_circle, color: AppTheme.success, size: 28),
+                  Icon(Icons.check_circle, color: AppColors.success, size: 28),
                   SizedBox(width: 8),
                   Text('Order Placed!'),
                 ],
@@ -184,7 +188,9 @@ class _CartScreenState extends State<CartScreen> {
             orderProvider.clearPendingPaymentOrder();
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Could not launch payment gateway')),
+                const SnackBar(
+                  content: Text('Could not launch payment gateway'),
+                ),
               );
             }
           }
@@ -196,7 +202,7 @@ class _CartScreenState extends State<CartScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(orderProvider.error ?? 'Order failed'),
-          backgroundColor: AppTheme.error,
+          backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -217,7 +223,7 @@ class _CartScreenState extends State<CartScreen> {
             children: [
               // ── Header ──
               Padding(
-                padding: const EdgeInsets.all(AppTheme.spacingMd),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -226,7 +232,7 @@ class _CartScreenState extends State<CartScreen> {
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
+                        color: AppColors.lightTextPrimary,
                       ),
                     ),
                     if (!cart.isEmpty)
@@ -234,7 +240,7 @@ class _CartScreenState extends State<CartScreen> {
                         onPressed: () => cart.clear(),
                         child: const Text(
                           'Clear All',
-                          style: TextStyle(color: AppTheme.error),
+                          style: TextStyle(color: AppColors.error),
                         ),
                       ),
                   ],
@@ -244,72 +250,53 @@ class _CartScreenState extends State<CartScreen> {
               // ── Cart Items or Empty State ──
               Expanded(
                 child: cart.isEmpty
-                    ? const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.shopping_cart_outlined,
-                              color: AppTheme.textSecondary,
-                              size: 64,
-                            ),
-                            SizedBox(height: AppTheme.spacingMd),
-                            Text(
-                              'Your cart is empty',
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 16,
-                              ),
-                            ),
-                            SizedBox(height: AppTheme.spacingSm),
-                            Text(
-                              'Browse products and add items',
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
+                    ? const AppEmptyState(
+                        icon: Icons.shopping_cart_outlined,
+                        title: 'Your cart is empty',
+                        message: 'Browse products and add items to your cart.',
                       )
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: AppTheme.spacingMd,
+                          horizontal: AppSpacing.md,
                         ),
                         itemCount: cart.items.length,
                         itemBuilder: (context, index) {
                           final item = cart.items[index];
                           return Dismissible(
-                            key: ValueKey('${item.product.id}_${item.variant?.id}'),
+                            key: ValueKey(
+                              '${item.product.id}_${item.variant?.id}',
+                            ),
                             direction: DismissDirection.endToStart,
-                            onDismissed: (_) =>
-                                cart.removeFromCart(item.product.id, variantId: item.variant?.id),
+                            onDismissed: (_) => cart.removeFromCart(
+                              item.product.id,
+                              variantId: item.variant?.id,
+                            ),
                             background: Container(
                               alignment: Alignment.centerRight,
                               padding: const EdgeInsets.only(right: 20),
                               margin: const EdgeInsets.only(
-                                bottom: AppTheme.spacingSm,
+                                bottom: AppSpacing.sm,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.error.withOpacity(0.15),
+                                color: AppColors.error.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(
-                                  AppTheme.radiusMd,
+                                  AppRadius.md,
                                 ),
                               ),
                               child: const Icon(
                                 Icons.delete_outline,
-                                color: AppTheme.error,
+                                color: AppColors.error,
                               ),
                             ),
                             child: Container(
                               margin: const EdgeInsets.only(
-                                bottom: AppTheme.spacingSm,
+                                bottom: AppSpacing.sm,
                               ),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: AppTheme.surface,
+                                color: AppColors.lightSurface,
                                 borderRadius: BorderRadius.circular(
-                                  AppTheme.radiusMd,
+                                  AppRadius.md,
                                 ),
                               ),
                               child: Row(
@@ -319,14 +306,14 @@ class _CartScreenState extends State<CartScreen> {
                                     width: 60,
                                     height: 60,
                                     decoration: BoxDecoration(
-                                      color: AppTheme.surfaceLight,
+                                      color: AppColors.lightSurface,
                                       borderRadius: BorderRadius.circular(
-                                        AppTheme.radiusSm,
+                                        AppRadius.sm,
                                       ),
                                     ),
                                     child: const Icon(
                                       Icons.shopping_bag_outlined,
-                                      color: AppTheme.textSecondary,
+                                      color: AppColors.lightTextSecondary,
                                     ),
                                   ),
                                   const SizedBox(width: 12),
@@ -343,25 +330,30 @@ class _CartScreenState extends State<CartScreen> {
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
                                             fontWeight: FontWeight.w500,
-                                            color: AppTheme.textPrimary,
+                                            color: AppColors.lightTextPrimary,
                                           ),
                                         ),
                                         if (item.variant != null)
                                           Padding(
-                                            padding: const EdgeInsets.only(top: 2),
+                                            padding: const EdgeInsets.only(
+                                              top: 2,
+                                            ),
                                             child: Text(
                                               'Variant: ${item.variant!.sku}',
                                               style: const TextStyle(
                                                 fontSize: 12,
-                                                color: AppTheme.textSecondary,
+                                                color: AppColors
+                                                    .lightTextSecondary,
                                               ),
                                             ),
                                           ),
                                         const SizedBox(height: 4),
                                         Text(
                                           '\$${item.total.toStringAsFixed(2)}',
-                                          style: const TextStyle(
-                                            color: AppTheme.primary,
+                                          style: TextStyle(
+                                            color: Theme.of(
+                                              context,
+                                            ).primaryColor,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
@@ -372,9 +364,9 @@ class _CartScreenState extends State<CartScreen> {
                                   // Quantity Controls
                                   Container(
                                     decoration: BoxDecoration(
-                                      color: AppTheme.surfaceLight,
+                                      color: AppColors.lightSurface,
                                       borderRadius: BorderRadius.circular(
-                                        AppTheme.radiusSm,
+                                        AppRadius.sm,
                                       ),
                                     ),
                                     child: Row(
@@ -426,11 +418,14 @@ class _CartScreenState extends State<CartScreen> {
               // ── Bottom Checkout Bar ──
               if (!cart.isEmpty)
                 Container(
-                  padding: const EdgeInsets.all(AppTheme.spacingMd),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: const BoxDecoration(
-                    color: AppTheme.surface,
+                    color: AppColors.lightSurface,
                     border: Border(
-                      top: BorderSide(color: AppTheme.surfaceLight, width: 0.5),
+                      top: BorderSide(
+                        color: AppColors.lightSurface,
+                        width: 0.5,
+                      ),
                     ),
                   ),
                   child: Column(
@@ -445,7 +440,7 @@ class _CartScreenState extends State<CartScreen> {
                                   'Coupon',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
-                                    color: AppTheme.textPrimary,
+                                    color: AppColors.lightTextPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: 6),
@@ -455,8 +450,8 @@ class _CartScreenState extends State<CartScreen> {
                                       : 'Applied: ${cart.couponCode} (-\$${cart.couponDiscount.toStringAsFixed(2)})',
                                   style: TextStyle(
                                     color: cart.couponCode == null
-                                        ? AppTheme.textSecondary
-                                        : AppTheme.success,
+                                        ? AppColors.lightTextSecondary
+                                        : AppColors.success,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -470,7 +465,7 @@ class _CartScreenState extends State<CartScreen> {
                               await showModalBottomSheet<void>(
                                 context: context,
                                 isScrollControlled: true,
-                                backgroundColor: AppTheme.surface,
+                                backgroundColor: AppColors.lightSurface,
                                 shape: const RoundedRectangleBorder(
                                   borderRadius: BorderRadius.vertical(
                                     top: Radius.circular(16),
@@ -482,19 +477,21 @@ class _CartScreenState extends State<CartScreen> {
                                 ),
                               );
                             },
-                            child: Text(cart.couponCode == null ? 'Select' : 'Change'),
+                            child: Text(
+                              cart.couponCode == null ? 'Select' : 'Change',
+                            ),
                           ),
                           if (cart.couponCode != null)
                             TextButton(
                               onPressed: () => cart.clearCoupon(),
                               child: const Text(
                                 'Remove',
-                                style: TextStyle(color: AppTheme.error),
+                                style: TextStyle(color: AppColors.error),
                               ),
                             ),
                         ],
                       ),
-                      const SizedBox(height: AppTheme.spacingMd),
+                      const SizedBox(height: AppSpacing.md),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -502,15 +499,15 @@ class _CartScreenState extends State<CartScreen> {
                             'Subtotal',
                             style: TextStyle(
                               fontSize: 16,
-                              color: AppTheme.textSecondary,
+                              color: AppColors.lightTextSecondary,
                             ),
                           ),
                           Text(
                             '\$${subtotal.toStringAsFixed(2)}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
-                              color: AppTheme.primary,
+                              color: Theme.of(context).primaryColor,
                             ),
                           ),
                         ],
@@ -525,7 +522,7 @@ class _CartScreenState extends State<CartScreen> {
                                 'Discount',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: AppTheme.textSecondary,
+                                  color: AppColors.lightTextSecondary,
                                 ),
                               ),
                               Text(
@@ -533,7 +530,7 @@ class _CartScreenState extends State<CartScreen> {
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: AppTheme.success,
+                                  color: AppColors.success,
                                 ),
                               ),
                             ],
@@ -548,24 +545,24 @@ class _CartScreenState extends State<CartScreen> {
                               'Total',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: AppTheme.textSecondary,
+                                color: AppColors.lightTextSecondary,
                               ),
                             ),
                             Text(
                               '\$${total.toStringAsFixed(2)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
-                                color: AppTheme.primary,
+                                color: Theme.of(context).primaryColor,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: AppTheme.spacingMd),
+                      const SizedBox(height: AppSpacing.md),
                       Consumer<OrderProvider>(
                         builder: (_, orderProvider, __) {
-                          return CustomButton(
+                          return PrimaryButton(
                             text: 'Place Order',
                             isLoading: orderProvider.isLoading,
                             onPressed: () =>

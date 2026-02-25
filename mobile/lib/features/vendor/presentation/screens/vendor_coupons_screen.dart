@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/widgets/primary_button.dart';
 import '../../../products/presentation/providers/product_provider.dart';
 import '../../data/models/vendor_coupon_model.dart';
 import '../providers/vendor_provider.dart';
@@ -121,7 +123,7 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.surface,
+      backgroundColor: AppColors.lightSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -130,12 +132,12 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
           builder: (context, setState) {
             return Padding(
               padding: EdgeInsets.only(
-                left: AppTheme.spacingLg,
-                right: AppTheme.spacingLg,
-                top: AppTheme.spacingLg,
+                left: AppSpacing.lg,
+                right: AppSpacing.lg,
+                top: AppSpacing.lg,
                 bottom:
                     MediaQuery.of(context).viewInsets.bottom +
-                    AppTheme.spacingLg,
+                    AppSpacing.lg,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -146,17 +148,17 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
+                      color: AppColors.lightTextPrimary,
                     ),
                   ),
-                  const SizedBox(height: AppTheme.spacingMd),
+                  const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: codeController,
                     decoration: const InputDecoration(
                       labelText: 'Code (e.g., SAVE10)',
                     ),
                   ),
-                  const SizedBox(height: AppTheme.spacingMd),
+                  const SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<String>(
                     value: discountType,
                     decoration: const InputDecoration(
@@ -175,7 +177,7 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                     onChanged: (v) =>
                         setState(() => discountType = v ?? 'PERCENT'),
                   ),
-                  const SizedBox(height: AppTheme.spacingMd),
+                  const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: valueController,
                     keyboardType: TextInputType.number,
@@ -185,7 +187,7 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                           : 'Amount',
                     ),
                   ),
-                  const SizedBox(height: AppTheme.spacingMd),
+                  const SizedBox(height: AppSpacing.md),
                   TextField(
                     controller: minController,
                     keyboardType: TextInputType.number,
@@ -193,7 +195,7 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                       labelText: 'Min eligible amount (optional)',
                     ),
                   ),
-                  const SizedBox(height: AppTheme.spacingMd),
+                  const SizedBox(height: AppSpacing.md),
                   Row(
                     children: [
                       Expanded(
@@ -225,10 +227,10 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppTheme.spacingLg),
+                  const SizedBox(height: AppSpacing.lg),
                   Consumer<VendorProvider>(
                     builder: (context, vendor, _) {
-                      return CustomButton(
+                      return PrimaryButton(
                         text: 'Create',
                         isLoading: vendor.isLoading,
                         onPressed: () async {
@@ -266,7 +268,7 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Coupon created'),
-                                backgroundColor: AppTheme.success,
+                                backgroundColor: AppColors.success,
                               ),
                             );
                           } else {
@@ -275,7 +277,7 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                                 content: Text(
                                   vendor.error ?? 'Failed to create coupon',
                                 ),
-                                backgroundColor: AppTheme.error,
+                                backgroundColor: AppColors.error,
                               ),
                             );
                           }
@@ -307,25 +309,25 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
     ];
 
     return Container(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingSm),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.surfaceLight, width: 0.5),
+        color: AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.lightSurface, width: 0.5),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: (c.isActive ? AppTheme.success : AppTheme.warning)
+              color: (c.isActive ? AppColors.success : AppColors.warning)
                   .withOpacity(0.12),
-              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Icon(
               Icons.discount_outlined,
-              color: c.isActive ? AppTheme.success : AppTheme.warning,
+              color: c.isActive ? AppColors.success : AppColors.warning,
               size: 20,
             ),
           ),
@@ -338,14 +340,14 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                   c.code,
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary,
+                    color: AppColors.lightTextPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   scopeLabelParts.join(' • '),
                   style: const TextStyle(
-                    color: AppTheme.textSecondary,
+                    color: AppColors.lightTextSecondary,
                     fontSize: 12,
                   ),
                 ),
@@ -355,7 +357,7 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
           Text(
             c.isActive ? 'Active' : 'Inactive',
             style: TextStyle(
-              color: c.isActive ? AppTheme.success : AppTheme.warning,
+              color: c.isActive ? AppColors.success : AppColors.warning,
               fontWeight: FontWeight.w600,
               fontSize: 12,
             ),
@@ -370,7 +372,7 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacingMd),
+          padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -382,7 +384,7 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
+                      color: AppColors.lightTextPrimary,
                     ),
                   ),
                   IconButton(
@@ -392,14 +394,14 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: AppTheme.spacingMd),
+              const SizedBox(height: AppSpacing.md),
               Expanded(
                 child: Consumer<VendorProvider>(
                   builder: (context, vendor, _) {
                     if (vendor.isLoading && vendor.coupons.isEmpty) {
-                      return const Center(
+                      return Center(
                         child: CircularProgressIndicator(
-                          color: AppTheme.primary,
+                          color: Theme.of(context).primaryColor,
                         ),
                       );
                     }
@@ -408,7 +410,7 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                       return Center(
                         child: Text(
                           vendor.error!,
-                          style: const TextStyle(color: AppTheme.error),
+                          style: TextStyle(color: AppColors.error),
                         ),
                       );
                     }
@@ -418,7 +420,7 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                         child: Text(
                           'No coupons yet',
                           style: TextStyle(
-                            color: AppTheme.textSecondary,
+                            color: AppColors.lightTextSecondary,
                             fontSize: 16,
                           ),
                         ),
@@ -426,7 +428,7 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                     }
 
                     return RefreshIndicator(
-                      color: AppTheme.primary,
+                      color: Theme.of(context).primaryColor,
                       onRefresh: () => vendor.loadCoupons(),
                       child: ListView.builder(
                         itemCount: vendor.coupons.length,

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/vendor_provider.dart';
 import 'vendor_coupons_screen.dart';
 import 'vendor_returns_screen.dart';
-
 
 class VendorProfileScreen extends StatelessWidget {
   const VendorProfileScreen({super.key});
@@ -22,7 +23,7 @@ class VendorProfileScreen extends StatelessWidget {
           return Column(
             children: [
               Padding(
-                padding: const EdgeInsets.all(AppTheme.spacingMd),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 child: Row(
                   children: const [
                     Text(
@@ -30,30 +31,32 @@ class VendorProfileScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
+                        color: AppColors.lightTextPrimary,
                       ),
                     ),
                   ],
                 ),
               ),
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
-                padding: const EdgeInsets.all(AppTheme.spacingMd),
+                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: AppTheme.surface,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  color: AppColors.lightSurface,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Row(
                   children: [
                     CircleAvatar(
                       radius: 30,
-                      backgroundColor: AppTheme.primary.withOpacity(0.2),
+                      backgroundColor: Theme.of(
+                        context,
+                      ).primaryColor.withOpacity(0.2),
                       child: Text(
                         storeName.isNotEmpty ? storeName[0].toUpperCase() : 'V',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.primary,
+                          color: Theme.of(context).primaryColor,
                         ),
                       ),
                     ),
@@ -67,7 +70,7 @@ class VendorProfileScreen extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary,
+                              color: AppColors.lightTextPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -75,22 +78,25 @@ class VendorProfileScreen extends StatelessWidget {
                             user?.email ?? '',
                             style: const TextStyle(
                               fontSize: 14,
-                              color: AppTheme.textSecondary,
+                              color: AppColors.lightTextSecondary,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color: AppTheme.surfaceLight,
+                              color: AppColors.lightSurface,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Text(
+                            child: Text(
                               'Vendor',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: AppTheme.primary,
+                                color: Theme.of(context).primaryColor,
                               ),
                             ),
                           ),
@@ -100,10 +106,12 @@ class VendorProfileScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: AppTheme.spacingLg),
+              const SizedBox(height: AppSpacing.lg),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                  ),
                   children: [
                     _MenuListItem(
                       icon: Icons.discount_outlined,
@@ -112,11 +120,13 @@ class VendorProfileScreen extends StatelessWidget {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const VendorCouponsScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const VendorCouponsScreen(),
+                          ),
                         );
                       },
                     ),
-                    const Divider(color: AppTheme.surfaceLight),
+                    const Divider(color: AppColors.lightSurface),
                     _MenuListItem(
                       icon: Icons.assignment_return_outlined,
                       title: 'Returns (RMA)',
@@ -124,11 +134,13 @@ class VendorProfileScreen extends StatelessWidget {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const VendorReturnsScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const VendorReturnsScreen(),
+                          ),
                         );
                       },
                     ),
-                    const Divider(color: AppTheme.surfaceLight),
+                    const Divider(color: AppColors.lightSurface),
                     _MenuListItem(
                       icon: Icons.storefront_outlined,
                       title: 'Switch to Shop',
@@ -137,13 +149,13 @@ class VendorProfileScreen extends StatelessWidget {
                         Navigator.pushReplacementNamed(context, '/home');
                       },
                     ),
-                    const Divider(color: AppTheme.surfaceLight),
+                    const Divider(color: AppColors.lightSurface),
                     _MenuListItem(
                       icon: Icons.logout,
                       title: 'Logout',
                       subtitle: 'Sign out of your account',
-                      iconColor: AppTheme.error,
-                      textColor: AppTheme.error,
+                      iconColor: AppColors.error,
+                      textColor: AppColors.error,
                       onTap: () {
                         context.read<AuthProvider>().logout();
                         Navigator.pushReplacementNamed(context, '/login');
@@ -184,15 +196,15 @@ class _MenuListItem extends StatelessWidget {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceLight,
+          color: AppColors.lightSurface,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: iconColor ?? AppTheme.textPrimary),
+        child: Icon(icon, color: iconColor ?? AppColors.lightTextPrimary),
       ),
       title: Text(
         title,
         style: TextStyle(
-          color: textColor ?? AppTheme.textPrimary,
+          color: textColor ?? AppColors.lightTextPrimary,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -200,14 +212,16 @@ class _MenuListItem extends StatelessWidget {
           ? Text(
               subtitle!,
               style: const TextStyle(
-                color: AppTheme.textSecondary,
+                color: AppColors.lightTextSecondary,
                 fontSize: 13,
               ),
             )
           : null,
-      trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
+      trailing: const Icon(
+        Icons.chevron_right,
+        color: AppColors.lightTextSecondary,
+      ),
       onTap: onTap,
     );
   }
 }
-

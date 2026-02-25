@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_gradients.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../providers/product_provider.dart';
 import 'filter_bottom_sheet.dart';
 
@@ -62,8 +66,8 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.spacingMd,
-        vertical: AppTheme.spacingSm,
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
       ),
       child: Row(
         children: [
@@ -75,13 +79,13 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
                 hintText: 'Search products...',
                 prefixIcon: const Icon(
                   Icons.search,
-                  color: AppTheme.textSecondary,
+                  color: AppColors.lightTextSecondary,
                 ),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(
                           Icons.clear,
-                          color: AppTheme.textSecondary,
+                          color: AppColors.lightTextSecondary,
                         ),
                         onPressed: () {
                           _searchController.clear();
@@ -93,18 +97,18 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
               ),
             ),
           ),
-          const SizedBox(width: AppTheme.spacingSm),
+          const SizedBox(width: AppSpacing.sm),
           Container(
             decoration: BoxDecoration(
               color: hasActiveFilters
-                  ? AppTheme.primary
-                  : AppTheme.surfaceLight,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  ? Theme.of(context).primaryColor
+                  : AppColors.lightSurface,
+              borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: IconButton(
               icon: Icon(
                 Icons.tune,
-                color: hasActiveFilters ? Colors.white : AppTheme.textPrimary,
+                color: hasActiveFilters ? Colors.white : AppColors.lightTextPrimary,
               ),
               onPressed: _showFilterSheet,
             ),

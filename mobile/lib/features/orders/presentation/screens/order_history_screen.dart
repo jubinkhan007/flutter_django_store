@@ -3,7 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/widgets/app_empty_state.dart';
+import '../../../../core/widgets/app_loading_state.dart';
 import '../../data/models/order_model.dart';
 import '../providers/order_provider.dart';
 
@@ -108,17 +112,17 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
   Color _statusColor(String status) {
     switch (status) {
       case 'PENDING':
-        return AppTheme.warning;
+        return AppColors.warning;
       case 'PAID':
         return Colors.blue;
       case 'SHIPPED':
         return Colors.cyan;
       case 'DELIVERED':
-        return AppTheme.success;
+        return AppColors.success;
       case 'CANCELED':
-        return AppTheme.error;
+        return AppColors.error;
       default:
-        return AppTheme.textSecondary;
+        return AppColors.lightTextSecondary;
     }
   }
 
@@ -142,12 +146,12 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
   Color _paymentColor(String status) {
     switch (status) {
       case 'PAID':
-        return AppTheme.success;
+        return AppColors.success;
       case 'REFUNDED':
-        return AppTheme.warning;
+        return AppColors.warning;
       case 'UNPAID':
       default:
-        return AppTheme.error;
+        return AppColors.error;
     }
   }
 
@@ -187,7 +191,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes', style: TextStyle(color: AppTheme.error)),
+            child: const Text('Yes', style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -199,7 +203,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Order cancelled successfully'),
-            backgroundColor: AppTheme.success,
+            backgroundColor: AppColors.success,
           ),
         );
       }
@@ -213,7 +217,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(AppTheme.spacingMd),
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
@@ -222,7 +226,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
+                    color: AppColors.lightTextPrimary,
                   ),
                 ),
               ],
@@ -232,40 +236,23 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
             child: Consumer<OrderProvider>(
               builder: (context, provider, _) {
                 if (provider.isLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: AppTheme.primary),
-                  );
+                  return const AppLoadingState(message: 'Loading orders...');
                 }
 
                 if (provider.orders.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.receipt_long_outlined,
-                          color: AppTheme.textSecondary,
-                          size: 64,
-                        ),
-                        SizedBox(height: AppTheme.spacingMd),
-                        Text(
-                          'No orders yet',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
+                  return const AppEmptyState(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'No orders yet',
+                    message: 'When you place an order, it will appear here.',
                   );
                 }
 
                 return RefreshIndicator(
-                  color: AppTheme.primary,
+                  color: Theme.of(context).primaryColor,
                   onRefresh: () => provider.loadOrders(),
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.spacingMd,
+                      horizontal: AppSpacing.md,
                     ),
                     itemCount: provider.orders.length,
                     itemBuilder: (context, index) {
@@ -276,12 +263,12 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
 
                       return Container(
                         margin: const EdgeInsets.only(
-                          bottom: AppTheme.spacingSm,
+                          bottom: AppSpacing.sm,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.surface,
+                          color: AppColors.lightSurface,
                           borderRadius: BorderRadius.circular(
-                            AppTheme.radiusMd,
+                            AppRadius.md,
                           ),
                         ),
                         child: Column(
@@ -295,7 +282,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                     decoration: BoxDecoration(
                                       color: statusColor.withOpacity(0.15),
                                       borderRadius: BorderRadius.circular(
-                                        AppTheme.radiusSm,
+                                        AppRadius.sm,
                                       ),
                                     ),
                                     child: Icon(
@@ -333,9 +320,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                     children: [
                                       Text(
                                         '\$${order.totalAmount.toStringAsFixed(2)}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          color: AppTheme.primary,
+                                          color: Theme.of(context).primaryColor,
                                           fontSize: 16,
                                         ),
                                       ),
@@ -391,7 +378,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                             ),
                                             label: const Text('Pay Now'),
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: AppTheme.primary,
+                                              backgroundColor: Theme.of(context).primaryColor,
                                               foregroundColor: Colors.white,
                                               padding: EdgeInsets.zero,
                                             ),
@@ -409,9 +396,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                           ),
                                           label: const Text('Cancel'),
                                           style: OutlinedButton.styleFrom(
-                                            foregroundColor: AppTheme.error,
+                                            foregroundColor: AppColors.error,
                                             side: const BorderSide(
-                                              color: AppTheme.error,
+                                              color: AppColors.error,
                                             ),
                                             padding: EdgeInsets.zero,
                                           ),
@@ -434,7 +421,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
-                                        color: AppTheme.textSecondary,
+                                        color: AppColors.lightTextSecondary,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
@@ -442,14 +429,14 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                       '${order.deliveryAddress!.label} - ${order.deliveryAddress!.phoneNumber}',
                                       style: const TextStyle(
                                         fontSize: 13,
-                                        color: AppTheme.textSecondary,
+                                        color: AppColors.lightTextSecondary,
                                       ),
                                     ),
                                     Text(
                                       '${order.deliveryAddress!.addressLine}, ${order.deliveryAddress!.area}, ${order.deliveryAddress!.city}',
                                       style: const TextStyle(
                                         fontSize: 13,
-                                        color: AppTheme.textSecondary,
+                                        color: AppColors.lightTextSecondary,
                                       ),
                                     ),
                                     const SizedBox(height: 12),
@@ -473,14 +460,14 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                           const Icon(
                                             Icons.circle,
                                             size: 6,
-                                            color: AppTheme.textSecondary,
+                                            color: AppColors.lightTextSecondary,
                                           ),
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
                                               '${item.productName ?? 'Product'} × ${item.quantity}',
                                               style: const TextStyle(
-                                                color: AppTheme.textSecondary,
+                                                color: AppColors.lightTextSecondary,
                                                 fontSize: 13,
                                               ),
                                             ),
@@ -488,7 +475,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                           Text(
                                             '\$${(item.price * item.quantity).toStringAsFixed(2)}',
                                             style: const TextStyle(
-                                              color: AppTheme.textSecondary,
+                                              color: AppColors.lightTextSecondary,
                                               fontSize: 13,
                                             ),
                                           ),

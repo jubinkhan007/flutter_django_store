@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Order, SubOrder, OrderItem
 from products.serializers import ProductSerializer
+from decimal import Decimal
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -20,15 +21,29 @@ class SubOrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     vendor_store_name = serializers.CharField(source='vendor.store_name', read_only=True)
     order_id = serializers.IntegerField(source='order.id', read_only=True)
+    payment_status = serializers.CharField(source='order.payment_status', read_only=True)
+    payment_method = serializers.CharField(source='order.payment_method', read_only=True)
+    total_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = SubOrder
         fields = [
             'id', 'order_id', 'vendor', 'vendor_store_name', 'status',
+            'payment_status', 'payment_method', 'total_amount',
             'accepted_at', 'packed_at', 'shipped_at', 'delivered_at', 'canceled_at',
             'created_at', 'updated_at', 'items'
         ]
         read_only_fields = ['vendor', 'vendor_store_name', 'order_id', 'created_at', 'updated_at']
+
+    def get_total_amount(self, obj):
+        total = Decimal('0.00')
+        for item in obj.items.all():
+            try:
+                total += item.total_price
+            except Exception:
+                unit = item.unit_price or Decimal('0.00')
+                total += (unit * item.quantity)
+        return str(total.quantize(Decimal('0.01')))
 
 
 class OrderCreateItemSerializer(serializers.Serializer):

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 // Core
 import 'core/theme/app_theme.dart';
+import 'core/providers/theme_provider.dart';
 import 'core/network/api_client.dart';
 import 'core/storage/token_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Auth
 import 'features/auth/data/repositories/auth_repository_impl.dart';
@@ -56,8 +59,22 @@ import 'features/coupons/presentation/providers/coupon_provider.dart';
 // Global navigator key to allow showing SnackBars/dialogs without context
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Set transparent status bar globally
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+  final prefs = await SharedPreferences.getInstance();
+  final themeProvider = ThemeProvider(prefs);
 
   // ── Shared Dependencies (created once for the app lifetime) ──
   final tokenStorage = TokenStorage();
@@ -102,6 +119,7 @@ void main() {
 
   runApp(
     MyApp(
+      themeProvider: themeProvider,
       authProvider: authProvider,
       productRepository: productRepository,
       orderRepository: orderRepository,
@@ -116,6 +134,7 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
+  final ThemeProvider themeProvider;
   final AuthProvider authProvider;
   final ProductRepository productRepository;
   final OrderRepository orderRepository;
@@ -128,6 +147,7 @@ class MyApp extends StatelessWidget {
 
   const MyApp({
     super.key,
+    required this.themeProvider,
     required this.authProvider,
     required this.productRepository,
     required this.orderRepository,
@@ -143,6 +163,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider.value(value: themeProvider),
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(
           create: (_) => ProductProvider(productRepository: productRepository),
@@ -172,18 +193,35 @@ class MyApp extends StatelessWidget {
           create: (_) => CouponProvider(repository: couponRepository),
         ),
       ],
-      child: MaterialApp(
-        title: 'ShopEase',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.darkTheme,
-        navigatorKey: navigatorKey,
-        home: const AuthGate(),
-        routes: {
-          '/login': (context) => const LoginScreen(),
-          '/home': (context) => const HomeScreen(),
-          '/vendor': (context) => const VendorDashboardScreen(),
-          '/vendor/onboarding': (context) => const VendorOnboardingScreen(),
-          '/vendor/add-product': (context) => const VendorAddProductScreen(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, theme, _) {
+          return AnnotatedRegion<SystemUiOverlayStyle>(
+            value: theme.themeMode == ThemeMode.dark
+                ? SystemUiOverlayStyle.light.copyWith(
+                    statusBarColor: Colors.transparent,
+                  )
+                : SystemUiOverlayStyle.dark.copyWith(
+                    statusBarColor: Colors.transparent,
+                  ),
+            child: MaterialApp(
+              title: 'ShopEase',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
+              themeMode: theme.themeMode,
+              navigatorKey: navigatorKey,
+              home: const AuthGate(),
+              routes: {
+                '/login': (context) => const LoginScreen(),
+                '/home': (context) => const HomeScreen(),
+                '/vendor': (context) => const VendorDashboardScreen(),
+                '/vendor/onboarding': (context) =>
+                    const VendorOnboardingScreen(),
+                '/vendor/add-product': (context) =>
+                    const VendorAddProductScreen(),
+              },
+            ),
+          );
         },
       ),
     );

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/return_request_model.dart';
 
@@ -16,7 +20,7 @@ class ReturnDetailScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(returnRequest.rmaNumber)),
       body: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingMd),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: ListView(
           children: [
             _kv('Status', returnRequest.status),
@@ -40,13 +44,13 @@ class ReturnDetailScreen extends StatelessWidget {
               _kv('Your note', returnRequest.customerNote),
             if (returnRequest.vendorNote.isNotEmpty)
               _kv('Vendor note', returnRequest.vendorNote),
-            const SizedBox(height: AppTheme.spacingMd),
+            const SizedBox(height: AppSpacing.md),
             const Text(
               'Items',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+                color: AppColors.lightTextPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -55,18 +59,18 @@ class ReturnDetailScreen extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
                   '${it.productName} × ${it.quantity} (${it.condition})',
-                  style: const TextStyle(color: AppTheme.textSecondary),
+                  style: TextStyle(color: AppColors.lightTextSecondary),
                 ),
               ),
             ),
-            const SizedBox(height: AppTheme.spacingMd),
+            const SizedBox(height: AppSpacing.md),
             if (refund != null) ...[
               const Text(
                 'Refund',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+                  color: AppColors.lightTextPrimary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -89,13 +93,13 @@ class ReturnDetailScreen extends StatelessWidget {
             width: 140,
             child: Text(
               k,
-              style: const TextStyle(color: AppTheme.textSecondary),
+              style: TextStyle(color: AppColors.lightTextSecondary),
             ),
           ),
           Expanded(
             child: Text(
               v,
-              style: const TextStyle(color: AppTheme.textPrimary),
+              style: TextStyle(color: AppColors.lightTextPrimary),
             ),
           ),
         ],

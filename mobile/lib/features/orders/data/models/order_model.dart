@@ -2,6 +2,7 @@ import '../../../addresses/data/models/address_model.dart';
 
 class OrderModel {
   final int id;
+  final int? parentOrderId; // Present for vendor sub-orders (order_id)
   final int? couponId;
   final double subtotalAmount;
   final double discountAmount;
@@ -17,6 +18,7 @@ class OrderModel {
 
   const OrderModel({
     required this.id,
+    this.parentOrderId,
     this.couponId,
     required this.subtotalAmount,
     required this.discountAmount,
@@ -32,24 +34,47 @@ class OrderModel {
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
+    final parsedItems =
+        (json['items'] as List?)
+            ?.map((item) => OrderItemModel.fromJson(item))
+            .toList() ??
+        [];
+
+    final totalFromJson =
+        json.containsKey('total_amount')
+            ? (double.tryParse(json['total_amount']?.toString() ?? '') ?? 0.0)
+            : null;
+
+    final computedTotal = parsedItems.fold<double>(
+      0.0,
+      (sum, item) => sum + (item.price * item.quantity),
+    );
+
     return OrderModel(
       id: json['id'],
+      parentOrderId:
+          int.tryParse(json['order_id']?.toString() ?? '') ??
+          (json['order_id'] is int ? json['order_id'] as int : null),
       couponId: json['coupon'],
       subtotalAmount:
           double.tryParse(json['subtotal_amount']?.toString() ?? '') ?? 0.0,
       discountAmount:
           double.tryParse(json['discount_amount']?.toString() ?? '') ?? 0.0,
-      totalAmount: double.tryParse(json['total_amount'].toString()) ?? 0.0,
+      totalAmount: totalFromJson ?? computedTotal,
       status: json['status'] ?? 'PENDING',
-      paymentStatus: json['payment_status'] ?? 'UNPAID',
-      paymentMethod: json['payment_method'] ?? 'ONLINE',
+      paymentStatus:
+          json['payment_status'] ??
+          json['order_payment_status'] ??
+          json['paymentStatus'] ??
+          'UNPAID',
+      paymentMethod:
+          json['payment_method'] ??
+          json['order_payment_method'] ??
+          json['paymentMethod'] ??
+          'ONLINE',
       transactionId: json['transaction_id'],
       valId: json['val_id'],
-      items:
-          (json['items'] as List?)
-              ?.map((item) => OrderItemModel.fromJson(item))
-              .toList() ??
-          [],
+      items: parsedItems,
       createdAt: json['created_at'] ?? '',
       deliveryAddress: json['delivery_address'] != null
           ? AddressModel.fromJson(json['delivery_address'])
@@ -75,12 +100,26 @@ class OrderItemModel {
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
     final productDetail = json['product_detail'];
+    final titleFromJson = json['product_title'];
+    final unitPriceFromJson = json['unit_price'];
+
+    final name =
+        (productDetail is Map ? productDetail['name'] : null) ??
+        (titleFromJson?.toString().isNotEmpty == true
+            ? titleFromJson.toString()
+            : null);
+
+    final parsedPrice =
+        double.tryParse(json['price']?.toString() ?? '') ??
+        double.tryParse(unitPriceFromJson?.toString() ?? '') ??
+        0.0;
+
     return OrderItemModel(
       id: json['id'],
       productId: json['product'],
-      productName: productDetail?['name'],
+      productName: name,
       quantity: json['quantity'] ?? 1,
-      price: double.tryParse(json['price'].toString()) ?? 0.0,
+      price: parsedPrice,
     );
   }
 }

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../../../addresses/presentation/screens/address_management_screen.dart';
 import 'package:mobile/features/wishlist/presentation/screens/wishlist_screen.dart';
@@ -23,16 +26,16 @@ class ProfileScreen extends StatelessWidget {
           return Column(
             children: [
               // ── Header ──
-              Padding(
-                padding: const EdgeInsets.all(AppTheme.spacingMd),
+              const Padding(
+                padding: EdgeInsets.all(AppSpacing.md),
                 child: Row(
                   children: [
-                    const Text(
+                    Text(
                       'Profile',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
+                        color: AppColors.lightTextPrimary,
                       ),
                     ),
                   ],
@@ -41,29 +44,29 @@ class ProfileScreen extends StatelessWidget {
 
               // ── User Info ──
               Container(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacingMd,
-                ),
-                padding: const EdgeInsets.all(AppTheme.spacingMd),
+                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: AppTheme.surface,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  color: AppColors.lightSurface,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Row(
                   children: [
                     CircleAvatar(
                       radius: 30,
-                      backgroundColor: AppTheme.primary.withOpacity(0.2),
-                      child: Text(
-                        user.username.isNotEmpty
-                            ? user.username[0].toUpperCase()
-                            : 'U',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primary,
-                        ),
-                      ),
+                      backgroundColor: Theme.of(
+                        context,
+                      ).primaryColor.withAlpha((0.2 * 255).round()),
+                      child: user.username.isNotEmpty
+                          ? Text(
+                              user.username[0].toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            )
+                          : const Icon(Icons.person),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -75,7 +78,7 @@ class ProfileScreen extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary,
+                              color: AppColors.lightTextPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -83,7 +86,7 @@ class ProfileScreen extends StatelessWidget {
                             user.email,
                             style: const TextStyle(
                               fontSize: 14,
-                              color: AppTheme.textSecondary,
+                              color: AppColors.lightTextSecondary,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -93,15 +96,17 @@ class ProfileScreen extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: AppTheme.surfaceLight,
+                              color: Theme.of(context).primaryColor.withAlpha(
+                                (0.1 * 255).round(),
+                              ), // Changed withOpacity to withAlpha
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               user.isVendor ? 'Vendor' : 'Customer',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: AppTheme.primary,
+                                color: Theme.of(context).primaryColor,
                               ),
                             ),
                           ),
@@ -111,13 +116,13 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: AppTheme.spacingLg),
+              const SizedBox(height: AppSpacing.lg),
 
               // ── Menu Options ──
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppTheme.spacingMd,
+                    horizontal: AppSpacing.md,
                   ),
                   children: [
                     _MenuListItem(
@@ -133,7 +138,7 @@ class ProfileScreen extends StatelessWidget {
                         );
                       },
                     ),
-                    const Divider(color: AppTheme.surfaceLight),
+                    const Divider(color: AppColors.lightSurface),
                     _MenuListItem(
                       icon: Icons.assignment_return_outlined,
                       title: 'Returns',
@@ -147,7 +152,7 @@ class ProfileScreen extends StatelessWidget {
                         );
                       },
                     ),
-                    const Divider(color: AppTheme.surfaceLight),
+                    const Divider(color: AppColors.lightSurface),
                     _MenuListItem(
                       icon: Icons.local_offer_outlined,
                       title: 'Coupons',
@@ -161,7 +166,7 @@ class ProfileScreen extends StatelessWidget {
                         );
                       },
                     ),
-                    const Divider(color: AppTheme.surfaceLight),
+                    const Divider(color: AppColors.lightSurface),
                     _MenuListItem(
                       icon: Icons.location_on_outlined,
                       title: 'My Addresses',
@@ -175,13 +180,33 @@ class ProfileScreen extends StatelessWidget {
                         );
                       },
                     ),
-                    const Divider(color: AppTheme.surfaceLight),
+                    const Divider(color: AppColors.lightSurface),
+                    Consumer<ThemeProvider>(
+                      builder: (context, themeProvider, _) {
+                        return _MenuListItem(
+                          icon: Icons.dark_mode_outlined,
+                          title: 'Dark Mode',
+                          subtitle: 'Toggle app theme',
+                          trailing: Switch(
+                            value: themeProvider.isDarkMode,
+                            activeColor: Theme.of(context).primaryColor,
+                            onChanged: (value) {
+                              themeProvider.setThemeMode(
+                                value ? ThemeMode.dark : ThemeMode.light,
+                              );
+                            },
+                          ),
+                          onTap: () {},
+                        );
+                      },
+                    ),
+                    const Divider(color: AppColors.lightSurface),
                     _MenuListItem(
                       icon: Icons.logout,
                       title: 'Logout',
                       subtitle: 'Sign out of your account',
-                      iconColor: AppTheme.error,
-                      textColor: AppTheme.error,
+                      iconColor: AppColors.error,
+                      textColor: AppColors.error,
                       onTap: () {
                         context.read<AuthProvider>().logout();
                         Navigator.pushReplacementNamed(context, '/login');
@@ -205,6 +230,7 @@ class _MenuListItem extends StatelessWidget {
   final VoidCallback onTap;
   final Color? iconColor;
   final Color? textColor;
+  final Widget? trailing;
 
   const _MenuListItem({
     required this.icon,
@@ -213,6 +239,7 @@ class _MenuListItem extends StatelessWidget {
     required this.onTap,
     this.iconColor,
     this.textColor,
+    this.trailing,
   });
 
   @override
@@ -222,15 +249,15 @@ class _MenuListItem extends StatelessWidget {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceLight,
+          color: AppColors.lightSurface,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: iconColor ?? AppTheme.textPrimary),
+        child: Icon(icon, color: iconColor ?? AppColors.lightTextPrimary),
       ),
       title: Text(
         title,
         style: TextStyle(
-          color: textColor ?? AppTheme.textPrimary,
+          color: textColor ?? AppColors.lightTextPrimary,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -238,12 +265,14 @@ class _MenuListItem extends StatelessWidget {
           ? Text(
               subtitle!,
               style: const TextStyle(
-                color: AppTheme.textSecondary,
+                color: AppColors.lightTextSecondary,
                 fontSize: 13,
               ),
             )
           : null,
-      trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
+      trailing:
+          trailing ??
+          const Icon(Icons.chevron_right, color: AppColors.lightTextSecondary),
       onTap: onTap,
     );
   }

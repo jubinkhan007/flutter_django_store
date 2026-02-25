@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../providers/vendor_provider.dart';
 
 class VendorCustomersScreen extends StatefulWidget {
@@ -26,7 +28,7 @@ class _VendorCustomersScreenState extends State<VendorCustomersScreen> {
         children: [
           // ── Header ──
           const Padding(
-            padding: EdgeInsets.all(AppTheme.spacingMd),
+            padding: EdgeInsets.all(AppSpacing.md),
             child: Row(
               children: [
                 Text(
@@ -34,7 +36,7 @@ class _VendorCustomersScreenState extends State<VendorCustomersScreen> {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
+                    color: AppColors.lightTextPrimary,
                   ),
                 ),
               ],
@@ -46,8 +48,10 @@ class _VendorCustomersScreenState extends State<VendorCustomersScreen> {
             child: Consumer<VendorProvider>(
               builder: (context, vendor, _) {
                 if (vendor.isLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: AppTheme.primary),
+                  return Center(
+                    child: CircularProgressIndicator(
+                      color: Theme.of(context).primaryColor,
+                    ),
                   );
                 }
 
@@ -58,15 +62,15 @@ class _VendorCustomersScreenState extends State<VendorCustomersScreen> {
                       children: [
                         const Icon(
                           Icons.error_outline,
-                          color: AppTheme.error,
+                          color: AppColors.error,
                           size: 48,
                         ),
-                        const SizedBox(height: AppTheme.spacingMd),
+                        const SizedBox(height: AppSpacing.md),
                         Text(
                           vendor.error!,
-                          style: const TextStyle(color: AppTheme.error),
+                          style: TextStyle(color: AppColors.error),
                         ),
-                        const SizedBox(height: AppTheme.spacingMd),
+                        const SizedBox(height: AppSpacing.md),
                         TextButton(
                           onPressed: () => vendor.loadCustomers(),
                           child: const Text('Retry'),
@@ -83,22 +87,22 @@ class _VendorCustomersScreenState extends State<VendorCustomersScreen> {
                       children: [
                         Icon(
                           Icons.people_outline,
-                          color: AppTheme.textSecondary,
+                          color: AppColors.lightTextSecondary,
                           size: 48,
                         ),
-                        SizedBox(height: AppTheme.spacingMd),
+                        SizedBox(height: AppSpacing.md),
                         Text(
                           'No customers yet',
                           style: TextStyle(
-                            color: AppTheme.textSecondary,
+                            color: AppColors.lightTextSecondary,
                             fontSize: 16,
                           ),
                         ),
-                        SizedBox(height: AppTheme.spacingSm),
+                        SizedBox(height: AppSpacing.sm),
                         Text(
                           'Customers will appear here once they place an order.',
                           style: TextStyle(
-                            color: AppTheme.textSecondary,
+                            color: AppColors.lightTextSecondary,
                             fontSize: 13,
                           ),
                           textAlign: TextAlign.center,
@@ -110,12 +114,12 @@ class _VendorCustomersScreenState extends State<VendorCustomersScreen> {
 
                 // ── Customer List ──
                 return RefreshIndicator(
-                  color: AppTheme.primary,
+                  color: Theme.of(context).primaryColor,
                   onRefresh: () => vendor.loadCustomers(),
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.spacingMd,
-                      vertical: AppTheme.spacingSm,
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
                     ),
                     itemCount: vendor.customers.length,
                     itemBuilder: (context, index) {
@@ -127,31 +131,31 @@ class _VendorCustomersScreenState extends State<VendorCustomersScreen> {
 
                       return Container(
                         margin: const EdgeInsets.only(
-                          bottom: AppTheme.spacingSm,
+                          bottom: AppSpacing.sm,
                         ),
-                        padding: const EdgeInsets.all(AppTheme.spacingMd),
+                        padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
-                          color: AppTheme.surface,
+                          color: AppColors.lightSurface,
                           borderRadius: BorderRadius.circular(
-                            AppTheme.radiusMd,
+                            AppRadius.md,
                           ),
                           border: Border.all(
-                            color: AppTheme.textSecondary.withAlpha(20),
+                            color: AppColors.lightTextSecondary.withAlpha(20),
                           ),
                         ),
                         child: Row(
                           children: [
                             CircleAvatar(
-                              backgroundColor: AppTheme.primary.withAlpha(20),
+                              backgroundColor: Theme.of(context).primaryColor.withAlpha(20),
                               child: Text(
                                 initial,
-                                style: const TextStyle(
-                                  color: AppTheme.primary,
+                                style: TextStyle(
+                                  color: Theme.of(context).primaryColor,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
-                            const SizedBox(width: AppTheme.spacingMd),
+                            const SizedBox(width: AppSpacing.md),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,14 +165,14 @@ class _VendorCustomersScreenState extends State<VendorCustomersScreen> {
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 15,
-                                      color: AppTheme.textPrimary,
+                                      color: AppColors.lightTextPrimary,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     customer.email,
                                     style: const TextStyle(
-                                      color: AppTheme.textSecondary,
+                                      color: AppColors.lightTextSecondary,
                                       fontSize: 13,
                                     ),
                                     maxLines: 1,
@@ -182,9 +186,9 @@ class _VendorCustomersScreenState extends State<VendorCustomersScreen> {
                               children: [
                                 Text(
                                   '\$${customer.totalSpend.toStringAsFixed(2)}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: AppTheme.primary,
+                                    color: Theme.of(context).primaryColor,
                                     fontSize: 15,
                                   ),
                                 ),
@@ -192,7 +196,7 @@ class _VendorCustomersScreenState extends State<VendorCustomersScreen> {
                                 Text(
                                   '${customer.totalOrders} order${customer.totalOrders > 1 ? 's' : ''}',
                                   style: const TextStyle(
-                                    color: AppTheme.textSecondary,
+                                    color: AppColors.lightTextSecondary,
                                     fontSize: 12,
                                   ),
                                 ),

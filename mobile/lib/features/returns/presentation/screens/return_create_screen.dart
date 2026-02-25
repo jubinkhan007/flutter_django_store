@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/primary_button.dart';
 import '../../../orders/data/models/order_model.dart';
 import '../providers/return_provider.dart';
 
@@ -104,7 +108,7 @@ class _ReturnCreateScreenState extends State<ReturnCreateScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(label),
-          backgroundColor: AppTheme.success,
+          backgroundColor: AppColors.success,
         ),
       );
 
@@ -137,7 +141,7 @@ class _ReturnCreateScreenState extends State<ReturnCreateScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(warning),
-            backgroundColor: AppTheme.warning,
+            backgroundColor: AppColors.warning,
           ),
         );
       }
@@ -146,7 +150,7 @@ class _ReturnCreateScreenState extends State<ReturnCreateScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(provider.error ?? 'Failed to submit return'),
-          backgroundColor: AppTheme.error,
+          backgroundColor: AppColors.error,
         ),
       );
     }
@@ -157,7 +161,7 @@ class _ReturnCreateScreenState extends State<ReturnCreateScreen> {
     return Scaffold(
       appBar: AppBar(title: Text('Return Order #${widget.order.id}')),
       body: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingMd),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: ListView(
           children: [
             DropdownButtonFormField<String>(
@@ -169,7 +173,7 @@ class _ReturnCreateScreenState extends State<ReturnCreateScreen> {
               ],
               onChanged: (v) => setState(() => _requestType = v ?? 'RETURN'),
             ),
-            const SizedBox(height: AppTheme.spacingMd),
+            const SizedBox(height: AppSpacing.md),
             DropdownButtonFormField<String>(
               value: _reason,
               decoration: const InputDecoration(labelText: 'Reason'),
@@ -183,7 +187,7 @@ class _ReturnCreateScreenState extends State<ReturnCreateScreen> {
               ],
               onChanged: (v) => setState(() => _reason = v ?? 'DEFECTIVE'),
             ),
-            const SizedBox(height: AppTheme.spacingMd),
+            const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _detailsController,
               maxLines: 3,
@@ -192,7 +196,7 @@ class _ReturnCreateScreenState extends State<ReturnCreateScreen> {
                 hintText: 'Tell us what happened...',
               ),
             ),
-            const SizedBox(height: AppTheme.spacingMd),
+            const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _noteController,
               maxLines: 2,
@@ -201,7 +205,7 @@ class _ReturnCreateScreenState extends State<ReturnCreateScreen> {
                 hintText: 'Pickup/drop-off constraints, etc.',
               ),
             ),
-            const SizedBox(height: AppTheme.spacingMd),
+            const SizedBox(height: AppSpacing.md),
             DropdownButtonFormField<String>(
               value: _fulfillment,
               decoration: const InputDecoration(labelText: 'Pickup / Drop-off'),
@@ -211,7 +215,7 @@ class _ReturnCreateScreenState extends State<ReturnCreateScreen> {
               ],
               onChanged: (v) => setState(() => _fulfillment = v ?? 'PICKUP'),
             ),
-            const SizedBox(height: AppTheme.spacingMd),
+            const SizedBox(height: AppSpacing.md),
             DropdownButtonFormField<String>(
               value: _refundMethod,
               decoration: const InputDecoration(labelText: 'Refund method'),
@@ -221,20 +225,20 @@ class _ReturnCreateScreenState extends State<ReturnCreateScreen> {
               ],
               onChanged: (v) => setState(() => _refundMethod = v ?? 'ORIGINAL'),
             ),
-            const SizedBox(height: AppTheme.spacingLg),
+            const SizedBox(height: AppSpacing.lg),
             const Text(
               'Select items',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+                color: AppColors.lightTextPrimary,
               ),
             ),
             const SizedBox(height: 6),
             const Text(
               'If your order contains items from multiple shops, multiple return requests will be created automatically.',
               style: TextStyle(
-                color: AppTheme.textSecondary,
+                color: AppColors.lightTextSecondary,
                 fontSize: 12,
               ),
             ),
@@ -246,15 +250,15 @@ class _ReturnCreateScreenState extends State<ReturnCreateScreen> {
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.surface,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  color: AppColors.lightSurface,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Row(
                   children: [
                     Checkbox(
                       value: selected,
                       onChanged: (v) => setState(() => _selected[item.id] = v ?? false),
-                      activeColor: AppTheme.primary,
+                      activeColor: Theme.of(context).primaryColor,
                     ),
                     Expanded(
                       child: Column(
@@ -263,7 +267,7 @@ class _ReturnCreateScreenState extends State<ReturnCreateScreen> {
                           Text(
                             item.productName ?? 'Product',
                             style: const TextStyle(
-                              color: AppTheme.textPrimary,
+                              color: AppColors.lightTextPrimary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -271,7 +275,7 @@ class _ReturnCreateScreenState extends State<ReturnCreateScreen> {
                           Text(
                             'Qty purchased: ${item.quantity}',
                             style: const TextStyle(
-                              color: AppTheme.textSecondary,
+                              color: AppColors.lightTextSecondary,
                               fontSize: 12,
                             ),
                           ),
@@ -300,7 +304,7 @@ class _ReturnCreateScreenState extends State<ReturnCreateScreen> {
                 ),
               );
             }),
-            const SizedBox(height: AppTheme.spacingMd),
+            const SizedBox(height: AppSpacing.md),
             OutlinedButton.icon(
               onPressed: _pickImages,
               icon: const Icon(Icons.photo_camera_outlined),
@@ -351,10 +355,10 @@ class _ReturnCreateScreenState extends State<ReturnCreateScreen> {
                   ),
                 ),
               ),
-            const SizedBox(height: AppTheme.spacingLg),
+            const SizedBox(height: AppSpacing.lg),
             Consumer<ReturnProvider>(
               builder: (context, provider, _) {
-                return CustomButton(
+                return PrimaryButton(
                   text: 'Submit',
                   isLoading: provider.isLoading,
                   onPressed: _submit,

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../data/models/available_coupon_model.dart';
 import '../providers/coupon_provider.dart';
-
 
 class CouponPickerSheet extends StatefulWidget {
   const CouponPickerSheet({super.key});
@@ -23,8 +24,8 @@ class _CouponPickerSheetState extends State<CouponPickerSheet> {
     super.initState();
     final cart = context.read<CartProvider>();
     _future = context.read<CouponProvider>().fetchAvailableCoupons(
-          items: cart.toOrderItems(),
-        );
+      items: cart.toOrderItems(),
+    );
   }
 
   @override
@@ -33,7 +34,7 @@ class _CouponPickerSheetState extends State<CouponPickerSheet> {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingMd),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,7 +47,7 @@ class _CouponPickerSheetState extends State<CouponPickerSheet> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
+                      color: AppColors.lightTextPrimary,
                     ),
                   ),
                 ),
@@ -58,7 +59,7 @@ class _CouponPickerSheetState extends State<CouponPickerSheet> {
                     },
                     child: const Text(
                       'Remove',
-                      style: TextStyle(color: AppTheme.error),
+                      style: TextStyle(color: AppColors.error),
                     ),
                   ),
               ],
@@ -66,30 +67,38 @@ class _CouponPickerSheetState extends State<CouponPickerSheet> {
             const SizedBox(height: 8),
             Text(
               'Subtotal: \$${cart.totalPrice.toStringAsFixed(2)}',
-              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+              style: TextStyle(
+                color: AppColors.lightTextSecondary,
+                fontSize: 12,
+              ),
             ),
             const SizedBox(height: 12),
             FutureBuilder<List<AvailableCouponModel>>(
               future: _future,
               builder: (context, snapshot) {
                 if (snapshot.connectionState != ConnectionState.done) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 28),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 28),
                     child: Center(
-                      child: CircularProgressIndicator(color: AppTheme.primary),
+                      child: CircularProgressIndicator(
+                        color: Theme.of(context).primaryColor,
+                      ),
                     ),
                   );
                 }
 
                 if (snapshot.hasError) {
-                  final msg = snapshot.error.toString().replaceAll('Exception: ', '');
+                  final msg = snapshot.error.toString().replaceAll(
+                    'Exception: ',
+                    '',
+                  );
                   return _ErrorState(
                     message: msg,
                     onRetry: () {
                       setState(() {
-                        _future = context.read<CouponProvider>().fetchAvailableCoupons(
-                              items: cart.toOrderItems(),
-                            );
+                        _future = context
+                            .read<CouponProvider>()
+                            .fetchAvailableCoupons(items: cart.toOrderItems());
                       });
                     },
                   );
@@ -102,7 +111,7 @@ class _CouponPickerSheetState extends State<CouponPickerSheet> {
                     child: Center(
                       child: Text(
                         'No coupons available for this cart',
-                        style: TextStyle(color: AppTheme.textSecondary),
+                        style: TextStyle(color: AppColors.lightTextSecondary),
                       ),
                     ),
                   );
@@ -116,7 +125,9 @@ class _CouponPickerSheetState extends State<CouponPickerSheet> {
                       final c = coupons[index];
                       final scoped = c.scope == 'GLOBAL'
                           ? 'All shops'
-                          : (c.vendorName?.isNotEmpty == true ? c.vendorName! : 'Shop ${c.vendorId ?? ''}');
+                          : (c.vendorName?.isNotEmpty == true
+                                ? c.vendorName!
+                                : 'Shop ${c.vendorId ?? ''}');
                       final label = c.discountType == 'PERCENT'
                           ? '${c.discountValue.toStringAsFixed(0)}% off'
                           : '\$${c.discountValue.toStringAsFixed(2)} off';
@@ -130,16 +141,23 @@ class _CouponPickerSheetState extends State<CouponPickerSheet> {
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppTheme.surface,
-                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          color: AppColors.lightSurface,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
                           border: Border.all(
-                            color: isApplied ? AppTheme.success.withOpacity(0.4) : AppTheme.surfaceLight,
+                            color: isApplied
+                                ? AppColors.success.withAlpha(
+                                    (0.4 * 255).round(),
+                                  )
+                                : AppColors.lightSurface,
                             width: 0.6,
                           ),
                         ),
                         child: InkWell(
                           onTap: () {
-                            cart.applyCoupon(code: c.code, discountAmount: c.discount);
+                            cart.applyCoupon(
+                              code: c.code,
+                              discountAmount: c.discount,
+                            );
                             Navigator.pop(context);
                           },
                           child: Row(
@@ -147,10 +165,14 @@ class _CouponPickerSheetState extends State<CouponPickerSheet> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primary.withOpacity(0.15),
+                                  color: Theme.of(context).primaryColor
+                                      .withAlpha((0.15 * 255).round()),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: const Icon(Icons.local_offer_outlined, color: AppTheme.primary),
+                                child: Icon(
+                                  Icons.confirmation_number_outlined,
+                                  color: Theme.of(context).primaryColor,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -164,7 +186,7 @@ class _CouponPickerSheetState extends State<CouponPickerSheet> {
                                             c.code,
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w700,
-                                              color: AppTheme.textPrimary,
+                                              color: AppColors.lightTextPrimary,
                                             ),
                                           ),
                                         ),
@@ -172,7 +194,7 @@ class _CouponPickerSheetState extends State<CouponPickerSheet> {
                                           '-\$${c.discount.toStringAsFixed(2)}',
                                           style: const TextStyle(
                                             fontWeight: FontWeight.w700,
-                                            color: AppTheme.success,
+                                            color: AppColors.success,
                                           ),
                                         ),
                                       ],
@@ -180,19 +202,29 @@ class _CouponPickerSheetState extends State<CouponPickerSheet> {
                                     const SizedBox(height: 2),
                                     Text(
                                       '$label • $scoped${minText == null ? '' : ' • $minText'}',
-                                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                                      style: TextStyle(
+                                        color: AppColors.lightTextSecondary,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
                                       'Eligible subtotal: \$${c.eligibleSubtotal.toStringAsFixed(2)}',
-                                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11),
+                                      style: TextStyle(
+                                        color: AppColors.lightTextSecondary,
+                                        fontSize: 11,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                               if (isApplied) ...[
                                 const SizedBox(width: 10),
-                                const Icon(Icons.check_circle, color: AppTheme.success, size: 18),
+                                Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.success,
+                                  size: 18,
+                                ),
                               ],
                             ],
                           ),
@@ -205,7 +237,10 @@ class _CouponPickerSheetState extends State<CouponPickerSheet> {
             ),
             if (_error != null) ...[
               const SizedBox(height: 8),
-              Text(_error!, style: const TextStyle(color: AppTheme.error, fontSize: 12)),
+              Text(
+                _error!,
+                style: TextStyle(color: AppColors.error, fontSize: 12),
+              ),
             ],
           ],
         ),
@@ -228,17 +263,13 @@ class _ErrorState extends StatelessWidget {
         children: [
           Text(
             message,
-            style: const TextStyle(color: AppTheme.textSecondary),
+            style: TextStyle(color: AppColors.lightTextSecondary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 10),
-          OutlinedButton(
-            onPressed: onRetry,
-            child: const Text('Retry'),
-          ),
+          OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
         ],
       ),
     );
   }
 }
-

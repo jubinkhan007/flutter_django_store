@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../orders/presentation/providers/order_provider.dart';
 import '../providers/coupon_provider.dart';
@@ -64,7 +66,7 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Applied coupon: ${cart.couponCode}'),
-        backgroundColor: AppTheme.success,
+        backgroundColor: AppColors.success,
       ),
     );
   }
@@ -74,7 +76,7 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Coupons')),
       body: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingMd),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -83,8 +85,8 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
                 return Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppTheme.surface,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    color: AppColors.lightSurface,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,7 +95,7 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
                         'Your cart',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
+                          color: AppColors.lightTextPrimary,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -101,7 +103,7 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
                         cart.isEmpty
                             ? 'Cart is empty'
                             : 'Subtotal: \$${cart.totalPrice.toStringAsFixed(2)}',
-                        style: const TextStyle(color: AppTheme.textSecondary),
+                        style: TextStyle(color: AppColors.lightTextSecondary),
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -110,8 +112,8 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
                             : 'Applied: ${cart.couponCode} (-\$${cart.couponDiscount.toStringAsFixed(2)})',
                         style: TextStyle(
                           color: cart.couponCode == null
-                              ? AppTheme.textSecondary
-                              : AppTheme.success,
+                              ? AppColors.lightTextSecondary
+                              : AppColors.success,
                           fontSize: 12,
                         ),
                       ),
@@ -122,7 +124,7 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
                           icon: const Icon(Icons.close, size: 16),
                           label: const Text('Remove coupon'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: AppTheme.error,
+                            foregroundColor: AppColors.error,
                           ),
                         ),
                       ],
@@ -131,7 +133,7 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
                 );
               },
             ),
-            const SizedBox(height: AppTheme.spacingMd),
+            const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 Expanded(
@@ -155,7 +157,7 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
                             ? null
                             : _applyCurrentCode,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primary,
+                          backgroundColor: Theme.of(context).primaryColor,
                         ),
                         child: orderProvider.isLoading
                             ? const SizedBox(
@@ -177,16 +179,16 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
               const SizedBox(height: 8),
               Text(
                 _localError!,
-                style: const TextStyle(color: AppTheme.error, fontSize: 12),
+                style: TextStyle(color: AppColors.error, fontSize: 12),
               ),
             ],
-            const SizedBox(height: AppTheme.spacingLg),
+            const SizedBox(height: AppSpacing.lg),
             const Text(
               'Available coupons',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+                color: AppColors.lightTextPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -194,8 +196,10 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
               child: Consumer<CouponProvider>(
                 builder: (context, provider, _) {
                   if (provider.isLoading && provider.globalCoupons.isEmpty) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: AppTheme.primary),
+                    return Center(
+                      child: CircularProgressIndicator(
+                        color: Theme.of(context).primaryColor,
+                      ),
                     );
                   }
                   if (provider.error != null &&
@@ -203,7 +207,7 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
                     return Center(
                       child: Text(
                         provider.error!,
-                        style: const TextStyle(color: AppTheme.textSecondary),
+                        style: TextStyle(color: AppColors.lightTextSecondary),
                       ),
                     );
                   }
@@ -211,13 +215,13 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
                     return const Center(
                       child: Text(
                         'No coupons available',
-                        style: TextStyle(color: AppTheme.textSecondary),
+                        style: TextStyle(color: AppColors.lightTextSecondary),
                       ),
                     );
                   }
 
                   return RefreshIndicator(
-                    color: AppTheme.primary,
+                    color: Theme.of(context).primaryColor,
                     onRefresh: () => provider.loadGlobalCoupons(),
                     child: ListView.builder(
                       itemCount: provider.globalCoupons.length,
@@ -239,9 +243,9 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
                           margin: const EdgeInsets.only(bottom: 10),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppTheme.surface,
+                            color: AppColors.lightSurface,
                             borderRadius: BorderRadius.circular(
-                              AppTheme.radiusMd,
+                              AppRadius.md,
                             ),
                           ),
                           child: Row(
@@ -249,12 +253,12 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primary.withOpacity(0.15),
+                                  color: Theme.of(context).primaryColor.withOpacity(0.15),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: const Icon(
+                                child: Icon(
                                   Icons.local_offer_outlined,
-                                  color: AppTheme.primary,
+                                  color: Theme.of(context).primaryColor,
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -266,14 +270,14 @@ class _CouponCenterScreenState extends State<CouponCenterScreen> {
                                       c.code,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w700,
-                                        color: AppTheme.textPrimary,
+                                        color: AppColors.lightTextPrimary,
                                       ),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
                                       '$label • $scoped${minText == null ? '' : ' • $minText'}',
                                       style: const TextStyle(
-                                        color: AppTheme.textSecondary,
+                                        color: AppColors.lightTextSecondary,
                                         fontSize: 12,
                                       ),
                                     ),

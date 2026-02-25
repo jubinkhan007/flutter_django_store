@@ -182,6 +182,7 @@ class VendorProvider extends ChangeNotifier {
         final existing = _orders[index];
         _orders[index] = OrderModel(
           id: existing.id,
+          parentOrderId: existing.parentOrderId,
           couponId: existing.couponId,
           subtotalAmount: existing.subtotalAmount,
           discountAmount: existing.discountAmount,

@@ -4,9 +4,13 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/custom_button.dart';
-import '../../../../core/widgets/custom_text_field.dart';
+import '../../../../core/widgets/primary_button.dart';
+import '../../../../core/widgets/app_text_field.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../products/presentation/providers/product_provider.dart';
 import '../providers/vendor_provider.dart';
@@ -116,10 +120,10 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
                 ? 'Product added successfully!'
                 : 'Product updated successfully!',
           ),
-          backgroundColor: AppTheme.success,
+          backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
         ),
       );
@@ -140,7 +144,7 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppTheme.spacingLg),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Form(
           key: _formKey,
           child: Column(
@@ -154,10 +158,10 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceLight,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      color: AppColors.lightSurface,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
                       border: Border.all(
-                        color: AppTheme.textSecondary.withAlpha(50),
+                        color: AppColors.lightTextSecondary.withAlpha(50),
                         width: 1,
                       ),
                       image: _selectedImage != null
@@ -182,14 +186,14 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
                             children: [
                               Icon(
                                 Icons.add_a_photo_outlined,
-                                color: AppTheme.textSecondary,
+                                color: AppColors.lightTextSecondary,
                                 size: 32,
                               ),
                               SizedBox(height: 8),
                               Text(
                                 'Add Photo',
                                 style: TextStyle(
-                                  color: AppTheme.textSecondary,
+                                  color: AppColors.lightTextSecondary,
                                   fontSize: 12,
                                 ),
                               ),
@@ -199,9 +203,9 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: AppTheme.spacingXl),
+              const SizedBox(height: AppSpacing.xl),
 
-              CustomTextField(
+              AppTextField(
                 controller: _nameController,
                 hintText: 'e.g., Wireless Headphones',
                 labelText: 'Product Name',
@@ -213,9 +217,9 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: AppTheme.spacingMd),
+              const SizedBox(height: AppSpacing.md),
 
-              CustomTextField(
+              AppTextField(
                 controller: _descriptionController,
                 hintText: 'Describe your product...',
                 labelText: 'Description',
@@ -228,12 +232,12 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: AppTheme.spacingMd),
+              const SizedBox(height: AppSpacing.md),
 
               Row(
                 children: [
                   Expanded(
-                    child: CustomTextField(
+                    child: AppTextField(
                       controller: _priceController,
                       hintText: '0.00',
                       labelText: 'Price (\$)',
@@ -252,7 +256,7 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: CustomTextField(
+                    child: AppTextField(
                       controller: _stockController,
                       hintText: '0',
                       labelText: 'Stock Qty',
@@ -271,7 +275,7 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: AppTheme.spacingMd),
+              const SizedBox(height: AppSpacing.md),
 
               // Category Dropdown
               Consumer<ProductProvider>(
@@ -282,13 +286,13 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
                       labelText: 'Category',
                       prefixIcon: const Icon(Icons.category_outlined, size: 20),
                       filled: true,
-                      fillColor: AppTheme.surfaceLight,
+                      fillColor: AppColors.lightSurface,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
                         borderSide: BorderSide.none,
                       ),
                     ),
-                    dropdownColor: AppTheme.surface,
+                    dropdownColor: AppColors.lightSurface,
                     items: productProvider.categories
                         .map(
                           (cat) => DropdownMenuItem<int>(
@@ -302,12 +306,12 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
                     },
                     hint: const Text(
                       'Select a category',
-                      style: TextStyle(color: AppTheme.textSecondary),
+                      style: TextStyle(color: AppColors.lightTextSecondary),
                     ),
                   );
                 },
               ),
-              const SizedBox(height: AppTheme.spacingXl),
+              const SizedBox(height: AppSpacing.xl),
 
               // Error
               Consumer<VendorProvider>(
@@ -315,20 +319,20 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
                   if (vendor.error != null) {
                     return Padding(
                       padding: const EdgeInsets.only(
-                        bottom: AppTheme.spacingMd,
+                        bottom: AppSpacing.md,
                       ),
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppTheme.error.withAlpha(25),
+                          color: AppColors.error.withAlpha(25),
                           borderRadius: BorderRadius.circular(
-                            AppTheme.radiusSm,
+                            AppRadius.sm,
                           ),
                         ),
                         child: Text(
                           vendor.error!,
                           style: const TextStyle(
-                            color: AppTheme.error,
+                            color: AppColors.error,
                             fontSize: 13,
                           ),
                         ),
@@ -342,7 +346,7 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
               // Submit Button
               Consumer<VendorProvider>(
                 builder: (context, vendor, _) {
-                  return CustomButton(
+                  return PrimaryButton(
                     text: 'Add Product',
                     isLoading: vendor.isLoading,
                     onPressed: _handleSubmit,

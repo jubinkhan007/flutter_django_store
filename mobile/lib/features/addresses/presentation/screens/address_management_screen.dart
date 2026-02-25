@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../data/models/address_model.dart';
 import '../providers/address_provider.dart';
 import 'add_edit_address_screen.dart';
@@ -128,7 +127,7 @@ class _AddressManagementScreenState extends State<AddressManagementScreen> {
                     icon: const Icon(Icons.add),
                     label: const Text('Add Address'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
+                      backgroundColor: Theme.of(context).primaryColor,
                       foregroundColor: Colors.white,
                     ),
                   ),
@@ -148,7 +147,10 @@ class _AddressManagementScreenState extends State<AddressManagementScreen> {
                   margin: const EdgeInsets.symmetric(vertical: 8),
                   shape: RoundedRectangleBorder(
                     side: address.isDefault
-                        ? const BorderSide(color: AppTheme.primary, width: 2)
+                        ? BorderSide(
+                            color: Theme.of(context).primaryColor,
+                            width: 2,
+                          )
                         : BorderSide.none,
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -182,15 +184,14 @@ class _AddressManagementScreenState extends State<AddressManagementScreen> {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.primary.withOpacity(
-                                          0.1,
-                                        ),
+                                        color: Theme.of(context).primaryColor
+                                            .withAlpha((0.1 * 255).round()),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
-                                      child: const Text(
+                                      child: Text(
                                         'Default',
                                         style: TextStyle(
-                                          color: AppTheme.primary,
+                                          color: Theme.of(context).primaryColor,
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -264,7 +265,7 @@ class _AddressManagementScreenState extends State<AddressManagementScreen> {
             floatingActionButton: provider.addresses.isNotEmpty
                 ? FloatingActionButton(
                     onPressed: () => _navigateToAddEditScreen(),
-                    backgroundColor: AppTheme.primary,
+                    backgroundColor: Theme.of(context).primaryColor,
                     child: const Icon(Icons.add, color: Colors.white),
                   )
                 : null,

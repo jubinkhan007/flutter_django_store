@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/vendor_provider.dart';
 import 'vendor_products_screen.dart';
@@ -46,7 +50,7 @@ class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           border: Border(
-            top: BorderSide(color: AppTheme.surfaceLight, width: 0.5),
+            top: BorderSide(color: AppColors.lightSurface, width: 0.5),
           ),
         ),
         child: BottomNavigationBar(
@@ -92,7 +96,7 @@ class _DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppTheme.spacingMd),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -112,14 +116,14 @@ class _DashboardPage extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
+                            color: AppColors.lightTextPrimary,
                           ),
                         ),
                         const SizedBox(height: 2),
                         const Text(
                           'Vendor Dashboard',
                           style: TextStyle(
-                            color: AppTheme.textSecondary,
+                            color: AppColors.lightTextSecondary,
                             fontSize: 14,
                           ),
                         ),
@@ -149,7 +153,7 @@ class _DashboardPage extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: AppTheme.spacingLg),
+            const SizedBox(height: AppSpacing.lg),
 
             // ── Business Analytics & Insights ──
             Consumer<VendorProvider>(
@@ -162,10 +166,10 @@ class _DashboardPage extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
+                        color: AppColors.lightTextPrimary,
                       ),
                     ),
-                    const SizedBox(height: AppTheme.spacingSm),
+                    const SizedBox(height: AppSpacing.sm),
                     Row(
                       children: [
                         Expanded(
@@ -173,7 +177,7 @@ class _DashboardPage extends StatelessWidget {
                             icon: Icons.attach_money,
                             label: 'Revenue (7d)',
                             value: '\$${vendor.revenue7d.toStringAsFixed(2)}',
-                            color: AppTheme.success,
+                            color: AppColors.success,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -182,7 +186,7 @@ class _DashboardPage extends StatelessWidget {
                             icon: Icons.shopping_cart,
                             label: 'Today Orders',
                             value: '${vendor.todayOrders}',
-                            color: AppTheme.primary,
+                            color: Theme.of(context).primaryColor,
                           ),
                         ),
                       ],
@@ -195,7 +199,7 @@ class _DashboardPage extends StatelessWidget {
                             icon: Icons.hourglass_empty,
                             label: 'Pending',
                             value: '${vendor.pendingOrders}',
-                            color: AppTheme.warning,
+                            color: AppColors.warning,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -204,29 +208,30 @@ class _DashboardPage extends StatelessWidget {
                             icon: Icons.warning_amber,
                             label: 'Late Shipments',
                             value: '${vendor.lateShipmentsCount}',
-                            color: AppTheme.error,
+                            color: AppColors.error,
                           ),
                         ),
                       ],
                     ),
-                    
-                    const SizedBox(height: AppTheme.spacingLg),
-                    
+
+                    const SizedBox(height: AppSpacing.lg),
+
                     const Text(
                       'Performance Metrics (30d)',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
+                        color: AppColors.lightTextPrimary,
                       ),
                     ),
-                    const SizedBox(height: AppTheme.spacingSm),
+                    const SizedBox(height: AppSpacing.sm),
                     Row(
                       children: [
                         Expanded(
                           child: _MetricCard(
                             label: 'Fulfillment Rate',
-                            value: '${vendor.fulfillmentRate30d.toStringAsFixed(1)}%',
+                            value:
+                                '${vendor.fulfillmentRate30d.toStringAsFixed(1)}%',
                             isGood: vendor.fulfillmentRate30d >= 90,
                           ),
                         ),
@@ -234,7 +239,8 @@ class _DashboardPage extends StatelessWidget {
                         Expanded(
                           child: _MetricCard(
                             label: 'Cancel Rate',
-                            value: '${vendor.cancellationRate30d.toStringAsFixed(1)}%',
+                            value:
+                                '${vendor.cancellationRate30d.toStringAsFixed(1)}%',
                             isGood: vendor.cancellationRate30d < 5,
                           ),
                         ),
@@ -245,19 +251,27 @@ class _DashboardPage extends StatelessWidget {
                         margin: const EdgeInsets.only(top: 12),
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppTheme.error.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                          border: Border.all(color: AppTheme.error.withOpacity(0.3)),
+                          color: AppColors.error.withAlpha((0.1 * 255).round()),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(
+                            color: AppColors.error.withAlpha(
+                              (0.3 * 255).round(),
+                            ),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.inventory, color: AppTheme.error, size: 20),
+                            Icon(
+                              Icons.warning_amber,
+                              color: AppColors.error,
+                              size: 20,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 '${vendor.lowStockCount} products/variants are low on stock!',
                                 style: const TextStyle(
-                                  color: AppTheme.error,
+                                  color: AppColors.error,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -269,7 +283,7 @@ class _DashboardPage extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: AppTheme.spacingLg),
+            const SizedBox(height: AppSpacing.lg),
 
             // ── Quick Actions ──
             const Text(
@@ -277,10 +291,10 @@ class _DashboardPage extends StatelessWidget {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+                color: AppColors.lightTextPrimary,
               ),
             ),
-            const SizedBox(height: AppTheme.spacingSm),
+            const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
                 Expanded(
@@ -329,16 +343,16 @@ class _MetricCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.surfaceLight),
+        color: AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.lightSurface),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+            style: TextStyle(color: AppColors.lightTextSecondary, fontSize: 12),
           ),
           const SizedBox(height: 4),
           Row(
@@ -348,13 +362,13 @@ class _MetricCard extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+                  color: AppColors.lightTextPrimary,
                 ),
               ),
               const SizedBox(width: 4),
               Icon(
                 isGood ? Icons.trending_up : Icons.trending_down,
-                color: isGood ? AppTheme.success : AppTheme.error,
+                color: isGood ? AppColors.success : AppColors.error,
                 size: 16,
               ),
             ],
@@ -383,9 +397,9 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.surfaceLight, width: 0.5),
+        color: AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.lightSurface, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -394,7 +408,7 @@ class _StatCard extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: color.withAlpha(30),
-              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Icon(icon, color: color, size: 20),
           ),
@@ -404,13 +418,13 @@ class _StatCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
+              color: AppColors.lightTextPrimary,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+            style: TextStyle(color: AppColors.lightTextSecondary, fontSize: 12),
           ),
         ],
       ),
@@ -436,18 +450,18 @@ class _QuickAction extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          border: Border.all(color: AppTheme.surfaceLight, width: 0.5),
+          color: AppColors.lightSurface,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: AppColors.lightSurface, width: 0.5),
         ),
         child: Row(
           children: [
-            Icon(icon, color: AppTheme.primary, size: 20),
+            Icon(icon, color: Theme.of(context).primaryColor, size: 20),
             const SizedBox(width: 8),
             Text(
               label,
               style: const TextStyle(
-                color: AppTheme.textPrimary,
+                color: AppColors.lightTextPrimary,
                 fontWeight: FontWeight.w500,
                 fontSize: 13,
               ),

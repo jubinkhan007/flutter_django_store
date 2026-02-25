@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../providers/vendor_provider.dart';
 
 class VendorOrdersScreen extends StatefulWidget {
@@ -22,29 +24,29 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
   Color _statusColor(String status) {
     switch (status) {
       case 'PENDING':
-        return AppTheme.warning;
+        return AppColors.warning;
       case 'PAID':
         return Colors.blue;
       case 'SHIPPED':
         return Colors.cyan;
       case 'DELIVERED':
-        return AppTheme.success;
+        return AppColors.success;
       case 'CANCELED':
-        return AppTheme.error;
+        return AppColors.error;
       default:
-        return AppTheme.textSecondary;
+        return AppColors.lightTextSecondary;
     }
   }
 
   Color _paymentColor(String status) {
     switch (status) {
       case 'PAID':
-        return AppTheme.success;
+        return AppColors.success;
       case 'REFUNDED':
-        return AppTheme.warning;
+        return AppColors.warning;
       case 'UNPAID':
       default:
-        return AppTheme.error;
+        return AppColors.error;
     }
   }
 
@@ -77,13 +79,13 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Padding(
-            padding: EdgeInsets.all(AppTheme.spacingMd),
+            padding: EdgeInsets.all(AppSpacing.md),
             child: Text(
               'Incoming Orders',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+                color: AppColors.lightTextPrimary,
               ),
             ),
           ),
@@ -91,8 +93,10 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
             child: Consumer<VendorProvider>(
               builder: (context, vendor, _) {
                 if (vendor.isLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: AppTheme.primary),
+                  return Center(
+                    child: CircularProgressIndicator(
+                      color: Theme.of(context).primaryColor,
+                    ),
                   );
                 }
 
@@ -103,14 +107,14 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                       children: [
                         Icon(
                           Icons.receipt_long_outlined,
-                          color: AppTheme.textSecondary,
+                          color: AppColors.lightTextSecondary,
                           size: 48,
                         ),
-                        SizedBox(height: AppTheme.spacingMd),
+                        SizedBox(height: AppSpacing.md),
                         Text(
                           'No orders yet',
                           style: TextStyle(
-                            color: AppTheme.textSecondary,
+                            color: AppColors.lightTextSecondary,
                             fontSize: 16,
                           ),
                         ),
@@ -120,11 +124,11 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                 }
 
                 return RefreshIndicator(
-                  color: AppTheme.primary,
+                  color: Theme.of(context).primaryColor,
                   onRefresh: () => vendor.loadOrders(),
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.spacingMd,
+                      horizontal: AppSpacing.md,
                     ),
                     itemCount: vendor.orders.length,
                     itemBuilder: (context, index) {
@@ -135,13 +139,13 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
 
                       return Container(
                         margin: const EdgeInsets.only(
-                          bottom: AppTheme.spacingSm,
+                          bottom: AppSpacing.sm,
                         ),
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: AppTheme.surface,
+                          color: AppColors.lightSurface,
                           borderRadius: BorderRadius.circular(
-                            AppTheme.radiusMd,
+                            AppRadius.md,
                           ),
                         ),
                         child: Column(
@@ -153,12 +157,21 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Order #${order.id}',
+                                      'Order #${order.parentOrderId ?? order.id}',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 15,
                                       ),
                                     ),
+                                    if (order.parentOrderId != null &&
+                                        order.parentOrderId != order.id)
+                                      Text(
+                                        'SubOrder #${order.id}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.lightTextSecondary,
+                                        ),
+                                      ),
                                     Text(
                                       'Payment: ${order.paymentStatus}',
                                       style: TextStyle(
@@ -199,14 +212,14 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                                     const Icon(
                                       Icons.circle,
                                       size: 5,
-                                      color: AppTheme.textSecondary,
+                                      color: AppColors.lightTextSecondary,
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
                                         '${item.productName ?? 'Product'} × ${item.quantity}',
                                         style: const TextStyle(
-                                          color: AppTheme.textSecondary,
+                                          color: AppColors.lightTextSecondary,
                                           fontSize: 13,
                                         ),
                                       ),
@@ -214,7 +227,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                                     Text(
                                       '\$${(item.price * item.quantity).toStringAsFixed(2)}',
                                       style: const TextStyle(
-                                        color: AppTheme.textSecondary,
+                                        color: AppColors.lightTextSecondary,
                                         fontSize: 13,
                                       ),
                                     ),
@@ -227,9 +240,9 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                               children: [
                                 Text(
                                   'Total: \$${order.totalAmount.toStringAsFixed(2)}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: AppTheme.primary,
+                                    color: Theme.of(context).primaryColor,
                                   ),
                                 ),
                                 const Spacer(),
@@ -258,7 +271,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                                               child: const Text(
                                                 'Yes',
                                                 style: TextStyle(
-                                                  color: AppTheme.error,
+                                                  color: AppColors.error,
                                                 ),
                                               ),
                                             ),
@@ -273,7 +286,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                                     child: const Text(
                                       'Cancel',
                                       style: TextStyle(
-                                        color: AppTheme.error,
+                                        color: AppColors.error,
                                         fontSize: 12,
                                       ),
                                     ),
@@ -285,7 +298,7 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                                       nextStatus,
                                     ),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppTheme.primary,
+                                      backgroundColor: Theme.of(context).primaryColor,
                                       foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 12,

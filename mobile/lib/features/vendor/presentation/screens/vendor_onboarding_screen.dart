@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/custom_button.dart';
-import '../../../../core/widgets/custom_text_field.dart';
+import '../../../../core/widgets/primary_button.dart';
+import '../../../../core/widgets/app_text_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/vendor_provider.dart';
 
@@ -43,10 +47,10 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('🎉 Store created! Welcome aboard!'),
-          backgroundColor: AppTheme.success,
+          backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
         ),
       );
@@ -65,7 +69,7 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppTheme.spacingLg),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -75,39 +79,42 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
+                  gradient: AppGradients.lightPrimary,
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: const Icon(Icons.store, color: Colors.white, size: 48),
               ),
             ),
-            const SizedBox(height: AppTheme.spacingLg),
+            const SizedBox(height: AppSpacing.lg),
             const Center(
               child: Text(
                 'Set Up Your Store',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+                  color: AppColors.lightTextPrimary,
                 ),
               ),
             ),
-            const SizedBox(height: AppTheme.spacingSm),
+            const SizedBox(height: AppSpacing.sm),
             const Center(
               child: Text(
                 'Start selling your products to customers worldwide',
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                style: TextStyle(
+                  color: AppColors.lightTextSecondary,
+                  fontSize: 14,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
-            const SizedBox(height: AppTheme.spacingXl),
+            const SizedBox(height: AppSpacing.xl),
 
             // ── Form ──
             Form(
               key: _formKey,
               child: Column(
                 children: [
-                  CustomTextField(
+                  AppTextField(
                     controller: _storeNameController,
                     hintText: 'e.g., TechWorld Store',
                     labelText: 'Store Name',
@@ -119,8 +126,8 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: AppTheme.spacingMd),
-                  CustomTextField(
+                  const SizedBox(height: AppSpacing.md),
+                  AppTextField(
                     controller: _descriptionController,
                     hintText: 'Tell customers about your store...',
                     labelText: 'Store Description',
@@ -136,24 +143,24 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: AppTheme.spacingLg),
+            const SizedBox(height: AppSpacing.lg),
 
             // Error
             Consumer<VendorProvider>(
               builder: (context, vendor, _) {
                 if (vendor.error != null) {
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: AppTheme.spacingMd),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppTheme.error.withAlpha(25),
-                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                        color: AppColors.error.withAlpha(25),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
                       child: Text(
                         vendor.error!,
                         style: const TextStyle(
-                          color: AppTheme.error,
+                          color: AppColors.error,
                           fontSize: 13,
                         ),
                       ),
@@ -167,7 +174,7 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
             // Submit
             Consumer<VendorProvider>(
               builder: (context, vendor, _) {
-                return CustomButton(
+                return PrimaryButton(
                   text: 'Create My Store',
                   isLoading: vendor.isLoading,
                   onPressed: _handleOnboard,

@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:mobile/core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
 import 'package:mobile/features/products/presentation/screens/product_detail_screen.dart';
 import 'package:mobile/features/products/domain/entities/product.dart';
+import '../../../../core/widgets/app_empty_state.dart';
+import '../../../../core/widgets/app_error_state.dart';
+import '../../../../core/widgets/app_loading_state.dart';
 import '../providers/wishlist_provider.dart';
 
 class WishlistScreen extends StatefulWidget {
@@ -25,70 +30,37 @@ class _WishlistScreenState extends State<WishlistScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('My Wishlist'),
-        backgroundColor: AppTheme.background,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
       ),
       body: Consumer<WishlistProvider>(
         builder: (context, wishlistProvider, child) {
           if (wishlistProvider.isLoading && wishlistProvider.items.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppLoadingState(message: 'Loading your wishlist...');
           }
 
           if (wishlistProvider.error != null &&
               wishlistProvider.items.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    size: 48,
-                    color: AppTheme.error,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Failed to load wishlist:\n${wishlistProvider.error}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppTheme.textSecondary),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => wishlistProvider.loadWishlist(),
-                    child: const Text('Try Again'),
-                  ),
-                ],
-              ),
+            return AppErrorState(
+              title: 'Wishlist Error',
+              message: wishlistProvider.error ?? 'Failed to load wishlist',
+              onRetry: () => wishlistProvider.loadWishlist(),
             );
           }
 
           if (wishlistProvider.items.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.favorite_border,
-                    size: 64,
-                    color: AppTheme.textSecondary,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Your wishlist is empty',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Items you save will appear here.',
-                    style: TextStyle(color: AppTheme.textSecondary),
-                  ),
-                ],
+            return AppEmptyState(
+              icon: Icons.favorite_border,
+              title: 'Your wishlist is empty',
+              message: 'Items you save will appear here.',
+              buttonText: 'Browse Products',
+              onAction: () => Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/home',
+                (route) => false,
               ),
             );
           }
@@ -96,18 +68,18 @@ class _WishlistScreenState extends State<WishlistScreen> {
           return RefreshIndicator(
             onRefresh: () => wishlistProvider.loadWishlist(),
             child: ListView.builder(
-              padding: const EdgeInsets.all(AppTheme.spacingMd),
+              padding: const EdgeInsets.all(AppSpacing.md),
               itemCount: wishlistProvider.items.length,
               itemBuilder: (context, index) {
                 final item = wishlistProvider.items[index];
                 return Card(
-                  margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
-                  color: AppTheme.surface,
+                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                  color: AppColors.lightSurface,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                     onTap: () {
                       // Navigate to product detail
                       Navigator.push(
@@ -129,12 +101,12 @@ class _WishlistScreenState extends State<WishlistScreen> {
                       );
                     },
                     child: Padding(
-                      padding: const EdgeInsets.all(AppTheme.spacingSm),
+                      padding: const EdgeInsets.all(AppSpacing.sm),
                       child: Row(
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(
-                              AppTheme.radiusSm,
+                              AppRadius.sm,
                             ),
                             child: item.productImage != null
                                 ? Image.network(
@@ -146,14 +118,14 @@ class _WishlistScreenState extends State<WishlistScreen> {
                                 : Container(
                                     width: 80,
                                     height: 80,
-                                    color: AppTheme.background,
+                                    color: Theme.of(context).scaffoldBackgroundColor,
                                     child: const Icon(
                                       Icons.image,
-                                      color: AppTheme.textSecondary,
+                                      color: AppColors.lightTextSecondary,
                                     ),
                                   ),
                           ),
-                          const SizedBox(width: AppTheme.spacingMd),
+                          const SizedBox(width: AppSpacing.md),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,7 +134,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                                   item.productName,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: AppTheme.textPrimary,
+                                    color: AppColors.lightTextPrimary,
                                   ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
@@ -170,8 +142,8 @@ class _WishlistScreenState extends State<WishlistScreen> {
                                 const SizedBox(height: 4),
                                 Text(
                                   '\$${item.productPrice.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    color: AppTheme.primary,
+                                  style: TextStyle(
+                                    color: Theme.of(context).primaryColor,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -182,8 +154,8 @@ class _WishlistScreenState extends State<WishlistScreen> {
                                       : 'Out of Stock',
                                   style: TextStyle(
                                     color: item.productInStock
-                                        ? AppTheme.success
-                                        : AppTheme.error,
+                                        ? AppColors.success
+                                        : AppColors.error,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -195,7 +167,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.delete_outline),
-                                color: AppTheme.error,
+                                color: AppColors.error,
                                 onPressed: () {
                                   wishlistProvider.toggleWishlist(
                                     item.productId,
@@ -204,9 +176,9 @@ class _WishlistScreenState extends State<WishlistScreen> {
                               ),
                               if (item.productInStock)
                                 IconButton(
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.add_shopping_cart,
-                                    color: AppTheme.primary,
+                                    color: Theme.of(context).primaryColor,
                                   ),
                                   onPressed: () {
                                     // Get the actual product from somewhere, or we might need to fetch it.

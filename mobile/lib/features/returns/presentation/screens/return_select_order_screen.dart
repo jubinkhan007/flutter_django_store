@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../orders/presentation/providers/order_provider.dart';
 import '../../../orders/data/models/order_model.dart';
 import 'return_create_screen.dart';
 
-
 class ReturnSelectOrderScreen extends StatefulWidget {
   const ReturnSelectOrderScreen({super.key});
 
   @override
-  State<ReturnSelectOrderScreen> createState() => _ReturnSelectOrderScreenState();
+  State<ReturnSelectOrderScreen> createState() =>
+      _ReturnSelectOrderScreenState();
 }
 
 class _ReturnSelectOrderScreenState extends State<ReturnSelectOrderScreen> {
@@ -32,11 +36,15 @@ class _ReturnSelectOrderScreenState extends State<ReturnSelectOrderScreen> {
       appBar: AppBar(title: const Text('Select order')),
       body: Consumer<OrderProvider>(
         builder: (context, provider, _) {
-          final delivered = provider.orders.where((o) => o.status == 'DELIVERED').toList();
+          final delivered = provider.orders
+              .where((o) => o.status == 'DELIVERED')
+              .toList();
 
           if (provider.isLoading && provider.orders.isEmpty) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppTheme.primary),
+            return Center(
+              child: CircularProgressIndicator(
+                color: Theme.of(context).primaryColor,
+              ),
             );
           }
 
@@ -44,7 +52,7 @@ class _ReturnSelectOrderScreenState extends State<ReturnSelectOrderScreen> {
             return Center(
               child: Text(
                 provider.error!,
-                style: const TextStyle(color: AppTheme.textSecondary),
+                style: TextStyle(color: AppColors.lightTextSecondary),
               ),
             );
           }
@@ -52,10 +60,10 @@ class _ReturnSelectOrderScreenState extends State<ReturnSelectOrderScreen> {
           if (delivered.isEmpty) {
             return const Center(
               child: Padding(
-                padding: EdgeInsets.all(AppTheme.spacingMd),
+                padding: EdgeInsets.all(AppSpacing.md),
                 child: Text(
                   'No delivered orders available for return.',
-                  style: TextStyle(color: AppTheme.textSecondary),
+                  style: TextStyle(color: AppColors.lightTextSecondary),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -63,10 +71,10 @@ class _ReturnSelectOrderScreenState extends State<ReturnSelectOrderScreen> {
           }
 
           return RefreshIndicator(
-            color: AppTheme.primary,
+            color: Theme.of(context).primaryColor,
             onRefresh: () => provider.loadOrders(),
             child: ListView.builder(
-              padding: const EdgeInsets.all(AppTheme.spacingMd),
+              padding: const EdgeInsets.all(AppSpacing.md),
               itemCount: delivered.length,
               itemBuilder: (context, index) {
                 final order = delivered[index];
@@ -107,18 +115,23 @@ class _OrderTile extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          color: AppColors.lightSurface,
+          borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.15),
+                color: Theme.of(
+                  context,
+                ).primaryColor.withAlpha((0.15 * 255).round()),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.receipt_long_outlined, color: AppTheme.primary),
+              child: Icon(
+                Icons.shopping_bag_outlined,
+                color: Theme.of(context).primaryColor,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -129,22 +142,24 @@ class _OrderTile extends StatelessWidget {
                     'Order #${order.id}',
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
+                      color: AppColors.lightTextPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${order.items.length} item(s) • \$${order.totalAmount.toStringAsFixed(2)}',
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                    style: TextStyle(
+                      color: AppColors.lightTextSecondary,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
+            Icon(Icons.chevron_right, color: AppColors.lightTextSecondary),
           ],
         ),
       ),
     );
   }
 }
-

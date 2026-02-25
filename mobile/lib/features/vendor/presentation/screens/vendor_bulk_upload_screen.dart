@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/primary_button.dart';
 import '../providers/vendor_provider.dart';
 import 'dart:async';
 
@@ -65,12 +69,17 @@ class _VendorBulkUploadScreenState extends State<VendorBulkUploadScreen> {
     }
 
     final provider = context.read<VendorProvider>();
-    final success = await provider.uploadBulkJob(_selectedJobType, _selectedFilePath!);
+    final success = await provider.uploadBulkJob(
+      _selectedJobType,
+      _selectedFilePath!,
+    );
 
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('File uploaded successfully! Processing started.')),
+          const SnackBar(
+            content: Text('File uploaded successfully! Processing started.'),
+          ),
         );
         setState(() {
           _selectedFilePath = null;
@@ -87,16 +96,16 @@ class _VendorBulkUploadScreenState extends State<VendorBulkUploadScreen> {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'COMPLETED':
-        return AppTheme.success;
+        return AppColors.success;
       case 'PARTIAL_SUCCESS':
-        return AppTheme.warning;
+        return AppColors.warning;
       case 'FAILED':
-        return AppTheme.error;
+        return AppColors.error;
       case 'PROCESSING':
       case 'PENDING':
-        return AppTheme.primary;
+        return Theme.of(context).primaryColor;
       default:
-        return AppTheme.textSecondary;
+        return AppColors.lightTextSecondary;
     }
   }
 
@@ -105,10 +114,10 @@ class _VendorBulkUploadScreenState extends State<VendorBulkUploadScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bulk Operations'),
-        backgroundColor: AppTheme.surface,
+        backgroundColor: AppColors.lightSurface,
         elevation: 0,
       ),
-      backgroundColor: AppTheme.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Consumer<VendorProvider>(
         builder: (context, vendorProvider, child) {
           final jobs = vendorProvider.bulkJobs;
@@ -116,8 +125,8 @@ class _VendorBulkUploadScreenState extends State<VendorBulkUploadScreen> {
           return Column(
             children: [
               Container(
-                padding: const EdgeInsets.all(AppTheme.spacingMd),
-                color: AppTheme.surface,
+                padding: const EdgeInsets.all(AppSpacing.md),
+                color: AppColors.lightSurface,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -162,13 +171,15 @@ class _VendorBulkUploadScreenState extends State<VendorBulkUploadScreen> {
                           child: OutlinedButton.icon(
                             onPressed: _pickFile,
                             icon: const Icon(Icons.attach_file),
-                            label: Text(_selectedFileName ?? 'Select CSV/Excel File'),
+                            label: Text(
+                              _selectedFileName ?? 'Select CSV/Excel File',
+                            ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    CustomButton(
+                    PrimaryButton(
                       text: 'Upload and Process',
                       isLoading: vendorProvider.isLoading,
                       onPressed: _uploadFile,
@@ -181,15 +192,17 @@ class _VendorBulkUploadScreenState extends State<VendorBulkUploadScreen> {
                 child: jobs.isEmpty
                     ? const Center(child: Text('No recent bulk jobs.'))
                     : ListView.builder(
-                        padding: const EdgeInsets.all(AppTheme.spacingMd),
+                        padding: const EdgeInsets.all(AppSpacing.md),
                         itemCount: jobs.length,
                         itemBuilder: (context, index) {
                           final job = jobs[index];
                           final status = job['status'] ?? 'UNKNOWN';
-                          final date = job['created_at'] != null 
-                              ? DateTime.parse(job['created_at']).toLocal().toString().split('.')[0] 
+                          final date = job['created_at'] != null
+                              ? DateTime.parse(
+                                  job['created_at'],
+                                ).toLocal().toString().split('.')[0]
                               : '';
-                              
+
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12),
                             child: Padding(
@@ -198,17 +211,27 @@ class _VendorBulkUploadScreenState extends State<VendorBulkUploadScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
                                         job['job_type'] ?? 'Unknown Job',
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
                                         decoration: BoxDecoration(
-                                          color: _getStatusColor(status).withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(4),
+                                          color: _getStatusColor(
+                                            status,
+                                          ).withAlpha((0.1 * 255).round()),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
                                         ),
                                         child: Text(
                                           status,
@@ -222,19 +245,35 @@ class _VendorBulkUploadScreenState extends State<VendorBulkUploadScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 8),
-                                  Text('Submitted: $date', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                                  Text(
+                                    'Submitted: $date',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.lightTextSecondary,
+                                    ),
+                                  ),
                                   const SizedBox(height: 8),
                                   if (job['result_report'] != null)
                                     Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         const Divider(),
-                                        Text('Processed: ${job['result_report']['processed'] ?? 0} rows'),
-                                        Text('Success: ${job['result_report']['success'] ?? 0} rows'),
-                                        if ((job['result_report']['errors'] as List?)?.isNotEmpty == true)
+                                        Text(
+                                          'Processed: ${job['result_report']['processed'] ?? 0} rows',
+                                        ),
+                                        Text(
+                                          'Success: ${job['result_report']['success'] ?? 0} rows',
+                                        ),
+                                        if ((job['result_report']['errors']
+                                                    as List?)
+                                                ?.isNotEmpty ==
+                                            true)
                                           Text(
                                             'Errors: ${(job['result_report']['errors'] as List).length}',
-                                            style: const TextStyle(color: AppTheme.error),
+                                            style: TextStyle(
+                                              color: AppColors.error,
+                                            ),
                                           ),
                                       ],
                                     ),

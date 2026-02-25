@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../products/domain/entities/product.dart';
 import 'package:mobile/features/wishlist/presentation/providers/wishlist_provider.dart';
@@ -23,9 +27,9 @@ class ProductCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          border: Border.all(color: AppTheme.surfaceLight, width: 0.5),
+          color: AppColors.lightSurface,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: AppColors.lightSurface, width: 0.5),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -35,9 +39,9 @@ class ProductCard extends StatelessWidget {
               flex: 3,
               child: Container(
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceLight,
+                  color: AppColors.lightSurface,
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(AppTheme.radiusMd),
+                    top: Radius.circular(AppRadius.md),
                   ),
                 ),
                 child: Stack(
@@ -46,7 +50,7 @@ class ProductCard extends StatelessWidget {
                       child: product.image != null
                           ? ClipRRect(
                               borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(AppTheme.radiusMd),
+                                top: Radius.circular(AppRadius.md),
                               ),
                               child: Image.network(
                                 product.image!,
@@ -54,14 +58,14 @@ class ProductCard extends StatelessWidget {
                                 width: double.infinity,
                                 errorBuilder: (_, __, ___) => const Icon(
                                   Icons.image_outlined,
-                                  color: AppTheme.textSecondary,
+                                  color: AppColors.lightTextSecondary,
                                   size: 40,
                                 ),
                               ),
                             )
                           : const Icon(
                               Icons.shopping_bag_outlined,
-                              color: AppTheme.textSecondary,
+                              color: AppColors.lightTextSecondary,
                               size: 40,
                             ),
                     ),
@@ -81,7 +85,7 @@ class ProductCard extends StatelessWidget {
                                   : Icons.favorite_border,
                               color: isWishlisted
                                   ? Colors.red
-                                  : AppTheme.textSecondary,
+                                  : AppColors.lightTextSecondary,
                             ),
                             onPressed: () {
                               wishlist.toggleWishlist(
@@ -119,7 +123,7 @@ class ProductCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: AppTheme.textPrimary,
+                        color: AppColors.lightTextPrimary,
                       ),
                     ),
                     Row(
@@ -127,10 +131,10 @@ class ProductCard extends StatelessWidget {
                       children: [
                         Text(
                           '\$${product.price.toStringAsFixed(2)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.primary,
+                            color: Theme.of(context).primaryColor,
                           ),
                         ),
                         GestureDetector(
@@ -138,10 +142,8 @@ class ProductCard extends StatelessWidget {
                           child: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              gradient: AppTheme.primaryGradient,
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.radiusSm,
-                              ),
+                              gradient: AppGradients.lightPrimary,
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
                             ),
                             child: const Icon(
                               Icons.add,

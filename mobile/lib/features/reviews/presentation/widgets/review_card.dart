@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../../data/models/review_model.dart';
 import 'star_rating.dart';
 
@@ -21,8 +23,8 @@ class ReviewCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        color: AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -32,13 +34,13 @@ class ReviewCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: AppTheme.primary.withOpacity(0.15),
+                backgroundColor: Theme.of(context).primaryColor.withOpacity(0.15),
                 child: Text(
                   review.customerUsername.isNotEmpty
                       ? review.customerUsername[0].toUpperCase()
                       : '?',
-                  style: const TextStyle(
-                    color: AppTheme.primary,
+                  style: TextStyle(
+                    color: Theme.of(context).primaryColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
@@ -54,7 +56,7 @@ class ReviewCard extends StatelessWidget {
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
-                        color: AppTheme.textPrimary,
+                        color: AppColors.lightTextPrimary,
                       ),
                     ),
                     StarRating(rating: review.rating.toDouble(), size: 14),
@@ -64,7 +66,7 @@ class ReviewCard extends StatelessWidget {
               Text(
                 _formatDate(review.createdAt),
                 style: const TextStyle(
-                  color: AppTheme.textSecondary,
+                  color: AppColors.lightTextSecondary,
                   fontSize: 11,
                 ),
               ),
@@ -76,7 +78,7 @@ class ReviewCard extends StatelessWidget {
           Text(
             review.comment,
             style: const TextStyle(
-              color: AppTheme.textSecondary,
+              color: AppColors.lightTextSecondary,
               fontSize: 14,
               height: 1.5,
             ),
@@ -88,11 +90,11 @@ class ReviewCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceLight,
-                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                color: AppColors.lightSurface,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
                 border: Border(
                   left: BorderSide(
-                    color: AppTheme.primary.withOpacity(0.6),
+                    color: Theme.of(context).primaryColor.withOpacity(0.6),
                     width: 3,
                   ),
                 ),
@@ -102,18 +104,18 @@ class ReviewCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.storefront_outlined,
                         size: 14,
-                        color: AppTheme.primary,
+                        color: Theme.of(context).primaryColor,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         review.reply!.vendorName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
-                          color: AppTheme.primary,
+                          color: Theme.of(context).primaryColor,
                         ),
                       ),
                       const Spacer(),
@@ -123,7 +125,7 @@ class ReviewCard extends StatelessWidget {
                           child: const Text(
                             'Edit',
                             style: TextStyle(
-                              color: AppTheme.textSecondary,
+                              color: AppColors.lightTextSecondary,
                               fontSize: 11,
                             ),
                           ),
@@ -134,7 +136,7 @@ class ReviewCard extends StatelessWidget {
                   Text(
                     review.reply!.reply,
                     style: const TextStyle(
-                      color: AppTheme.textSecondary,
+                      color: AppColors.lightTextSecondary,
                       fontSize: 13,
                       height: 1.4,
                     ),
@@ -148,17 +150,17 @@ class ReviewCard extends StatelessWidget {
               onTap: () => onReply?.call(review, false),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
+                  children: [
+                  Icon(
                     Icons.reply,
                     size: 15,
-                    color: AppTheme.primary,
+                    color: Theme.of(context).primaryColor,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     'Reply as vendor',
                     style: TextStyle(
-                      color: AppTheme.primary.withOpacity(0.85),
+                      color: Theme.of(context).primaryColor.withOpacity(0.85),
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),

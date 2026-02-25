@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
 import '../providers/product_provider.dart';
 
 class FilterBottomSheet extends StatefulWidget {
@@ -40,11 +42,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingLg),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: const BoxDecoration(
-        color: AppTheme.surface,
+        color: AppColors.lightSurface,
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppTheme.radiusXl),
+          top: Radius.circular(AppRadius.xl),
         ),
       ),
       child: Column(
@@ -59,19 +61,19 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+                  color: AppColors.lightTextPrimary,
                 ),
               ),
               TextButton(
                 onPressed: _clearFilters,
                 child: const Text(
                   'Reset',
-                  style: TextStyle(color: AppTheme.error),
+                  style: TextStyle(color: AppColors.error),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppTheme.spacingLg),
+          const SizedBox(height: AppSpacing.lg),
 
           // ── Sort By ──
           const Text(
@@ -79,19 +81,19 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+              color: AppColors.lightTextPrimary,
             ),
           ),
-          const SizedBox(height: AppTheme.spacingSm),
+          const SizedBox(height: AppSpacing.sm),
           Wrap(
-            spacing: AppTheme.spacingSm,
+            spacing: AppSpacing.sm,
             children: [
               _buildSortChip('Newest', 'newest'),
               _buildSortChip('Price: Low to High', 'price_asc'),
               _buildSortChip('Price: High to Low', 'price_desc'),
             ],
           ),
-          const SizedBox(height: AppTheme.spacingLg),
+          const SizedBox(height: AppSpacing.lg),
 
           // ── Price Range ──
           Row(
@@ -102,26 +104,26 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
+                  color: AppColors.lightTextPrimary,
                 ),
               ),
               Text(
                 '\$${_minPrice.toInt()} - \$${_maxPrice.toInt()}',
-                style: const TextStyle(
-                  color: AppTheme.primary,
+                style: TextStyle(
+                  color: Theme.of(context).primaryColor,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppTheme.spacingSm),
+          const SizedBox(height: AppSpacing.sm),
           RangeSlider(
             values: RangeValues(_minPrice, _maxPrice),
             min: 0,
             max: 5000,
             divisions: 100,
-            activeColor: AppTheme.primary,
-            inactiveColor: AppTheme.surfaceLight,
+            activeColor: Theme.of(context).primaryColor,
+            inactiveColor: AppColors.lightSurface,
             labels: RangeLabels(
               '\$${_minPrice.toInt()}',
               '\$${_maxPrice.toInt()}',
@@ -133,7 +135,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               });
             },
           ),
-          const SizedBox(height: AppTheme.spacingXl),
+          const SizedBox(height: AppSpacing.xl),
 
           // ── Apply Button ──
           SizedBox(
@@ -143,7 +145,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               child: const Text('Apply Filters'),
             ),
           ),
-          const SizedBox(height: AppTheme.spacingMd),
+          const SizedBox(height: AppSpacing.md),
         ],
       ),
     );
@@ -154,10 +156,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     return ChoiceChip(
       label: Text(label),
       selected: isSelected,
-      selectedColor: AppTheme.primary.withValues(alpha: 0.2),
-      backgroundColor: AppTheme.surfaceLight,
+      selectedColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+      backgroundColor: AppColors.lightSurface,
       labelStyle: TextStyle(
-        color: isSelected ? AppTheme.primary : AppTheme.textSecondary,
+        color: isSelected ? Theme.of(context).primaryColor : AppColors.lightTextSecondary,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
       onSelected: (bool selected) {

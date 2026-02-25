@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_gradients.dart';
 import '../providers/vendor_provider.dart';
 import 'vendor_add_product_screen.dart';
 
@@ -27,7 +30,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
         children: [
           // ── Header ──
           Padding(
-            padding: const EdgeInsets.all(AppTheme.spacingMd),
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -36,7 +39,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
+                    color: AppColors.lightTextPrimary,
                   ),
                 ),
                 GestureDetector(
@@ -57,8 +60,11 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      gradient: AppTheme.primaryGradient,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                      gradient:
+                          Theme.of(context).brightness == Brightness.dark
+                              ? AppGradients.darkPrimary
+                              : AppGradients.lightPrimary,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
@@ -86,8 +92,10 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
             child: Consumer<VendorProvider>(
               builder: (context, vendor, _) {
                 if (vendor.isLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: AppTheme.primary),
+                  return Center(
+                    child: CircularProgressIndicator(
+                      color: Theme.of(context).primaryColor,
+                    ),
                   );
                 }
 
@@ -98,22 +106,22 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
                       children: [
                         Icon(
                           Icons.inventory_2_outlined,
-                          color: AppTheme.textSecondary,
+                          color: AppColors.lightTextSecondary,
                           size: 48,
                         ),
-                        SizedBox(height: AppTheme.spacingMd),
+                        SizedBox(height: AppSpacing.md),
                         Text(
                           'No products yet',
                           style: TextStyle(
-                            color: AppTheme.textSecondary,
+                            color: AppColors.lightTextSecondary,
                             fontSize: 16,
                           ),
                         ),
-                        SizedBox(height: AppTheme.spacingSm),
+                        SizedBox(height: AppSpacing.sm),
                         Text(
                           'Tap + to add your first product',
                           style: TextStyle(
-                            color: AppTheme.textSecondary,
+                            color: AppColors.lightTextSecondary,
                             fontSize: 13,
                           ),
                         ),
@@ -123,11 +131,11 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
                 }
 
                 return RefreshIndicator(
-                  color: AppTheme.primary,
+                  color: Theme.of(context).primaryColor,
                   onRefresh: () => vendor.loadProducts(),
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.spacingMd,
+                      horizontal: AppSpacing.md,
                     ),
                     itemCount: vendor.products.length,
                     itemBuilder: (context, index) {
@@ -139,7 +147,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
                           return await showDialog(
                             context: context,
                             builder: (ctx) => AlertDialog(
-                              backgroundColor: AppTheme.surface,
+                              backgroundColor: AppColors.lightSurface,
                               title: const Text('Delete Product'),
                               content: Text(
                                 'Are you sure you want to delete "${product.name}"?',
@@ -153,7 +161,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
                                   onPressed: () => Navigator.pop(ctx, true),
                                   child: const Text(
                                     'Delete',
-                                    style: TextStyle(color: AppTheme.error),
+                                    style: TextStyle(color: AppColors.error),
                                   ),
                                 ),
                               ],
@@ -165,28 +173,28 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
                           alignment: Alignment.centerRight,
                           padding: const EdgeInsets.only(right: 20),
                           margin: const EdgeInsets.only(
-                            bottom: AppTheme.spacingSm,
+                            bottom: AppSpacing.sm,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.error.withAlpha(30),
+                            color: AppColors.error.withAlpha(30),
                             borderRadius: BorderRadius.circular(
-                              AppTheme.radiusMd,
+                              AppRadius.md,
                             ),
                           ),
                           child: const Icon(
                             Icons.delete_outline,
-                            color: AppTheme.error,
+                            color: AppColors.error,
                           ),
                         ),
                         child: Container(
                           margin: const EdgeInsets.only(
-                            bottom: AppTheme.spacingSm,
+                            bottom: AppSpacing.sm,
                           ),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppTheme.surface,
+                            color: AppColors.lightSurface,
                             borderRadius: BorderRadius.circular(
-                              AppTheme.radiusMd,
+                              AppRadius.md,
                             ),
                           ),
                           child: Row(
@@ -196,9 +204,9 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
                                 width: 56,
                                 height: 56,
                                 decoration: BoxDecoration(
-                                  color: AppTheme.surfaceLight,
+                                  color: AppColors.lightSurface,
                                   borderRadius: BorderRadius.circular(
-                                    AppTheme.radiusSm,
+                                    AppRadius.sm,
                                   ),
                                   image: product.image != null
                                       ? DecorationImage(
@@ -210,7 +218,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
                                 child: product.image == null
                                     ? const Icon(
                                         Icons.shopping_bag_outlined,
-                                        color: AppTheme.textSecondary,
+                                        color: AppColors.lightTextSecondary,
                                         size: 24,
                                       )
                                     : null,
@@ -226,7 +234,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w500,
-                                        color: AppTheme.textPrimary,
+                                        color: AppColors.lightTextPrimary,
                                       ),
                                     ),
                                     const SizedBox(height: 4),
@@ -234,8 +242,8 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
                                       children: [
                                         Text(
                                           '\$${product.price.toStringAsFixed(2)}',
-                                          style: const TextStyle(
-                                            color: AppTheme.primary,
+                                          style: TextStyle(
+                                            color: Theme.of(context).primaryColor,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
@@ -243,7 +251,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
                                         Text(
                                           'Stock: ${product.stockQuantity}',
                                           style: const TextStyle(
-                                            color: AppTheme.textSecondary,
+                                            color: AppColors.lightTextSecondary,
                                             fontSize: 12,
                                           ),
                                         ),
@@ -256,7 +264,7 @@ class _VendorProductsScreenState extends State<VendorProductsScreen> {
                               IconButton(
                                 icon: const Icon(
                                   Icons.edit_outlined,
-                                  color: AppTheme.textSecondary,
+                                  color: AppColors.lightTextSecondary,
                                   size: 20,
                                 ),
                                 onPressed: () async {
