@@ -18,12 +18,20 @@ class VendorProvider extends ChangeNotifier {
   int pendingOrders = 0;
   double totalRevenue = 0;
   double walletBalance = 0;
+  double revenue7d = 0;
+  double revenue30d = 0;
+  int lowStockCount = 0;
+  int lateShipmentsCount = 0;
+  double cancellationRate30d = 0;
+  double fulfillmentRate30d = 0;
+  int todayOrders = 0;
 
   // Products & Orders & Customers
   List<ProductModel> _products = [];
   List<OrderModel> _orders = [];
   List<VendorCustomerModel> _customers = [];
   List<VendorCouponModel> _coupons = [];
+  List<dynamic> _bulkJobs = [];
   bool _isLoading = false;
   String? _error;
   Map<String, dynamic>? _dashboard;
@@ -32,6 +40,7 @@ class VendorProvider extends ChangeNotifier {
   List<OrderModel> get orders => _orders;
   List<VendorCustomerModel> get customers => _customers;
   List<VendorCouponModel> get coupons => _coupons;
+  List<dynamic> get bulkJobs => _bulkJobs;
   bool get isLoading => _isLoading;
   String? get error => _error;
   Map<String, dynamic>? get dashboard => _dashboard;
@@ -44,6 +53,15 @@ class VendorProvider extends ChangeNotifier {
       pendingOrders = stats['pending_orders'] ?? 0;
       totalRevenue = (stats['total_revenue'] ?? 0).toDouble();
       walletBalance = (stats['wallet_balance'] ?? 0).toDouble();
+      
+      revenue7d = (stats['revenue_7d'] ?? 0).toDouble();
+      revenue30d = (stats['revenue_30d'] ?? 0).toDouble();
+      lowStockCount = stats['low_stock_count'] ?? 0;
+      lateShipmentsCount = stats['late_shipments_count'] ?? 0;
+      cancellationRate30d = (stats['cancellation_rate_30d'] ?? 0).toDouble();
+      fulfillmentRate30d = (stats['fulfillment_rate_30d'] ?? 0).toDouble();
+      todayOrders = stats['today_orders'] ?? 0;
+
       notifyListeners();
     } catch (e) {
       // Stats are supplementary, don't block UI
@@ -287,6 +305,41 @@ class VendorProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<bool> uploadBulkJob(String jobType, String filePath) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _vendorRepository.uploadBulkJob(jobType, filePath);
+      await loadBulkJobs();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<void> loadBulkJobs() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _bulkJobs = await _vendorRepository.getBulkJobs();
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
     }
   }
 }

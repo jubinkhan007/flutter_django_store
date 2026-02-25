@@ -192,4 +192,25 @@ class VendorRepository {
       throw Exception(error.toString());
     }
   }
+
+  Future<void> uploadBulkJob(String jobType, String filePath) async {
+    final file = await http.MultipartFile.fromPath('file', filePath);
+    final response = await _apiClient.postMultipart(
+      'vendors/bulk-jobs/',
+      fields: {'job_type': jobType},
+      file: file,
+    );
+    if (response.statusCode != 201) {
+      throw Exception('Failed to upload bulk job: ${response.statusCode}');
+    }
+  }
+
+  Future<List<dynamic>> getBulkJobs() async {
+    final response = await _apiClient.get('vendors/bulk-jobs/');
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as List<dynamic>;
+    } else {
+      throw Exception('Failed to load bulk jobs');
+    }
+  }
 }
