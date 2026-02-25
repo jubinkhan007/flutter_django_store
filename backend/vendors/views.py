@@ -228,6 +228,7 @@ class PayoutRequestListCreateView(generics.ListCreateAPIView):
 # BULK OPERATIONS
 # ═══════════════════════════════════════════════════════════════════
 from django.db import transaction
+from .tasks import process_bulk_job_task
 
 class BulkJobListCreateView(generics.ListCreateAPIView):
     serializer_class = BulkJobSerializer
@@ -244,8 +245,8 @@ class BulkJobListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         vendor = self.request.user.vendor_profile
         job = serializer.save(vendor=vendor)
-        # Trigger async processing
-        process_bulk_job_async(job.id)
+        # Trigger async processing via celery
+        process_bulk_job_task.delay(job.id)
 
 class BulkJobDetailView(generics.RetrieveAPIView):
     serializer_class = BulkJobSerializer

@@ -117,3 +117,20 @@ class BulkJob(models.Model):
     def __str__(self):
         return f"BulkJob {self.id} ({self.job_type}) for {self.vendor.store_name}"
 
+class VendorPerformanceDaily(models.Model):
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='daily_performance')
+    date = models.DateField()
+    orders_count = models.PositiveIntegerField(default=0)
+    shipped_count = models.PositiveIntegerField(default=0)
+    canceled_count = models.PositiveIntegerField(default=0)
+    late_shipments = models.PositiveIntegerField(default=0)
+    avg_handling_seconds = models.PositiveIntegerField(default=0)
+    revenue = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
+    class Meta:
+        unique_together = ('vendor', 'date')
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"Perf {self.date} for {self.vendor.store_name}"
+
