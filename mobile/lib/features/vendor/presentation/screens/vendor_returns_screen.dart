@@ -417,13 +417,14 @@ class _ReturnCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.assignment_return_outlined, color: AppTheme.primary),
-              const SizedBox(width: 10),
+              const Icon(Icons.assignment_return_outlined, color: AppTheme.primary, size: 20),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  rr.rmaNumber,
+                  'RMA ${rr.rmaNumber}',
                   style: const TextStyle(
-                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
                   ),
                 ),
@@ -431,10 +432,10 @@ class _ReturnCard extends StatelessWidget {
               chipBuilder(rr.status, rr.status == 'ESCALATED' ? AppTheme.warning : AppTheme.textSecondary),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Text(
             '${rr.requestType} • ${rr.reason} • ${rr.fulfillment} • pref=${rr.refundMethodPreference}',
-            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
           ),
           if (rr.fulfillment == 'PICKUP' &&
               (rr.pickupWindowStart != null || rr.pickupWindowEnd != null))
@@ -442,7 +443,7 @@ class _ReturnCard extends StatelessWidget {
               padding: const EdgeInsets.only(top: 6),
               child: Text(
                 'Pickup: ${rr.pickupWindowStart?.toLocal().toString() ?? '-'} → ${rr.pickupWindowEnd?.toLocal().toString() ?? '-'}',
-                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
               ),
             ),
           if (rr.fulfillment == 'DROPOFF' && rr.dropoffInstructions.isNotEmpty)
@@ -450,20 +451,20 @@ class _ReturnCard extends StatelessWidget {
               padding: const EdgeInsets.only(top: 6),
               child: Text(
                 'Drop-off: ${rr.dropoffInstructions}',
-                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
               ),
             ),
           const SizedBox(height: 8),
           ...rr.items.map(
             (it) => Padding(
-              padding: const EdgeInsets.only(bottom: 2),
+              padding: const EdgeInsets.only(bottom: 4),
               child: Text(
                 '${it.productName} × ${it.quantity}',
-                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -471,12 +472,19 @@ class _ReturnCard extends StatelessWidget {
               if (canDecide)
                 OutlinedButton(
                   onPressed: onApprove,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.success,
+                    side: const BorderSide(color: AppTheme.success),
+                  ),
                   child: const Text('Approve'),
                 ),
               if (canDecide)
                 OutlinedButton(
                   onPressed: onReject,
-                  style: OutlinedButton.styleFrom(foregroundColor: AppTheme.error),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.error,
+                    side: const BorderSide(color: AppTheme.error),
+                  ),
                   child: const Text('Reject'),
                 ),
               if (canReceive)
