@@ -145,7 +145,8 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
             for vendor in vendors_set:
                 sub_orders[vendor.id] = SubOrder.objects.create(
                     order=order,
-                    vendor=vendor
+                    vendor=vendor,
+                    ship_by_date=timezone.now() + timezone.timedelta(hours=48)
                 )
 
             for item_data in order_items_payload:

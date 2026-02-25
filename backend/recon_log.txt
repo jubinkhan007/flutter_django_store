@@ -1,0 +1,9 @@
+Current State Map:
+- Auth: JWT (simplejwt)
+- Models: User, Vendor, Category, Product, ProductVariant, ProductOption, ProductOptionValue, Order, SubOrder, OrderItem, VendorStaff, BulkJob, WalletTransaction, PayoutRequest.
+- Cart: Managed client-side in Flutter (cart_provider.dart). No backend Cart model.
+- Media: Local media storage (/media/).
+- Background Tasks: Celery not yet configured in settings.py, need to add it.
+- Existing Product variants: Basic structure exists but needs is_active, created_at, updated_at. OrderItem supports variants.
+- Order timestamps: SubOrder has accepted_at, packed_at, shipped_at, delivered_at, canceled_at. Missing ship_by_date.
+

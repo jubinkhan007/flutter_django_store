@@ -55,6 +55,8 @@ class ProductOption(models.Model):
     """e.g., Size, Color"""
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='options')
     name = models.CharField(max_length=50)
+    slug = models.SlugField(max_length=50, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ('product', 'name')
@@ -66,6 +68,7 @@ class ProductOptionValue(models.Model):
     """e.g., M, L, Red"""
     option = models.ForeignKey(ProductOption, on_delete=models.CASCADE, related_name='values')
     value = models.CharField(max_length=50)
+    slug = models.SlugField(max_length=50, blank=True)
 
     class Meta:
         unique_together = ('option', 'value')
@@ -86,6 +89,10 @@ class ProductVariant(models.Model):
     low_stock_threshold = models.PositiveIntegerField(default=5)
     
     barcode = models.CharField(max_length=100, blank=True, null=True)
+    
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [
