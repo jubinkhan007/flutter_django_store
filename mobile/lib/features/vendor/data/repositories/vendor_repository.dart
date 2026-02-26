@@ -6,6 +6,7 @@ import '../../../products/data/models/product_model.dart';
 import '../../../orders/data/models/order_model.dart';
 import '../../data/models/vendor_customer_model.dart';
 import '../../data/models/vendor_coupon_model.dart';
+import '../models/vendor_wallet_model.dart';
 
 class VendorRepository {
   final ApiClient _apiClient;
@@ -234,6 +235,52 @@ class VendorRepository {
       return jsonDecode(response.body) as List<dynamic>;
     } else {
       throw Exception('Failed to load bulk jobs');
+    }
+  }
+
+  // ── Wallet (Ledger-First) ──
+  Future<VendorWalletSummary> getWalletSummary() async {
+    final response = await _apiClient.get(ApiConfig.vendorWalletSummaryUrl);
+    if (response.statusCode == 200) {
+      return VendorWalletSummary.fromJson(jsonDecode(response.body));
+    }
+    throw Exception('Failed to load wallet summary');
+  }
+
+  Future<VendorPayoutMethodModel> createPayoutMethod({
+    required String method,
+    required String label,
+    required Map<String, dynamic> details,
+  }) async {
+    final response = await _apiClient.post(
+      ApiConfig.vendorPayoutMethodsUrl,
+      body: {
+        'method': method,
+        'label': label,
+        'details': details,
+      },
+    );
+    if (response.statusCode == 201) {
+      return VendorPayoutMethodModel.fromJson(jsonDecode(response.body));
+    }
+    final error = jsonDecode(response.body);
+    throw Exception(error['error'] ?? error.toString());
+  }
+
+  Future<void> requestPayout({
+    required double amount,
+    required String bankDetails,
+  }) async {
+    final response = await _apiClient.post(
+      ApiConfig.vendorPayoutsUrl,
+      body: {
+        'amount': amount,
+        'bank_details': bankDetails,
+      },
+    );
+    if (response.statusCode != 201) {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? error.toString());
     }
   }
 }

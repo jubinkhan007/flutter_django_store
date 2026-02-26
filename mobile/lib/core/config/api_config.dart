@@ -69,6 +69,11 @@ class ApiConfig {
   static String get vendorCustomersUrl => '$baseUrl/vendors/customers/';
   static String get vendorCouponsUrl => '$baseUrl/vendors/coupons/';
   static String get vendorReturnsUrl => '$baseUrl/vendors/returns/';
+  static String get vendorLedgerUrl => '$baseUrl/vendors/ledger/';
+  static String get vendorWalletSummaryUrl => '$baseUrl/vendors/wallet/summary/';
+  static String get vendorPayoutMethodsUrl => '$baseUrl/vendors/payout-methods/';
+  static String get vendorSettlementsUrl => '$baseUrl/vendors/settlements/';
+  static String get vendorPayoutsUrl => '$baseUrl/vendors/payouts/';
   static String vendorSubOrderFulfillUrl(int subOrderId) =>
       '$baseUrl/vendors/sub-orders/$subOrderId/fulfill/';
   static String vendorSubOrderEventsUrl(int subOrderId) =>

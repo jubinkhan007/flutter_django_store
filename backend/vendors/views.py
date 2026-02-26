@@ -7,14 +7,34 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from django.db.models import Sum, Count, Q
-from .models import Vendor, WalletTransaction, PayoutRequest, BulkJob
-from .serializers import VendorSerializer, WalletTransactionSerializer, PayoutRequestSerializer, BulkJobSerializer
+from django.db import transaction
+from .models import (
+    Vendor,
+    WalletTransaction,
+    PayoutRequest,
+    BulkJob,
+    LedgerEntry,
+    VendorPayoutMethod,
+    SettlementRecord,
+)
+from .serializers import (
+    VendorSerializer,
+    WalletTransactionSerializer,
+    PayoutRequestSerializer,
+    BulkJobSerializer,
+    LedgerEntrySerializer,
+    VendorPayoutMethodSerializer,
+    SettlementRecordSerializer,
+)
 from rest_framework.parsers import MultiPartParser, FormParser
 from .services import process_bulk_job_async
 from .permissions import IsVendorStaff, IsVendorOwnerOrManager
 from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
+from rest_framework import serializers
+
+from .financial_service import FinancialService
 
 
 class VendorOnboardingView(generics.CreateAPIView):
@@ -122,6 +142,9 @@ class VendorStatsView(APIView):
             'cancellation_rate_30d': round(cancellation_rate_30d, 2),
             'fulfillment_rate_30d': round(fulfillment_rate_30d, 2),
             'wallet_balance': float(vendor.balance),
+            'wallet_pending': float(vendor.pending_balance),
+            'wallet_available': float(vendor.available_balance),
+            'wallet_held': float(vendor.held_balance),
             'total_orders': suborders.count(),
         })
 
@@ -178,16 +201,79 @@ class VendorCustomersView(APIView):
 # LEDGER AND PAYOUTS
 # ═══════════════════════════════════════════════════════════════════
 
-class WalletTransactionListView(generics.ListAPIView):
-    serializer_class = WalletTransactionSerializer
+class LedgerEntryListView(generics.ListAPIView):
+    """
+    GET /api/vendors/ledger/
+    Returns ledger entries (ledger-first source of truth).
+    """
+    serializer_class = LedgerEntrySerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         try:
             vendor = self.request.user.vendor_profile
-            return WalletTransaction.objects.filter(vendor=vendor).order_by('-created_at')
+            return LedgerEntry.objects.filter(vendor=vendor).order_by('-created_at')
         except AttributeError:
-            return WalletTransaction.objects.none()
+            return LedgerEntry.objects.none()
+
+
+class VendorWalletSummaryView(APIView):
+    """
+    GET /api/vendors/wallet/summary/
+    Convenience endpoint for the mobile wallet screen.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            vendor = request.user.vendor_profile
+        except AttributeError:
+            return Response({"error": "You are not a vendor."}, status=status.HTTP_403_FORBIDDEN)
+
+        recent_entries = LedgerEntry.objects.filter(vendor=vendor).order_by('-created_at')[:50]
+        payout_methods = VendorPayoutMethod.objects.filter(vendor=vendor).order_by('-is_verified', '-updated_at')
+
+        return Response({
+            'balances': {
+                'pending': float(vendor.pending_balance),
+                'available': float(vendor.available_balance),
+                'held': float(vendor.held_balance),
+                'total': float(vendor.balance),
+                'lifetime_earned': float(vendor.total_earned_lifetime),
+                'lifetime_withdrawn': float(vendor.total_withdrawn_lifetime),
+                'min_withdrawal': float(FinancialService.fee_config.min_withdrawal_amount),
+            },
+            'entries': LedgerEntrySerializer(recent_entries, many=True).data,
+            'payout_methods': VendorPayoutMethodSerializer(payout_methods, many=True).data,
+        })
+
+
+class VendorPayoutMethodListCreateView(generics.ListCreateAPIView):
+    serializer_class = VendorPayoutMethodSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        try:
+            vendor = self.request.user.vendor_profile
+        except AttributeError:
+            return VendorPayoutMethod.objects.none()
+        return VendorPayoutMethod.objects.filter(vendor=vendor).order_by('-is_verified', '-updated_at')
+
+    def perform_create(self, serializer):
+        vendor = self.request.user.vendor_profile
+        serializer.save(vendor=vendor)
+
+
+class VendorSettlementListView(generics.ListAPIView):
+    serializer_class = SettlementRecordSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        try:
+            vendor = self.request.user.vendor_profile
+        except AttributeError:
+            return SettlementRecord.objects.none()
+        return SettlementRecord.objects.filter(vendor=vendor).order_by('-created_at')
 
 class PayoutRequestListCreateView(generics.ListCreateAPIView):
     serializer_class = PayoutRequestSerializer
@@ -203,31 +289,17 @@ class PayoutRequestListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         vendor = self.request.user.vendor_profile
         amount = serializer.validated_data['amount']
-        
-        if vendor.balance < amount:
-            raise serializers.ValidationError("Insufficient wallet balance for this payout.")
-            
+
         with transaction.atomic():
-            # Create payout request
             payout = serializer.save(vendor=vendor)
-            
-            # Deduct from vendor balance
-            vendor.balance -= amount
-            vendor.save()
-            
-            # Log deduction in ledger
-            WalletTransaction.objects.create(
-                vendor=vendor,
-                amount=amount,
-                transaction_type=WalletTransaction.TransactionType.DEBIT,
-                description=f"Requested Payout of {amount}",
-                reference_id=f"PAYOUT_{payout.id}"
-            )
+            try:
+                FinancialService.request_payout_hold(vendor, Decimal(str(amount)), payout)
+            except ValueError as e:
+                raise serializers.ValidationError(str(e))
 
 # ═══════════════════════════════════════════════════════════════════
 # BULK OPERATIONS
 # ═══════════════════════════════════════════════════════════════════
-from django.db import transaction
 from .tasks import process_bulk_job_task
 
 class BulkJobListCreateView(generics.ListCreateAPIView):
@@ -258,5 +330,3 @@ class BulkJobDetailView(generics.RetrieveAPIView):
             return BulkJob.objects.filter(vendor=vendor)
         except AttributeError:
             return BulkJob.objects.none()
-
-

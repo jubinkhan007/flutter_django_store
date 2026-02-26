@@ -35,6 +35,7 @@ import 'features/vendor/presentation/providers/vendor_provider.dart';
 import 'features/vendor/presentation/screens/vendor_dashboard_screen.dart';
 import 'features/vendor/presentation/screens/vendor_onboarding_screen.dart';
 import 'features/vendor/presentation/screens/vendor_add_product_screen.dart';
+import 'features/vendor/presentation/screens/vendor_wallet_screen.dart';
 
 // Addresses
 import 'features/addresses/data/repositories/address_repository.dart';
@@ -232,6 +233,7 @@ class MyApp extends StatelessWidget {
                     const VendorOnboardingScreen(),
                 '/vendor/add-product': (context) =>
                     const VendorAddProductScreen(),
+                '/vendor/wallet': (context) => const VendorWalletScreen(),
               },
             ),
           );

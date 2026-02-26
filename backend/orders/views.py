@@ -4,7 +4,6 @@ from django.db import transaction
 from .models import Order, SubOrder, OrderItem, ShipmentEvent
 from .serializers import OrderSerializer, OrderCreateSerializer, SubOrderSerializer, ShipmentEventSerializer
 from products.models import Product, ProductVariant
-from vendors.models import WalletTransaction
 from coupons.models import Coupon
 from coupons.services import compute_coupon_discount
 from django.conf import settings
@@ -12,6 +11,7 @@ from django.utils import timezone
 from sslcommerz_lib import SSLCOMMERZ
 import uuid
 from decimal import Decimal
+from vendors.financial_service import FinancialService
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -400,18 +400,12 @@ class VendorUpdateOrderStatusView(generics.UpdateAPIView):
         if new_status == Order.Status.DELIVERED:
             order = sub_order.order
             if order.payment_status == Order.PaymentStatus.PAID:
-                with transaction.atomic():
-                    for item in sub_order.items.all():
-                        earnings = (item.unit_price * item.quantity) * Decimal('0.90')
-                        vendor = sub_order.vendor
-                        vendor.balance += earnings
-                        vendor.save()
-                        WalletTransaction.objects.create(
-                            vendor=vendor,
-                            amount=earnings,
-                            transaction_type=WalletTransaction.TransactionType.CREDIT,
-                            description=f"Earnings from SubOrder #{sub_order.id} for {item.quantity}x {item.product_title}"
-                        )
+                try:
+                    FinancialService.accrue_earnings(sub_order)
+                except Exception:
+                    # Do not block order status progression if finance accrual fails.
+                    # The accrual can be retried safely due to idempotency.
+                    pass
 
         # Roll up master order status
         _recompute_master_order(sub_order.order)

@@ -4,6 +4,7 @@ import '../../../products/data/models/product_model.dart';
 import '../../../orders/data/models/order_model.dart';
 import '../../data/models/vendor_customer_model.dart';
 import '../../data/models/vendor_coupon_model.dart';
+import '../../data/models/vendor_wallet_model.dart';
 import '../../data/repositories/vendor_repository.dart';
 
 class VendorProvider extends ChangeNotifier {
@@ -25,6 +26,13 @@ class VendorProvider extends ChangeNotifier {
   double cancellationRate30d = 0;
   double fulfillmentRate30d = 0;
   int todayOrders = 0;
+  VendorWalletSummary? _walletSummary;
+  bool _isWalletLoading = false;
+  String? _walletError;
+
+  VendorWalletSummary? get walletSummary => _walletSummary;
+  bool get isWalletLoading => _isWalletLoading;
+  String? get walletError => _walletError;
 
   // Products & Orders & Customers
   List<ProductModel> _products = [];
@@ -53,6 +61,11 @@ class VendorProvider extends ChangeNotifier {
       pendingOrders = stats['pending_orders'] ?? 0;
       totalRevenue = (stats['total_revenue'] ?? 0).toDouble();
       walletBalance = (stats['wallet_balance'] ?? 0).toDouble();
+      // If ledger buckets are present, prefer showing available as the "headline" balance.
+      final available = stats['wallet_available'];
+      if (available != null) {
+        walletBalance = (available ?? 0).toDouble();
+      }
       
       revenue7d = (stats['revenue_7d'] ?? 0).toDouble();
       revenue30d = (stats['revenue_30d'] ?? 0).toDouble();
@@ -65,6 +78,58 @@ class VendorProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       // Stats are supplementary, don't block UI
+    }
+  }
+
+  Future<void> loadWalletSummary() async {
+    _isWalletLoading = true;
+    _walletError = null;
+    notifyListeners();
+
+    try {
+      _walletSummary = await _vendorRepository.getWalletSummary();
+      _isWalletLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _walletError = e.toString().replaceAll('Exception: ', '');
+      _isWalletLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> createPayoutMethod({
+    required String method,
+    required String label,
+    required Map<String, dynamic> details,
+  }) async {
+    try {
+      await _vendorRepository.createPayoutMethod(
+        method: method,
+        label: label,
+        details: details,
+      );
+      await loadWalletSummary();
+      return true;
+    } catch (e) {
+      _walletError = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> requestPayout({
+    required double amount,
+    required String bankDetails,
+  }) async {
+    try {
+      await _vendorRepository.requestPayout(amount: amount, bankDetails: bankDetails);
+      await loadWalletSummary();
+      await loadStats();
+      return true;
+    } catch (e) {
+      _walletError = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return false;
     }
   }
 

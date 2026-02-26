@@ -320,6 +320,20 @@ class _DashboardPage extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _QuickAction(
+                    icon: Icons.account_balance_wallet_outlined,
+                    label: 'Wallet',
+                    onTap: () => Navigator.pushNamed(context, '/vendor/wallet'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(child: SizedBox()),
+              ],
+            ),
           ],
         ),
       ),

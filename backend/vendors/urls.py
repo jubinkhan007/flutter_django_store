@@ -24,7 +24,8 @@
 from django.urls import path, include
 from .views import (
     VendorOnboardingView, VendorDashboardView, VendorStatsView, VendorCustomersView,
-    WalletTransactionListView, PayoutRequestListCreateView, 
+    LedgerEntryListView, VendorWalletSummaryView, VendorPayoutMethodListCreateView,
+    VendorSettlementListView, PayoutRequestListCreateView,
     BulkJobListCreateView, BulkJobDetailView
 )
 from products.views import (
@@ -50,7 +51,10 @@ urlpatterns = [
     path('sub-orders/<int:pk>/events/', VendorSubOrderEventsView.as_view(), name='vendor-suborder-events'),
     path('stats/', VendorStatsView.as_view(), name='vendor-stats'),
     path('customers/', VendorCustomersView.as_view(), name='vendor-customers'),
-    path('ledger/', WalletTransactionListView.as_view(), name='vendor-ledger'),
+    path('ledger/', LedgerEntryListView.as_view(), name='vendor-ledger'),
+    path('wallet/summary/', VendorWalletSummaryView.as_view(), name='vendor-wallet-summary'),
+    path('payout-methods/', VendorPayoutMethodListCreateView.as_view(), name='vendor-payout-methods'),
+    path('settlements/', VendorSettlementListView.as_view(), name='vendor-settlements'),
     path('payouts/', PayoutRequestListCreateView.as_view(), name='vendor-payouts'),
     path('bulk-jobs/', BulkJobListCreateView.as_view(), name='vendor-bulk-jobs'),
     path('bulk-jobs/<int:pk>/', BulkJobDetailView.as_view(), name='vendor-bulk-job-detail'),

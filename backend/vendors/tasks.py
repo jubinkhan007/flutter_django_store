@@ -10,6 +10,8 @@ from orders.models import SubOrder, OrderItem
 from django.utils import timezone
 from django.db.models import Sum, F, DecimalField, ExpressionWrapper
 from datetime import timedelta
+from .models import SettlementRecord
+from .financial_service import FinancialService
 
 @shared_task
 def process_bulk_job_task(job_id):
@@ -204,3 +206,23 @@ def compute_daily_vendor_metrics():
                 'revenue': revenue
             }
         )
+
+
+@shared_task
+def release_due_settlements(batch_size=200):
+    """
+    Daily task: moves SettlementRecord funds from pending -> available once the
+    settlement window is reached (Delivery + N days).
+    """
+    today = timezone.now().date()
+    qs = SettlementRecord.objects.filter(
+        status=SettlementRecord.Status.PENDING,
+        settlement_date__lte=today,
+    ).order_by('id')
+
+    processed = 0
+    for record in qs[:batch_size]:
+        FinancialService.release_settlement(record)
+        processed += 1
+
+    return {'processed': processed}

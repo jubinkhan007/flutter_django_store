@@ -3,7 +3,15 @@
 # ═══════════════════════════════════════════════════════════════════
 
 from rest_framework import serializers
-from .models import Vendor, WalletTransaction, PayoutRequest, BulkJob
+from .models import (
+    Vendor,
+    WalletTransaction,
+    PayoutRequest,
+    BulkJob,
+    LedgerEntry,
+    SettlementRecord,
+    VendorPayoutMethod,
+)
 
 
 class VendorSerializer(serializers.ModelSerializer):
@@ -17,12 +25,28 @@ class VendorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vendor
         fields = (
-            'id', 'store_name', 'description', 'balance', 'is_approved', 
+            'id',
+            'store_name',
+            'description',
+            'balance',
+            'pending_balance',
+            'available_balance',
+            'held_balance',
+            'total_earned_lifetime',
+            'total_withdrawn_lifetime',
+            'is_approved',
             'cancellation_rate', 'late_shipment_rate', 'avg_handling_time_days',
             'created_at'
         )
         read_only_fields = (
-            'id', 'balance', 'is_approved', 
+            'id',
+            'balance',
+            'pending_balance',
+            'available_balance',
+            'held_balance',
+            'total_earned_lifetime',
+            'total_withdrawn_lifetime',
+            'is_approved',
             'cancellation_rate', 'late_shipment_rate', 'avg_handling_time_days',
             'created_at'
         )
@@ -45,6 +69,48 @@ class PayoutRequestSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("Payout amount must be greater than zero.")
         return value
+
+
+class VendorPayoutMethodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VendorPayoutMethod
+        fields = ['id', 'method', 'label', 'details', 'is_verified', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'is_verified', 'created_at', 'updated_at']
+
+
+class LedgerEntrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LedgerEntry
+        fields = [
+            'id',
+            'entry_type',
+            'bucket',
+            'direction',
+            'status',
+            'amount',
+            'reference_type',
+            'reference_id',
+            'description',
+            'created_at',
+        ]
+        read_only_fields = fields
+
+
+class SettlementRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SettlementRecord
+        fields = [
+            'id',
+            'sub_order',
+            'gross_amount',
+            'platform_fee',
+            'net_amount',
+            'status',
+            'settlement_date',
+            'created_at',
+            'released_at',
+        ]
+        read_only_fields = fields
 
 
 class BulkJobSerializer(serializers.ModelSerializer):

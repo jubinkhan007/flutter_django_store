@@ -1,5 +1,7 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
 
 class Vendor(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='vendor_profile')
@@ -7,6 +9,12 @@ class Vendor(models.Model):
     description = models.TextField(blank=True)
     is_approved = models.BooleanField(default=False)
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    # Ledger-first cached balances (source of truth is LedgerEntry aggregate)
+    pending_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    available_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    held_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    total_earned_lifetime = models.DecimalField(max_digits=14, decimal_places=2, default=0.00)
+    total_withdrawn_lifetime = models.DecimalField(max_digits=14, decimal_places=2, default=0.00)
     created_at = models.DateTimeField(auto_now_add=True)
 
     # SLA metrics
@@ -16,6 +24,14 @@ class Vendor(models.Model):
 
     def __str__(self):
         return self.store_name
+
+    def recache_balance(self, save=True):
+        """
+        Keep the legacy `balance` field as a cached aggregate for compatibility.
+        """
+        self.balance = (self.pending_balance or 0) + (self.available_balance or 0) + (self.held_balance or 0)
+        if save:
+            self.save(update_fields=['balance'])
 
 class Permission(models.Model):
     codename = models.CharField(max_length=50, unique=True)
@@ -93,6 +109,111 @@ class PayoutRequest(models.Model):
     def __str__(self):
         return f"Payout {self.amount} for {self.vendor.store_name} ({self.status})"
 
+class VendorPayoutMethod(models.Model):
+    class Method(models.TextChoices):
+        BANK = 'BANK', 'Bank'
+        BKASH = 'BKASH', 'bKash'
+        NAGAD = 'NAGAD', 'Nagad'
+
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='payout_methods')
+    method = models.CharField(max_length=20, choices=Method.choices)
+    label = models.CharField(max_length=100, blank=True, help_text="e.g. 'Main bank', 'bKash personal'")
+    details = models.JSONField(default=dict, blank=True)
+    is_verified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-is_verified', '-updated_at']
+
+    def __str__(self):
+        return f"{self.vendor.store_name} - {self.method} ({'VERIFIED' if self.is_verified else 'UNVERIFIED'})"
+
+
+class LedgerEntry(models.Model):
+    """
+    Ledger-first immutable entries that can reconstruct vendor balances.
+    Each entry affects exactly one bucket (pending/available/held).
+    """
+    class EntryType(models.TextChoices):
+        SALE_CREDIT_PENDING = 'SALE_CREDIT_PENDING', 'Sale credit (Pending)'
+        SETTLEMENT_RELEASE = 'SETTLEMENT_RELEASE', 'Settlement release'
+        PAYOUT_REQUEST_HOLD = 'PAYOUT_REQUEST_HOLD', 'Payout request hold'
+        PAYOUT_REJECTED_RELEASE = 'PAYOUT_REJECTED_RELEASE', 'Payout rejected release'
+        PAYOUT_PAID = 'PAYOUT_PAID', 'Payout paid'
+
+    class Bucket(models.TextChoices):
+        PENDING = 'PENDING', 'Pending'
+        AVAILABLE = 'AVAILABLE', 'Available'
+        HELD = 'HELD', 'Held'
+
+    class Direction(models.TextChoices):
+        CREDIT = 'CREDIT', 'Credit'
+        DEBIT = 'DEBIT', 'Debit'
+
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', 'Pending'
+        POSTED = 'POSTED', 'Posted'
+        FAILED = 'FAILED', 'Failed'
+
+    class ReferenceType(models.TextChoices):
+        SUBORDER = 'SUBORDER', 'SubOrder'
+        PAYOUT = 'PAYOUT', 'Payout'
+        REFUND = 'REFUND', 'Refund'
+
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='ledger_entries')
+    entry_type = models.CharField(max_length=50, choices=EntryType.choices)
+    bucket = models.CharField(max_length=20, choices=Bucket.choices)
+    direction = models.CharField(max_length=10, choices=Direction.choices)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.POSTED)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    reference_type = models.CharField(max_length=20, choices=ReferenceType.choices)
+    reference_id = models.IntegerField()
+    idempotency_key = models.CharField(max_length=80, blank=True, null=True)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['idempotency_key', 'entry_type', 'bucket', 'direction'],
+                name='vendors_ledger_idempotency_unique',
+                condition=models.Q(idempotency_key__isnull=False),
+            ),
+        ]
+
+    def __str__(self):
+        sign = '+' if self.direction == self.Direction.CREDIT else '-'
+        return f"{self.vendor.store_name} {self.bucket} {sign}{self.amount} ({self.entry_type})"
+
+
+class SettlementRecord(models.Model):
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', 'Pending'
+        RELEASED = 'RELEASED', 'Released'
+
+    sub_order = models.OneToOneField('orders.SubOrder', on_delete=models.CASCADE, related_name='settlement_record')
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='settlement_records')
+    gross_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    platform_fee = models.DecimalField(max_digits=12, decimal_places=2)
+    net_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    settlement_date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    released_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Settlement SubOrder #{self.sub_order_id} ({self.status})"
+
+    @classmethod
+    def compute_settlement_date(cls, delivered_at, window_days=7):
+        base = delivered_at or timezone.now()
+        return (base + timedelta(days=window_days)).date()
+
 class BulkJob(models.Model):
     class Status(models.TextChoices):
         PENDING = 'PENDING', 'Pending'
@@ -133,4 +254,3 @@ class VendorPerformanceDaily(models.Model):
 
     def __str__(self):
         return f"Perf {self.date} for {self.vendor.store_name}"
-

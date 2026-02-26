@@ -169,3 +169,18 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 
+# Celery Beat (periodic tasks)
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    # Runs daily shortly after midnight UTC
+    'vendors.compute_daily_vendor_metrics': {
+        'task': 'vendors.tasks.compute_daily_vendor_metrics',
+        'schedule': crontab(hour=0, minute=5),
+    },
+    # Releases due settlements (Delivery + 7 days) into available balance
+    'vendors.release_due_settlements': {
+        'task': 'vendors.tasks.release_due_settlements',
+        'schedule': crontab(hour=0, minute=10),
+    },
+}
