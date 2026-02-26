@@ -1,8 +1,8 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from django.db import transaction
-from .models import Order, SubOrder, OrderItem
-from .serializers import OrderSerializer, OrderCreateSerializer
+from .models import Order, SubOrder, OrderItem, ShipmentEvent
+from .serializers import OrderSerializer, OrderCreateSerializer, SubOrderSerializer, ShipmentEventSerializer
 from products.models import Product, ProductVariant
 from vendors.models import WalletTransaction
 from coupons.models import Coupon
@@ -379,9 +379,8 @@ class VendorOrderListView(generics.ListAPIView):
 class VendorUpdateOrderStatusView(generics.UpdateAPIView):
     """
     PATCH /api/vendors/orders/<id>/
-    Allows a vendor to update the status of their SubOrder.
+    Advances status via the state machine.
     """
-    from orders.serializers import SubOrderSerializer
     serializer_class = SubOrderSerializer
     permission_classes = [IsVendorPackerOrAbove]
 
@@ -392,16 +391,13 @@ class VendorUpdateOrderStatusView(generics.UpdateAPIView):
         sub_order = self.get_object()
         new_status = request.data.get('status')
 
-        valid_statuses = [s[0] for s in Order.Status.choices]
-        if new_status not in valid_statuses:
-            return Response(
-                {"error": f"Invalid status. Must be one of: {valid_statuses}"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        try:
+            sub_order.advance_status(new_status)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        if new_status == Order.Status.DELIVERED and sub_order.status != Order.Status.DELIVERED:
-            sub_order.delivered_at = timezone.now()
-            # Mark payouts logic...
+        # Payout credit on DELIVERED
+        if new_status == Order.Status.DELIVERED:
             order = sub_order.order
             if order.payment_status == Order.PaymentStatus.PAID:
                 with transaction.atomic():
@@ -410,7 +406,6 @@ class VendorUpdateOrderStatusView(generics.UpdateAPIView):
                         vendor = sub_order.vendor
                         vendor.balance += earnings
                         vendor.save()
-                        
                         WalletTransaction.objects.create(
                             vendor=vendor,
                             amount=earnings,
@@ -418,24 +413,9 @@ class VendorUpdateOrderStatusView(generics.UpdateAPIView):
                             description=f"Earnings from SubOrder #{sub_order.id} for {item.quantity}x {item.product_title}"
                         )
 
-        # Update SLA timers
-        now = timezone.now()
-        if new_status == Order.Status.PAID and not sub_order.accepted_at:
-            sub_order.accepted_at = now
-        elif new_status == Order.Status.SHIPPED and not sub_order.shipped_at:
-            sub_order.shipped_at = now
-
-        sub_order.status = new_status
-        sub_order.save()
-        
-        # Optionally, check if all suborders are delivered, update main Order status
-        order = sub_order.order
-        if not order.sub_orders.exclude(status=Order.Status.DELIVERED).exists():
-            order.status = Order.Status.DELIVERED
-            order.delivered_at = now
-            order.save()
-            
-        return Response(self.get_serializer(sub_order).data)
+        # Roll up master order status
+        _recompute_master_order(sub_order.order)
+        return Response(SubOrderSerializer(sub_order).data)
 
 class VendorOrderCancelView(generics.GenericAPIView):
     """
@@ -471,6 +451,114 @@ def process_refund_if_paid(order):
     if order.payment_status == Order.PaymentStatus.PAID and order.val_id:
         order.payment_status = Order.PaymentStatus.REFUNDED
         order.save()
+
+
+def _recompute_master_order(order):
+    """Derive master Order.status from its sub-orders."""
+    statuses = set(order.sub_orders.values_list('status', flat=True))
+    now = timezone.now()
+    if statuses == {Order.Status.DELIVERED}:
+        order.status = Order.Status.DELIVERED
+        order.delivered_at = now
+    elif statuses == {Order.Status.CANCELED}:
+        order.status = Order.Status.CANCELED
+    elif Order.Status.DELIVERED in statuses:
+        # Mixed — some delivered, some still in progress or cancelled
+        order.status = Order.Status.SHIPPED  # best approximation for master
+    elif Order.Status.SHIPPED in statuses:
+        order.status = Order.Status.SHIPPED
+    order.save()
+
+
+class VendorSubOrderFulfillView(generics.GenericAPIView):
+    """
+    POST /api/vendors/sub-orders/<id>/fulfill/
+    Mark the sub-order as SHIPPED and attach courier details.
+    Also creates an automatic ShipmentEvent of status PICKED_UP.
+    """
+    permission_classes = [IsVendorPackerOrAbove]
+
+    def get_queryset(self):
+        return SubOrder.objects.filter(vendor=self.request.vendor)
+
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            sub_order = self.get_queryset().get(id=pk)
+        except SubOrder.DoesNotExist:
+            return Response({"error": "SubOrder not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        courier_name = request.data.get('courier_name', '').strip()
+        tracking_number = request.data.get('tracking_number', '').strip()
+        tracking_url = request.data.get('tracking_url', '').strip()
+        courier_code = request.data.get('courier_code', '').strip().lower()
+
+        try:
+            sub_order.advance_status(Order.Status.SHIPPED)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        sub_order.courier_name = courier_name
+        sub_order.tracking_number = tracking_number
+        sub_order.tracking_url = tracking_url
+        sub_order.courier_code = courier_code
+        sub_order.save()
+
+        # Auto-create a PICKED_UP shipment event
+        ShipmentEvent.objects.create(
+            sub_order=sub_order,
+            status=ShipmentEvent.EventStatus.PICKED_UP,
+            timestamp=timezone.now(),
+            description=f"Order picked up by {courier_name or 'courier'}.",
+            source=ShipmentEvent.Source.VENDOR,
+            created_by=request.user,
+            sequence=sub_order.events.count(),
+        )
+
+        _recompute_master_order(sub_order.order)
+        return Response(SubOrderSerializer(sub_order, context={'request': request}).data)
+
+
+class VendorSubOrderEventsView(generics.GenericAPIView):
+    """
+    POST /api/vendors/sub-orders/<id>/events/
+    Push a new ShipmentEvent manually.
+    """
+    permission_classes = [IsVendorSupportOrAbove]
+
+    def get_queryset(self):
+        return SubOrder.objects.filter(vendor=self.request.vendor)
+
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            sub_order = self.get_queryset().get(id=pk)
+        except SubOrder.DoesNotExist:
+            return Response({"error": "SubOrder not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        event_status = request.data.get('status', '').strip().upper()
+        valid = [s[0] for s in ShipmentEvent.EventStatus.choices]
+        if event_status not in valid:
+            return Response(
+                {"error": f"Invalid event status. Must be one of: {valid}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        external_id = request.data.get('external_event_id') or None
+        if external_id and ShipmentEvent.objects.filter(external_event_id=external_id).exists():
+            existing = ShipmentEvent.objects.get(external_event_id=external_id)
+            return Response(ShipmentEventSerializer(existing).data, status=status.HTTP_200_OK)
+
+        event = ShipmentEvent.objects.create(
+            sub_order=sub_order,
+            status=event_status,
+            location=request.data.get('location', '').strip(),
+            timestamp=request.data.get('timestamp') or timezone.now(),
+            description=request.data.get('description', '').strip(),
+            sequence=sub_order.events.count(),
+            source=request.data.get('source', ShipmentEvent.Source.VENDOR),
+            created_by=request.user,
+            external_event_id=external_id,
+        )
+        return Response(ShipmentEventSerializer(event).data, status=status.HTTP_201_CREATED)
 
 
 # ═══════════════════════════════════════════════════════════════════

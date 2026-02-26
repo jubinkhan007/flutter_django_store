@@ -1,5 +1,6 @@
 import '../../domain/entities/product.dart';
 import '../../domain/entities/variant.dart';
+import '../../../../core/config/api_config.dart';
 
 class ProductModel extends Product {
   const ProductModel({
@@ -7,6 +8,7 @@ class ProductModel extends Product {
     required super.name,
     required super.description,
     required super.price,
+    super.salePrice,
     super.vendorId,
     super.categoryId,
     super.stockQuantity,
@@ -21,16 +23,24 @@ class ProductModel extends Product {
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     var optionsList = (json['options'] as List?) ?? [];
     var variantsList = (json['variants'] as List?) ?? [];
-    
+
+    final rawImage = json['image']?.toString();
+    final resolvedImage = (rawImage == null || rawImage.trim().isEmpty)
+        ? null
+        : ApiConfig.resolveUrl(rawImage);
+
     return ProductModel(
       id: json['id'],
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       price: double.tryParse(json['price'].toString()) ?? 0.0,
+      salePrice: json['active_sale_price'] != null
+          ? double.tryParse(json['active_sale_price'].toString())
+          : null,
       vendorId: json['vendor'],
       categoryId: json['category'],
       stockQuantity: json['stock_quantity'] ?? 0,
-      image: json['image'],
+      image: resolvedImage,
       isAvailable: json['is_available'] ?? true,
       inStock: json['in_stock'] ?? true,
       createdAt: json['created_at'],

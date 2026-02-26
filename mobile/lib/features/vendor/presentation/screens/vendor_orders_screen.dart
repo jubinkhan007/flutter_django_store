@@ -72,6 +72,173 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
     }
   }
 
+  /// Shows a bottom sheet to collect courier details, then calls fulfill endpoint.
+  Future<void> _showFulfillSheet(BuildContext context, int subOrderId) async {
+    final vendor = context.read<VendorProvider>();
+    final courierController = TextEditingController();
+    final trackingController = TextEditingController();
+    final urlController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isSaving = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (sheetCtx, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 24,
+              ),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.local_shipping_outlined,
+                          color: AppColors.lightPrimary,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Provide Tracking Details',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(sheetCtx),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: courierController,
+                      decoration: InputDecoration(
+                        labelText: 'Courier Name *',
+                        hintText: 'e.g. Pathao, RedX, Sundarban',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                      ),
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: trackingController,
+                      decoration: InputDecoration(
+                        labelText: 'Tracking Number *',
+                        hintText: 'e.g. PH-12345678',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                      ),
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: urlController,
+                      keyboardType: TextInputType.url,
+                      decoration: InputDecoration(
+                        labelText: 'Tracking URL (optional)',
+                        hintText: 'https://track.pathao.com/...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                if (!formKey.currentState!.validate()) return;
+                                setSheetState(() => isSaving = true);
+                                final success = await vendor.fulfillSubOrder(
+                                  subOrderId,
+                                  courierName: courierController.text.trim(),
+                                  trackingNumber: trackingController.text.trim(),
+                                  trackingUrl: urlController.text.trim(),
+                                );
+                                if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        success
+                                            ? 'Order marked as shipped!'
+                                            : vendor.error ?? 'Failed to update',
+                                      ),
+                                      backgroundColor: success
+                                          ? AppColors.success
+                                          : AppColors.error,
+                                    ),
+                                  );
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.lightPrimary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                          ),
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Confirm Shipment',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -138,15 +305,11 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                       final nextStatus = _nextStatus(order.status);
 
                       return Container(
-                        margin: const EdgeInsets.only(
-                          bottom: AppSpacing.sm,
-                        ),
+                        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: AppColors.lightSurface,
-                          borderRadius: BorderRadius.circular(
-                            AppRadius.md,
-                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,12 +456,23 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                                   ),
                                 if (nextStatus != null)
                                   ElevatedButton(
-                                    onPressed: () => vendor.updateOrderStatus(
-                                      order.id,
-                                      nextStatus,
-                                    ),
+                                    onPressed: () async {
+                                      if (nextStatus == 'SHIPPED') {
+                                        // Show tracking details bottom sheet
+                                        await _showFulfillSheet(
+                                          context,
+                                          order.id,
+                                        );
+                                      } else {
+                                        await vendor.updateOrderStatus(
+                                          order.id,
+                                          nextStatus,
+                                        );
+                                      }
+                                    },
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Theme.of(context).primaryColor,
+                                      backgroundColor:
+                                          Theme.of(context).primaryColor,
                                       foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 12,

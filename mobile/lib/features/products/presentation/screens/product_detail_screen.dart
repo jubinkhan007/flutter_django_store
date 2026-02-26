@@ -258,7 +258,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final isVendor = _isVendorOfProduct(context);
 
     final displayPrice =
-        _currentVariant?.effectivePrice ?? widget.product.price;
+        _currentVariant?.effectivePrice ?? widget.product.effectivePrice;
+    final hasActiveSale = _currentVariant == null && widget.product.salePrice != null;
     final inStock = widget.product.options.isEmpty
         ? widget.product.inStock
         : (_currentVariant != null && _currentVariant!.stockAvailable > 0);
@@ -379,23 +380,42 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ),
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: Theme.of(context).brightness == Brightness.dark ? AppGradients.darkPrimary : AppGradients.lightPrimary,
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                        child: Text(
-                          '\$${displayPrice.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (hasActiveSale)
+                            Text(
+                              '\$${widget.product.price.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                decoration: TextDecoration.lineThrough,
+                                color: AppColors.lightTextSecondary,
+                              ),
+                            ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: hasActiveSale
+                                  ? null
+                                  : (Theme.of(context).brightness == Brightness.dark
+                                      ? AppGradients.darkPrimary
+                                      : AppGradients.lightPrimary),
+                              color: hasActiveSale ? AppColors.error : null,
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                            ),
+                            child: Text(
+                              '\$${displayPrice.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),

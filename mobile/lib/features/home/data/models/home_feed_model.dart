@@ -1,4 +1,5 @@
 import '../../../products/data/models/product_model.dart';
+import '../../../../core/config/api_config.dart';
 
 class HomeFeed {
   final DateTime serverNow;
@@ -139,7 +140,7 @@ class BannerModel {
       id: json['id'],
       title: json['title'] ?? '',
       subtitle: json['subtitle'] ?? '',
-      imageUrl: json['image_url'] ?? '',
+      imageUrl: ApiConfig.resolveUrl(json['image_url'] ?? ''),
       linkType: json['link_type'] ?? 'NONE',
       linkValue: json['link_value'] ?? '',
     );

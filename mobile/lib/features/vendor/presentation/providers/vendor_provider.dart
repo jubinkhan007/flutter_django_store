@@ -207,6 +207,28 @@ class VendorProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> fulfillSubOrder(
+    int subOrderId, {
+    required String courierName,
+    required String trackingNumber,
+    String? trackingUrl,
+  }) async {
+    try {
+      await _vendorRepository.fulfillSubOrder(
+        subOrderId,
+        courierName: courierName,
+        trackingNumber: trackingNumber,
+        trackingUrl: trackingUrl,
+      );
+      await loadOrders();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> cancelOrder(int orderId) async {
     _isLoading = true;
     _error = null;

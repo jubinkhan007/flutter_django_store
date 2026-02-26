@@ -20,12 +20,14 @@ class OrderConfirmationScreen extends StatefulWidget {
   final OrderModel order;
   final String paymentMethod;
   final OrderRepository orderRepository;
+  final VoidCallback? onViewOrders;
 
   const OrderConfirmationScreen({
     super.key,
     required this.order,
     required this.paymentMethod,
     required this.orderRepository,
+    this.onViewOrders,
   });
 
   @override
@@ -193,7 +195,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen> {
                   outlined: !isSuccess,
                   onPressed: () {
                     Navigator.of(context).popUntil((route) => route.isFirst);
-                    // Navigate to orders tab
+                    widget.onViewOrders?.call();
                   },
                 ).animate().fade(delay: 600.ms, duration: 400.ms),
 

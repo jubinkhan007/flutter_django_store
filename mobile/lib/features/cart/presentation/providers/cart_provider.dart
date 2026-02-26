@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/config/api_config.dart';
 import '../../../products/domain/entities/product.dart';
 import '../../../products/domain/entities/variant.dart';
 
@@ -13,7 +14,7 @@ class CartItem {
 
   CartItem({required this.product, this.variant, this.quantity = 1});
 
-  double get effectivePrice => variant?.effectivePrice ?? product.price;
+  double get effectivePrice => variant?.effectivePrice ?? product.effectivePrice;
 
   double get total => effectivePrice * quantity;
 }
@@ -83,6 +84,11 @@ class CartProvider extends ChangeNotifier {
   }
 
   Product _productFromStorage(Map<String, dynamic> json) {
+    final rawImage = json['image']?.toString();
+    final resolvedImage = (rawImage == null || rawImage.trim().isEmpty)
+        ? null
+        : ApiConfig.resolveUrl(rawImage);
+
     return Product(
       id: int.tryParse(json['id']?.toString() ?? '') ?? 0,
       vendorId: json['vendorId'] == null
@@ -94,9 +100,12 @@ class CartProvider extends ChangeNotifier {
       name: (json['name'] ?? 'Product').toString(),
       description: (json['description'] ?? '').toString(),
       price: double.tryParse(json['price']?.toString() ?? '') ?? 0.0,
+      salePrice: json['salePrice'] != null
+          ? double.tryParse(json['salePrice'].toString())
+          : null,
       stockQuantity:
           int.tryParse(json['stockQuantity']?.toString() ?? '') ?? 0,
-      image: json['image']?.toString(),
+      image: resolvedImage,
       isAvailable: json['isAvailable'] == null ? true : json['isAvailable'] == true,
       inStock: json['inStock'] == null ? true : json['inStock'] == true,
       createdAt: json['createdAt']?.toString(),
@@ -111,6 +120,7 @@ class CartProvider extends ChangeNotifier {
       'name': p.name,
       'description': p.description,
       'price': p.price,
+      'salePrice': p.salePrice,
       'stockQuantity': p.stockQuantity,
       'image': p.image,
       'isAvailable': p.isAvailable,
@@ -250,4 +260,3 @@ class CartProvider extends ChangeNotifier {
         .toList();
   }
 }
-

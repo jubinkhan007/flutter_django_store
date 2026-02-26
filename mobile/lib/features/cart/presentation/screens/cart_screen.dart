@@ -12,7 +12,8 @@ import '../widgets/cart_checkout_panel.dart';
 import 'checkout_screen.dart';
 
 class CartScreen extends StatelessWidget {
-  const CartScreen({super.key});
+  final VoidCallback? onOrderPlaced;
+  const CartScreen({super.key, this.onOrderPlaced});
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +100,9 @@ class CartScreen extends StatelessWidget {
   void _navigateToCheckout(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+      MaterialPageRoute(
+        builder: (_) => CheckoutScreen(onOrderPlaced: onOrderPlaced),
+      ),
     );
   }
 

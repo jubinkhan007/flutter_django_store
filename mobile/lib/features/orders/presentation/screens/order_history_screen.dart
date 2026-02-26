@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
 import '../../data/models/order_model.dart';
 import '../providers/order_provider.dart';
+import 'order_detail_screen.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -155,6 +156,31 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     }
   }
 
+  Widget _buildShipmentChips(OrderModel order) {
+    // Build mini status pills: "2 shipped · 1 processing"
+    final statusCounts = <String, int>{};
+    for (final sub in order.subOrders) {
+      statusCounts[sub.status] = (statusCounts[sub.status] ?? 0) + 1;
+    }
+    final parts = statusCounts.entries.map((e) {
+      final label = e.key.toLowerCase();
+      return '${e.value} $label';
+    }).join(' · ');
+    return Row(
+      children: [
+        const Icon(Icons.inventory_2_outlined, size: 11, color: AppColors.lightTextSecondary),
+        const SizedBox(width: 3),
+        Text(
+          '${order.subOrders.length} shipment${order.subOrders.length > 1 ? 's' : ''} · $parts',
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppColors.lightTextSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
   String _paymentMethodLabel(String method) {
     switch (method) {
       case 'COD':
@@ -216,12 +242,12 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
+          const Padding(
+            padding: EdgeInsets.all(AppSpacing.md),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'My Orders',
                   style: TextStyle(
                     fontSize: 28,
@@ -261,7 +287,14 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                       final paymentColor = _paymentColor(order.paymentStatus);
                       final isCod = order.paymentMethod == 'COD';
 
-                      return Container(
+                      return GestureDetector(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => OrderDetailScreen(order: order),
+                          ),
+                        ),
+                        child: Container(
                         margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                         decoration: BoxDecoration(
                           color: AppColors.lightSurface,
@@ -276,9 +309,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: statusColor.withAlpha(
-                                        38,
-                                      ), // 0.15 * 255 = 38.25
+                                      color: statusColor.withAlpha(38),
                                       borderRadius: BorderRadius.circular(
                                         AppRadius.sm,
                                       ),
@@ -310,6 +341,12 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
+                                        // Package chips for multi-vendor orders
+                                        if (order.subOrders.length > 1)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 4),
+                                            child: _buildShipmentChips(order),
+                                          ),
                                       ],
                                     ),
                                   ),
@@ -331,10 +368,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: statusColor.withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
+                                          color: statusColor.withAlpha(38),
+                                          borderRadius: BorderRadius.circular(10),
                                         ),
                                         child: Text(
                                           order.status,
@@ -489,7 +524,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                               ),
                           ],
                         ),
-                      );
+                      ),
+                    );
                     },
                   ),
                 );

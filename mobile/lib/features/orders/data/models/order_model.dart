@@ -1,5 +1,111 @@
 import '../../../addresses/data/models/address_model.dart';
 
+class ShipmentEventModel {
+  final int id;
+  final String status;
+  final String location;
+  final String timestamp;
+  final String description;
+  final int sequence;
+  final String source;
+
+  const ShipmentEventModel({
+    required this.id,
+    required this.status,
+    required this.location,
+    required this.timestamp,
+    required this.description,
+    required this.sequence,
+    required this.source,
+  });
+
+  factory ShipmentEventModel.fromJson(Map<String, dynamic> json) {
+    return ShipmentEventModel(
+      id: json['id'] ?? 0,
+      status: json['status'] ?? '',
+      location: json['location'] ?? '',
+      timestamp: json['timestamp'] ?? '',
+      description: json['description'] ?? '',
+      sequence: json['sequence'] ?? 0,
+      source: json['source'] ?? 'SYSTEM',
+    );
+  }
+}
+
+class SubOrderModel {
+  final int id;
+  final int orderId;
+  final String vendorStoreName;
+  final String packageLabel;
+  final String status;
+  final String? courierCode;
+  final String? courierName;
+  final String? trackingNumber;
+  final String? trackingUrl;
+  final String paymentStatus;
+  final String paymentMethod;
+  final String totalAmount;
+  final String? shippedAt;
+  final String? deliveredAt;
+  final String? canceledAt;
+  final String? shipByDate;
+  final String createdAt;
+  final List<OrderItemModel> items;
+  final List<ShipmentEventModel> events;
+
+  const SubOrderModel({
+    required this.id,
+    required this.orderId,
+    required this.vendorStoreName,
+    required this.packageLabel,
+    required this.status,
+    this.courierCode,
+    this.courierName,
+    this.trackingNumber,
+    this.trackingUrl,
+    required this.paymentStatus,
+    required this.paymentMethod,
+    required this.totalAmount,
+    this.shippedAt,
+    this.deliveredAt,
+    this.canceledAt,
+    this.shipByDate,
+    required this.createdAt,
+    required this.items,
+    required this.events,
+  });
+
+  factory SubOrderModel.fromJson(Map<String, dynamic> json) {
+    return SubOrderModel(
+      id: json['id'] ?? 0,
+      orderId: json['order_id'] ?? 0,
+      vendorStoreName: json['vendor_store_name'] ?? '',
+      packageLabel: json['package_label'] ?? 'Package',
+      status: json['status'] ?? 'PENDING',
+      courierCode: json['courier_code']?.toString().isEmpty == true ? null : json['courier_code'],
+      courierName: json['courier_name']?.toString().isEmpty == true ? null : json['courier_name'],
+      trackingNumber: json['tracking_number']?.toString().isEmpty == true ? null : json['tracking_number'],
+      trackingUrl: json['tracking_url']?.toString().isEmpty == true ? null : json['tracking_url'],
+      paymentStatus: json['payment_status'] ?? 'UNPAID',
+      paymentMethod: json['payment_method'] ?? 'ONLINE',
+      totalAmount: json['total_amount']?.toString() ?? '0.00',
+      shippedAt: json['shipped_at'],
+      deliveredAt: json['delivered_at'],
+      canceledAt: json['canceled_at'],
+      shipByDate: json['ship_by_date'],
+      createdAt: json['created_at'] ?? '',
+      items: (json['items'] as List?)
+              ?.map((i) => OrderItemModel.fromJson(i))
+              .toList() ??
+          [],
+      events: (json['events'] as List?)
+              ?.map((e) => ShipmentEventModel.fromJson(e))
+              .toList() ??
+          [],
+    );
+  }
+}
+
 class OrderModel {
   final int id;
   final int? parentOrderId; // Present for vendor sub-orders (order_id)
@@ -13,6 +119,7 @@ class OrderModel {
   final String? transactionId;
   final String? valId;
   final List<OrderItemModel> items;
+  final List<SubOrderModel> subOrders;
   final String createdAt;
   final AddressModel? deliveryAddress;
 
@@ -29,6 +136,7 @@ class OrderModel {
     this.transactionId,
     this.valId,
     required this.items,
+    this.subOrders = const [],
     required this.createdAt,
     this.deliveryAddress,
   });
@@ -37,6 +145,12 @@ class OrderModel {
     final parsedItems =
         (json['items'] as List?)
             ?.map((item) => OrderItemModel.fromJson(item))
+            .toList() ??
+        [];
+
+    final parsedSubOrders =
+        (json['sub_orders'] as List?)
+            ?.map((s) => SubOrderModel.fromJson(s))
             .toList() ??
         [];
 
@@ -75,6 +189,7 @@ class OrderModel {
       transactionId: json['transaction_id'],
       valId: json['val_id'],
       items: parsedItems,
+      subOrders: parsedSubOrders,
       createdAt: json['created_at'] ?? '',
       deliveryAddress: json['delivery_address'] != null
           ? AddressModel.fromJson(json['delivery_address'])

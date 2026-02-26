@@ -3,6 +3,7 @@
 # ═══════════════════════════════════════════════════════════════════
 
 from rest_framework import serializers
+from django.utils import timezone
 from .models import Banner, FlashSale, FlashSaleProduct, FeaturedSection
 from products.models import Product
 
@@ -13,17 +14,31 @@ class CompactProductSerializer(serializers.ModelSerializer):
     Only the fields needed to render a compact product card.
     """
     vendor_name = serializers.SerializerMethodField()
-    thumbnail = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
     rating = serializers.SerializerMethodField()
+    active_sale_price = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'price', 'thumbnail', 'rating', 'vendor_name', 'stock_quantity', 'is_available']
+        fields = ['id', 'name', 'price', 'active_sale_price', 'image', 'rating', 'vendor_name', 'stock_quantity', 'is_available']
+
+    def get_active_sale_price(self, obj):
+        now = timezone.now()
+        fsp = FlashSaleProduct.objects.filter(
+            product=obj,
+            is_active=True,
+            flash_sale__is_active=True,
+            flash_sale__starts_at__lte=now,
+            flash_sale__ends_at__gte=now,
+        ).first()
+        if fsp:
+            return str(fsp.effective_sale_price)
+        return None
 
     def get_vendor_name(self, obj):
         return obj.vendor.store_name if obj.vendor else None
 
-    def get_thumbnail(self, obj):
+    def get_image(self, obj):
         request = self.context.get('request')
         if obj.image and hasattr(obj.image, 'url'):
             if request:

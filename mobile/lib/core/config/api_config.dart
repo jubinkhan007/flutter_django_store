@@ -10,6 +10,24 @@ class ApiConfig {
     return 'http://localhost:8000/api';
   }
 
+  /// Base origin (scheme + host + optional port), e.g. http://10.0.2.2:8000
+  static String get origin {
+    final uri = Uri.parse(baseUrl);
+    final port = uri.hasPort ? ':${uri.port}' : '';
+    return '${uri.scheme}://${uri.host}$port';
+  }
+
+  /// Resolve backend-provided relative URLs (e.g. `/media/...`) into absolute URLs.
+  static String resolveUrl(String url) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return trimmed;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    if (trimmed.startsWith('/')) return '$origin$trimmed';
+    return '$origin/$trimmed';
+  }
+
   // Auth endpoints
   static String get loginUrl => '$baseUrl/login/';
   static String get registerUrl => '$baseUrl/register/';
@@ -51,4 +69,8 @@ class ApiConfig {
   static String get vendorCustomersUrl => '$baseUrl/vendors/customers/';
   static String get vendorCouponsUrl => '$baseUrl/vendors/coupons/';
   static String get vendorReturnsUrl => '$baseUrl/vendors/returns/';
+  static String vendorSubOrderFulfillUrl(int subOrderId) =>
+      '$baseUrl/vendors/sub-orders/$subOrderId/fulfill/';
+  static String vendorSubOrderEventsUrl(int subOrderId) =>
+      '$baseUrl/vendors/sub-orders/$subOrderId/events/';
 }

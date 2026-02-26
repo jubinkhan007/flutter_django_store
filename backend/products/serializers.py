@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.utils import timezone
 from .models import Category, Product, ProductOption, ProductOptionValue, ProductVariant
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -38,35 +39,47 @@ class ProductSerializer(serializers.ModelSerializer):
     Serializer for the Product model.
     Includes the Category details if needed.
     """
-    
-    # We can nest the Category details nicely for reads (GET requests)
-    # Instead of just showing category_id = 1, it will show {"id": 1, "name": "Electronics"}
+
     category_detail = CategorySerializer(source='category', read_only=True)
-    
     options = ProductOptionSerializer(many=True, read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
+    active_sale_price = serializers.SerializerMethodField()
+
+    def get_active_sale_price(self, obj):
+        """Return the current active flash sale price for this product, or null."""
+        from promotions.models import FlashSaleProduct
+        now = timezone.now()
+        fsp = FlashSaleProduct.objects.filter(
+            product=obj,
+            is_active=True,
+            flash_sale__is_active=True,
+            flash_sale__starts_at__lte=now,
+            flash_sale__ends_at__gte=now,
+        ).first()
+        if fsp:
+            return str(fsp.effective_sale_price)
+        return None
 
     class Meta:
         model = Product
         fields = [
-            'id', 
-            'vendor', 
-            'category', 
+            'id',
+            'vendor',
+            'category',
             'category_detail',
-            'name', 
-            'description', 
-            'price', 
-            'stock_quantity', 
-            'image', 
-            'is_available', 
-            'in_stock',  # This comes from the @property method in the Model
+            'name',
+            'description',
+            'price',
+            'active_sale_price',
+            'stock_quantity',
+            'image',
+            'is_available',
+            'in_stock',
             'options',
             'variants',
-            'created_at', 
+            'created_at',
             'updated_at'
         ]
-        # The vendor should be tied to the logged-in user automatically,
-        # so vendors cannot forge or edit the vendor ID manually.
         read_only_fields = ['vendor', 'created_at', 'updated_at', 'in_stock']
 
 from .models import Wishlist

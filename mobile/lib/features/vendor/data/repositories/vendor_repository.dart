@@ -132,6 +132,29 @@ class VendorRepository {
     }
   }
 
+  /// Fulfill a sub-order: mark SHIPPED + supply courier details
+  Future<void> fulfillSubOrder(
+    int subOrderId, {
+    required String courierName,
+    required String trackingNumber,
+    String? trackingUrl,
+  }) async {
+    final body = <String, dynamic>{
+      'courier_name': courierName,
+      'tracking_number': trackingNumber,
+      if (trackingUrl != null && trackingUrl.isNotEmpty)
+        'tracking_url': trackingUrl,
+    };
+    final response = await _apiClient.post(
+      ApiConfig.vendorSubOrderFulfillUrl(subOrderId),
+      body: body,
+    );
+    if (response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to fulfill sub-order');
+    }
+  }
+
   /// Cancel and refund order
   Future<void> cancelOrder(int orderId) async {
     final response = await _apiClient.post(

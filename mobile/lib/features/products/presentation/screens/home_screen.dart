@@ -48,7 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final pages = [
       const _ShopPage(),
-      const CartScreen(),
+      CartScreen(onOrderPlaced: () => setState(() => _currentIndex = 2)),
       const OrderHistoryScreen(),
       const ProfileScreen(),
     ];
@@ -453,7 +453,15 @@ class _ShopPage extends StatelessWidget {
                 );
               },
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 80)),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height:
+                    MediaQuery.of(context).padding.bottom +
+                    kBottomNavigationBarHeight +
+                    AppSpacing.xl +
+                    AppSpacing.md,
+              ),
+            ),
           ],
         ),
       ),

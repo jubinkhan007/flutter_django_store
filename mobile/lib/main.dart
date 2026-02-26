@@ -177,6 +177,7 @@ class MyApp extends StatelessWidget {
           create: (_) => ProductProvider(productRepository: productRepository),
         ),
         ChangeNotifierProvider(create: (_) => CartProvider()),
+        Provider<OrderRepository>.value(value: orderRepository),
         ChangeNotifierProvider(
           create: (_) => OrderProvider(orderRepository: orderRepository),
         ),

@@ -1,3 +1,5 @@
+import '../../../../core/config/api_config.dart';
+
 class ReturnRequestModel {
   final int id;
   final String rmaNumber;
@@ -130,7 +132,7 @@ class ReturnImageModel {
   factory ReturnImageModel.fromJson(Map<String, dynamic> json) {
     return ReturnImageModel(
       id: json['id'],
-      imageUrl: json['image'] ?? '',
+      imageUrl: ApiConfig.resolveUrl(json['image'] ?? ''),
       uploadedAt: json['uploaded_at'] ?? '',
     );
   }

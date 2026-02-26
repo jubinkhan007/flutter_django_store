@@ -1,6 +1,8 @@
 /// Server-validated checkout pricing breakdown.
 /// Used as a single source of truth for pricing across
 /// checkout review step, order summary card, and confirmation screen.
+import '../../../../core/config/api_config.dart';
+
 class CheckoutQuote {
   final double subtotal;
   final double discount;
@@ -66,6 +68,11 @@ class QuoteItem {
   });
 
   factory QuoteItem.fromJson(Map<String, dynamic> json) {
+    final rawImage = json['image_url']?.toString();
+    final resolvedImage = (rawImage == null || rawImage.trim().isEmpty)
+        ? null
+        : ApiConfig.resolveUrl(rawImage);
+
     return QuoteItem(
       productId: json['product_id'] ?? 0,
       productName: json['product_name'] ?? '',
@@ -73,7 +80,7 @@ class QuoteItem {
       unitPrice: double.tryParse(json['unit_price']?.toString() ?? '') ?? 0.0,
       quantity: json['quantity'] ?? 1,
       lineTotal: double.tryParse(json['line_total']?.toString() ?? '') ?? 0.0,
-      imageUrl: json['image_url'],
+      imageUrl: resolvedImage,
     );
   }
 }

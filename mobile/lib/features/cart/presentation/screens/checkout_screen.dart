@@ -16,22 +16,25 @@ import '../widgets/checkout_review_step.dart';
 
 /// Full-screen checkout with 3-step stepper layout.
 class CheckoutScreen extends StatelessWidget {
-  const CheckoutScreen({super.key});
+  final VoidCallback? onOrderPlaced;
+
+  const CheckoutScreen({super.key, this.onOrderPlaced});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => CheckoutProvider(
+      create: (context) => CheckoutProvider(
         orderRepository: context.read<OrderRepository>(),
         cartProvider: context.read<CartProvider>(),
       ),
-      child: const _CheckoutScreenContent(),
+      child: _CheckoutScreenContent(onOrderPlaced: onOrderPlaced),
     );
   }
 }
 
 class _CheckoutScreenContent extends StatelessWidget {
-  const _CheckoutScreenContent();
+  final VoidCallback? onOrderPlaced;
+  const _CheckoutScreenContent({this.onOrderPlaced});
 
   @override
   Widget build(BuildContext context) {
@@ -81,12 +84,25 @@ class _CheckoutScreenContent extends StatelessWidget {
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
+                layoutBuilder: (currentChild, previousChildren) {
+                  return Stack(
+                    alignment: Alignment.topCenter,
+                    children: <Widget>[
+                      ...previousChildren,
+                      if (currentChild != null) currentChild,
+                    ],
+                  );
+                },
                 child: _buildStepContent(checkout.currentStep),
               ),
             ),
 
             // Bottom action bar
-            _BottomActionBar(checkout: checkout, primaryColor: primaryColor),
+            _BottomActionBar(
+              checkout: checkout,
+              primaryColor: primaryColor,
+              onOrderPlaced: onOrderPlaced,
+            ),
           ],
         ),
       ),
@@ -110,8 +126,13 @@ class _CheckoutScreenContent extends StatelessWidget {
 class _BottomActionBar extends StatelessWidget {
   final CheckoutProvider checkout;
   final Color primaryColor;
+  final VoidCallback? onOrderPlaced;
 
-  const _BottomActionBar({required this.checkout, required this.primaryColor});
+  const _BottomActionBar({
+    required this.checkout,
+    required this.primaryColor,
+    this.onOrderPlaced,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -121,9 +142,9 @@ class _BottomActionBar extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.lightSurface,
-        border: const Border(
+        border: Border(
           top: BorderSide(color: AppColors.lightOutline, width: 0.5),
         ),
       ),
@@ -175,6 +196,7 @@ class _BottomActionBar extends StatelessWidget {
               order: checkout.placedOrder!,
               paymentMethod: checkout.paymentMethod,
               orderRepository: context.read<OrderRepository>(),
+              onViewOrders: onOrderPlaced,
             ),
           ),
         );

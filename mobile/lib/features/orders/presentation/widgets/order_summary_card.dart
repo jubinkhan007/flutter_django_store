@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/config/api_config.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/typography.dart';
@@ -45,7 +46,9 @@ class OrderSummaryCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                       image: item.imageUrl != null && item.imageUrl!.isNotEmpty
                           ? DecorationImage(
-                              image: NetworkImage(item.imageUrl!),
+                              image: NetworkImage(
+                                ApiConfig.resolveUrl(item.imageUrl!),
+                              ),
                               fit: BoxFit.cover,
                             )
                           : null,

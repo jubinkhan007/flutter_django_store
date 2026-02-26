@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:mobile/core/theme/app_colors.dart';
+import 'package:provider/provider.dart';
 
+import 'package:mobile/features/cart/presentation/providers/cart_provider.dart';
 import 'package:mobile/features/home/data/models/home_feed_model.dart';
+import 'package:mobile/features/products/presentation/screens/product_detail_screen.dart';
 import 'package:mobile/features/products/presentation/widgets/product_card.dart';
 
 class FlashSaleRow extends StatefulWidget {
@@ -19,18 +22,17 @@ class _FlashSaleRowState extends State<FlashSaleRow> {
   late Timer _timer;
   late Duration _remaining;
   late DateTime _endTime;
+  late Duration _serverOffset;
 
   @override
   void initState() {
     super.initState();
     _endTime = widget.sale.endsAt;
 
-    // Calculate initial remaining time adjusted by serverNow offset
-    final localNow = DateTime.now();
-    final offset = widget.serverNow.difference(localNow);
-    final adjustedNow = localNow.add(offset);
+    // The constant difference between server time and local time
+    _serverOffset = widget.serverNow.difference(DateTime.now());
 
-    _remaining = _endTime.difference(adjustedNow);
+    _remaining = _endTime.difference(DateTime.now().add(_serverOffset));
     _startTimer();
   }
 
@@ -44,9 +46,10 @@ class _FlashSaleRowState extends State<FlashSaleRow> {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       setState(() {
-        _remaining = _endTime.difference(
-          DateTime.now().add(widget.serverNow.difference(DateTime.now())),
-        );
+        // Current server time is local time + constant offset
+        final currentServerTime = DateTime.now().add(_serverOffset);
+        _remaining = _endTime.difference(currentServerTime);
+
         if (_remaining.isNegative) {
           _timer.cancel();
           _remaining = Duration.zero;
@@ -114,10 +117,24 @@ class _FlashSaleRowState extends State<FlashSaleRow> {
               return _FlashSaleCard(
                 saleProduct: saleProduct,
                 onTap: () {
-                  // Navigate to product detail
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProductDetailScreen(
+                        product: saleProduct.product,
+                      ),
+                    ),
+                  );
                 },
                 onAddToCart: () {
-                  // Add to cart logic
+                  context.read<CartProvider>().addToCart(saleProduct.product);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${saleProduct.product.name} added to cart'),
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 1),
+                    ),
+                  );
                 },
               );
             },
@@ -148,48 +165,9 @@ class _FlashSaleCard extends StatelessWidget {
         children: [
           ProductCard(
             product: saleProduct.product,
+            salePrice: saleProduct.effectiveSalePrice,
             onTap: onTap,
             onAddToCart: onAddToCart,
-          ),
-          // Price Overlay for Flash Sale
-          Positioned(
-            left: 8,
-            right: 8,
-            bottom: 40,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '\$${saleProduct.effectiveSalePrice.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      color: AppColors.error,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Text(
-                    '\$${saleProduct.product.price.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      decoration: TextDecoration.lineThrough,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
           // Discount Badge
           Positioned(
@@ -200,6 +178,13 @@ class _FlashSaleCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.error,
                 borderRadius: BorderRadius.circular(4),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.error.withOpacity(0.3),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Text(
                 saleProduct.discountType == 'PERCENT'
@@ -207,6 +192,7 @@ class _FlashSaleCard extends StatelessWidget {
                     : 'SAVE \$${(saleProduct.product.price - saleProduct.effectiveSalePrice).toInt()}',
                 style: const TextStyle(
                   color: Colors.white,
+                  fontFamily: 'Inter',
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),

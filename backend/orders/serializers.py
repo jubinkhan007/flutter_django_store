@@ -1,25 +1,30 @@
 from rest_framework import serializers
-from .models import Order, SubOrder, OrderItem
+from .models import Order, SubOrder, OrderItem, ShipmentEvent
 from products.serializers import ProductSerializer
 from decimal import Decimal
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
-    """
-    Serializer for individual items in an order snapshot.
-    """
     class Meta:
         model = OrderItem
         fields = [
-            'id', 'product', 'variant', 'quantity', 
-            'product_title', 'variant_name', 'sku', 
+            'id', 'product', 'variant', 'quantity',
+            'product_title', 'variant_name', 'sku',
             'unit_price', 'tax', 'discount', 'image_url', 'total_price'
         ]
 
 
+class ShipmentEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShipmentEvent
+        fields = ['id', 'status', 'location', 'timestamp', 'description', 'sequence', 'source']
+
+
 class SubOrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
+    events = ShipmentEventSerializer(many=True, read_only=True)
     vendor_store_name = serializers.CharField(source='vendor.store_name', read_only=True)
+    package_label = serializers.SerializerMethodField()
     order_id = serializers.IntegerField(source='order.id', read_only=True)
     payment_status = serializers.CharField(source='order.payment_status', read_only=True)
     payment_method = serializers.CharField(source='order.payment_method', read_only=True)
@@ -28,12 +33,21 @@ class SubOrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubOrder
         fields = [
-            'id', 'order_id', 'vendor', 'vendor_store_name', 'status',
+            'id', 'order_id', 'vendor', 'vendor_store_name', 'package_label', 'status',
+            'courier_code', 'courier_name', 'tracking_number', 'tracking_url',
             'payment_status', 'payment_method', 'total_amount',
             'accepted_at', 'packed_at', 'shipped_at', 'delivered_at', 'canceled_at',
-            'created_at', 'updated_at', 'items'
+            'ship_by_date', 'created_at', 'updated_at', 'items', 'events'
         ]
         read_only_fields = ['vendor', 'vendor_store_name', 'order_id', 'created_at', 'updated_at']
+
+    def get_package_label(self, obj):
+        ids = list(obj.order.sub_orders.order_by('id').values_list('id', flat=True))
+        try:
+            idx = ids.index(obj.id) + 1
+        except ValueError:
+            idx = 1
+        return f"Package {idx}"
 
     def get_total_amount(self, obj):
         total = Decimal('0.00')
