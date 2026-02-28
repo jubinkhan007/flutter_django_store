@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/entities/category.dart';
+import '../../domain/entities/search_suggestion.dart';
 import '../../domain/repositories/product_repository.dart';
 
 class ProductProvider extends ChangeNotifier {
@@ -11,7 +12,9 @@ class ProductProvider extends ChangeNotifier {
 
   List<Product> _products = [];
   List<Category> _categories = [];
+  List<SearchSuggestion> _suggestions = [];
   bool _isLoading = false;
+  bool _isSuggestionsLoading = false;
   String? _error;
 
   // Filter States
@@ -23,7 +26,9 @@ class ProductProvider extends ChangeNotifier {
 
   List<Product> get products => _products;
   List<Category> get categories => _categories;
+  List<SearchSuggestion> get suggestions => _suggestions;
   bool get isLoading => _isLoading;
+  bool get isSuggestionsLoading => _isSuggestionsLoading;
   String? get error => _error;
 
   // Filter Getters
@@ -71,7 +76,28 @@ class ProductProvider extends ChangeNotifier {
 
   void setSearchQuery(String? query) {
     _searchQuery = query;
+    _suggestions = []; // Clear suggestions on search execute
     loadProducts();
+  }
+
+  Future<void> fetchSuggestions(String query) async {
+    if (query.trim().length < 2) {
+      _suggestions = [];
+      notifyListeners();
+      return;
+    }
+
+    _isSuggestionsLoading = true;
+    notifyListeners();
+
+    try {
+      _suggestions = await _productRepository.getSearchSuggestions(query);
+    } catch (e) {
+      _suggestions = [];
+    } finally {
+      _isSuggestionsLoading = false;
+      notifyListeners();
+    }
   }
 
   void setPriceRange(double? min, double? max) {

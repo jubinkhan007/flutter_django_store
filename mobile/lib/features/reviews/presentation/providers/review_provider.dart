@@ -6,7 +6,7 @@ class ReviewProvider extends ChangeNotifier {
   final ReviewRepository _repository;
 
   ReviewProvider({required ReviewRepository repository})
-      : _repository = repository;
+    : _repository = repository;
 
   List<ReviewModel> _reviews = [];
   bool _isLoading = false;
@@ -44,14 +44,15 @@ class ReviewProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> submitReview(
-    int productId,
-    int rating,
-    String comment,
-  ) async {
+  Future<bool> submitReview(int productId, int rating, String comment) async {
     _error = null;
     try {
-      final review = await _repository.submitReview(productId, rating, comment);
+      final review = await _repository.submitReview(
+        productId,
+        rating,
+        comment,
+        imagePaths: imagePaths,
+      );
       _reviews.insert(0, review);
       notifyListeners();
       return true;
@@ -85,6 +86,23 @@ class ReviewProvider extends ChangeNotifier {
       _error = e.toString().replaceAll('Exception: ', '');
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<void> voteHelpful(int reviewId) async {
+    try {
+      await _repository.voteHelpful(reviewId);
+      final index = _reviews.indexWhere((r) => r.id == reviewId);
+      if (index >= 0) {
+        final review = _reviews[index];
+        _reviews[index] = review.copyWith(
+          helpfulVotes: review.helpfulVotes + 1,
+        );
+        notifyListeners();
+      }
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
     }
   }
 

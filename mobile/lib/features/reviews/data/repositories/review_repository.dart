@@ -2,6 +2,7 @@ import 'dart:convert';
 import '../../../../core/config/api_config.dart';
 import '../../../../core/network/api_client.dart';
 import '../models/review_model.dart';
+import 'package:http/http.dart' as http;
 
 class ReviewRepository {
   final ApiClient _apiClient;
@@ -23,21 +24,43 @@ class ReviewRepository {
   Future<ReviewModel> submitReview(
     int productId,
     int rating,
-    String comment,
-  ) async {
-    final response = await _apiClient.post(
-      '${ApiConfig.productsUrl}$productId/reviews/',
-      body: {'rating': rating, 'comment': comment},
-    );
-    if (response.statusCode == 201) {
-      return ReviewModel.fromJson(jsonDecode(response.body));
+    String comment, {
+    List<String> imagePaths = const [],
+  }) async {
+    if (imagePaths.isEmpty) {
+      final response = await _apiClient.post(
+        '${ApiConfig.productsUrl}$productId/reviews/',
+        body: {'rating': rating, 'comment': comment},
+      );
+      if (response.statusCode == 201) {
+        return ReviewModel.fromJson(jsonDecode(response.body));
+      }
+      final error = jsonDecode(response.body);
+      throw Exception(
+        error['detail'] ?? error['non_field_errors']?.first ?? error.toString(),
+      );
+    } else {
+      // Multipart upload
+      final files = <http.MultipartFile>[];
+      for (final path in imagePaths) {
+        files.add(await http.MultipartFile.fromPath('images', path));
+      }
+
+      final response = await _apiClient.postMultipart(
+        '${ApiConfig.productsUrl}$productId/reviews/',
+        fields: {'rating': rating.toString(), 'comment': comment},
+        files: files,
+      );
+
+      final responseBody = await response.stream.bytesToString();
+      if (response.statusCode == 201) {
+        return ReviewModel.fromJson(jsonDecode(responseBody));
+      }
+      final error = jsonDecode(responseBody);
+      throw Exception(
+        error['detail'] ?? error['non_field_errors']?.first ?? error.toString(),
+      );
     }
-    final error = jsonDecode(response.body);
-    throw Exception(
-      error['detail'] ??
-          error['non_field_errors']?.first ??
-          error.toString(),
-    );
   }
 
   Future<ReviewReplyModel> replyToReview(int reviewId, String reply) async {
@@ -61,5 +84,15 @@ class ReviewRepository {
       return ReviewReplyModel.fromJson(jsonDecode(response.body));
     }
     throw Exception('Failed to update reply');
+  }
+
+  Future<void> voteHelpful(int reviewId) async {
+    final response = await _apiClient.post(
+      '${ApiConfig.reviewsUrl}$reviewId/vote/',
+    );
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to vote');
+    }
   }
 }

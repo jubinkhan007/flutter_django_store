@@ -15,6 +15,17 @@ class Vendor(models.Model):
     held_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     total_earned_lifetime = models.DecimalField(max_digits=14, decimal_places=2, default=0.00)
     total_withdrawn_lifetime = models.DecimalField(max_digits=14, decimal_places=2, default=0.00)
+    
+    # Storefront 2.0 Identity
+    logo = models.ImageField(upload_to='vendors/logos/', blank=True, null=True)
+    cover_image = models.ImageField(upload_to='vendors/covers/', blank=True, null=True)
+    joined_at = models.DateTimeField(default=timezone.now)
+    policy_summary = models.TextField(blank=True, help_text="Summary of shipping/return policies")
+    
+    # Denormalized Aggregates for Performance
+    avg_rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
+    review_count = models.PositiveIntegerField(default=0)
+    
     created_at = models.DateTimeField(auto_now_add=True)
 
     # SLA metrics

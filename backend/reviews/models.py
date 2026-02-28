@@ -18,6 +18,17 @@ class Review(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(5)],
     )
     comment = models.TextField()
+    
+    # Trust & Verification
+    is_verified_purchase = models.BooleanField(default=False)
+    sub_order = models.ForeignKey(
+        'orders.SubOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviews'
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -27,6 +38,23 @@ class Review(models.Model):
 
     def __str__(self):
         return f'{self.customer.username} → {self.product.name} ({self.rating}★)'
+
+class ReviewImage(models.Model):
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='reviews/')
+    position = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['position', 'created_at']
+
+class ReviewHelpfulness(models.Model):
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='helpful_votes')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('review', 'user')
 
 
 class ReviewReply(models.Model):

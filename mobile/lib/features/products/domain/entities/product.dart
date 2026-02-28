@@ -8,6 +8,7 @@ class Product {
   final String name;
   final String description;
   final double price;
+
   /// Active flash sale price, null when no sale is running.
   final double? salePrice;
   final int stockQuantity;
@@ -17,6 +18,8 @@ class Product {
   final String? createdAt;
   final List<ProductOption> options;
   final List<ProductVariant> variants;
+  final double avgRating;
+  final int reviewCount;
 
   const Product({
     required this.id,
@@ -33,6 +36,8 @@ class Product {
     this.createdAt,
     this.options = const [],
     this.variants = const [],
+    this.avgRating = 0.0,
+    this.reviewCount = 0,
   });
 
   /// The price the customer actually pays — sale price when active, base price otherwise.

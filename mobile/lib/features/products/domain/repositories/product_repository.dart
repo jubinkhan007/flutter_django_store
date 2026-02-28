@@ -1,8 +1,11 @@
 import '../entities/product.dart';
 import '../entities/category.dart';
+import '../entities/search_suggestion.dart';
 
 /// Abstract product repository interface.
 abstract class ProductRepository {
+  Future<List<SearchSuggestion>> getSearchSuggestions(String query);
+
   Future<List<Product>> getProducts({
     String? query,
     int? categoryId,

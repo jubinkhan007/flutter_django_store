@@ -1,10 +1,11 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 
 from products.models import Product
-from .models import Review, ReviewReply
+from .models import Review, ReviewReply, ReviewImage, ReviewHelpfulness
 from .serializers import ReviewSerializer, ReviewReplySerializer
 
 
@@ -14,6 +15,7 @@ class ProductReviewListCreateView(generics.ListCreateAPIView):
     POST /api/products/<pk>/reviews/ — authenticated customer submits a review
     """
     serializer_class = ReviewSerializer
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_permissions(self):
         if self.request.method == 'GET':
@@ -31,7 +33,59 @@ class ProductReviewListCreateView(generics.ListCreateAPIView):
         product = get_object_or_404(Product, pk=self.kwargs['pk'])
         if Review.objects.filter(customer=self.request.user, product=product).exists():
             raise ValidationError('You have already reviewed this product.')
-        serializer.save(customer=self.request.user, product=product)
+
+        # Attempt to link to a completed SubOrder for verified purchase
+        from orders.models import SubOrder, OrderItem
+        sub_order = SubOrder.objects.filter(
+            order__customer=self.request.user,
+            items__product_variant__product=product,
+            status='DELIVERED'
+        ).first()
+
+        is_verified = sub_order is not None
+
+        review = serializer.save(
+            customer=self.request.user, 
+            product=product,
+            sub_order=sub_order,
+            is_verified_purchase=is_verified
+        )
+
+        # Handle image uploads
+        images = self.request.FILES.getlist('images')
+        if len(images) > 5:
+            raise ValidationError("You can upload a maximum of 5 images per review.")
+        
+        for image in images:
+            ReviewImage.objects.create(review=review, image=image)
+
+
+class ReviewHelpfulVoteView(generics.GenericAPIView):
+    """
+    POST /api/reviews/<pk>/vote/
+    Allows an authenticated user to mark a review as helpful.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        review = get_object_or_404(Review, pk=pk)
+        
+        if review.customer == request.user:
+            return Response(
+                {"error": "You cannot vote on your own review."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        vote, created = ReviewHelpfulness.objects.get_or_create(
+            review=review,
+            user=request.user
+        )
+
+        if not created:
+            # Re-clicking could toggle or simply notify it's already voted
+            return Response({"message": "You already found this review helpful."}, status=status.HTTP_200_OK)
+
+        return Response({"message": "Review marked as helpful."}, status=status.HTTP_201_CREATED)
 
 
 class ReviewReplyView(generics.GenericAPIView):

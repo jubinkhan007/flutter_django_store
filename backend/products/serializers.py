@@ -77,10 +77,12 @@ class ProductSerializer(serializers.ModelSerializer):
             'in_stock',
             'options',
             'variants',
+            'avg_rating',
+            'review_count',
             'created_at',
             'updated_at'
         ]
-        read_only_fields = ['vendor', 'created_at', 'updated_at', 'in_stock']
+        read_only_fields = ['vendor', 'created_at', 'updated_at', 'in_stock', 'avg_rating', 'review_count']
 
 from .models import Wishlist
 

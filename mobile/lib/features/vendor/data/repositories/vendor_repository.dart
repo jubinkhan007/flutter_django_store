@@ -7,6 +7,7 @@ import '../../../orders/data/models/order_model.dart';
 import '../../data/models/vendor_customer_model.dart';
 import '../../data/models/vendor_coupon_model.dart';
 import '../models/vendor_wallet_model.dart';
+import '../models/vendor_profile_model.dart';
 
 class VendorRepository {
   final ApiClient _apiClient;
@@ -22,6 +23,19 @@ class VendorRepository {
     if (response.statusCode != 201) {
       final error = jsonDecode(response.body);
       throw Exception(error['error'] ?? 'Onboarding failed');
+    }
+  }
+
+  /// Get public vendor profile
+  Future<VendorProfileModel> getPublicVendorProfile(int vendorId) async {
+    final response = await _apiClient.get(
+      ApiConfig.vendorPublicProfileUrl(vendorId),
+      auth: false,
+    );
+    if (response.statusCode == 200) {
+      return VendorProfileModel.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to load vendor profile');
     }
   }
 
@@ -64,7 +78,7 @@ class VendorRepository {
     final response = await _apiClient.postMultipart(
       ApiConfig.vendorProductsUrl,
       fields: fields,
-      file: imageFile,
+      files: imageFile != null ? [imageFile] : null,
     );
 
     if (response.statusCode != 201) {
@@ -87,7 +101,7 @@ class VendorRepository {
     final response = await _apiClient.putMultipart(
       '${ApiConfig.vendorProductsUrl}$productId/',
       fields: fields,
-      file: imageFile,
+      files: imageFile != null ? [imageFile] : null,
     );
 
     if (response.statusCode != 200) {
@@ -207,7 +221,10 @@ class VendorRepository {
       if (categoryIds.isNotEmpty) 'category_ids': categoryIds,
     };
 
-    final response = await _apiClient.post(ApiConfig.vendorCouponsUrl, body: body);
+    final response = await _apiClient.post(
+      ApiConfig.vendorCouponsUrl,
+      body: body,
+    );
 
     if (response.statusCode == 201) {
       return VendorCouponModel.fromJson(jsonDecode(response.body));
@@ -222,7 +239,7 @@ class VendorRepository {
     final response = await _apiClient.postMultipart(
       'vendors/bulk-jobs/',
       fields: {'job_type': jobType},
-      file: file,
+      files: [file],
     );
     if (response.statusCode != 201) {
       throw Exception('Failed to upload bulk job: ${response.statusCode}');
@@ -254,11 +271,7 @@ class VendorRepository {
   }) async {
     final response = await _apiClient.post(
       ApiConfig.vendorPayoutMethodsUrl,
-      body: {
-        'method': method,
-        'label': label,
-        'details': details,
-      },
+      body: {'method': method, 'label': label, 'details': details},
     );
     if (response.statusCode == 201) {
       return VendorPayoutMethodModel.fromJson(jsonDecode(response.body));
@@ -273,10 +286,7 @@ class VendorRepository {
   }) async {
     final response = await _apiClient.post(
       ApiConfig.vendorPayoutsUrl,
-      body: {
-        'amount': amount,
-        'bank_details': bankDetails,
-      },
+      body: {'amount': amount, 'bank_details': bankDetails},
     );
     if (response.statusCode != 201) {
       final error = jsonDecode(response.body);

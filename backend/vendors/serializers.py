@@ -48,7 +48,28 @@ class VendorSerializer(serializers.ModelSerializer):
             'total_withdrawn_lifetime',
             'is_approved',
             'cancellation_rate', 'late_shipment_rate', 'avg_handling_time_days',
-            'created_at'
+        )
+
+
+class PublicVendorProfileSerializer(serializers.ModelSerializer):
+    """
+    WHAT: Translates Vendor model ⟷ JSON for PUBLIC viewing
+    WHEN USED:
+      - Viewing a vendor storefront (GET /api/vendors/public/<id>/)
+    NOTE: EXCLUDES financial balances and private SLA metrics.
+    """
+    class Meta:
+        model = Vendor
+        fields = (
+            'id',
+            'store_name',
+            'description',
+            'logo',
+            'cover_image',
+            'joined_at',
+            'policy_summary',
+            'avg_rating',
+            'review_count',
         )
 
 

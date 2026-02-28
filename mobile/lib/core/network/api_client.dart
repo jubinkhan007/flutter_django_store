@@ -195,16 +195,18 @@ class ApiClient {
       request.headers.addAll(headers);
       request.fields.addAll(fields);
 
-      if (file != null) {
-        // Must clone the file because reading it twice fails
-        final fileClone = http.MultipartFile(
-          file.field,
-          http.ByteStream.fromBytes(await file.finalize().toBytes()),
-          file.length,
-          filename: file.filename,
-          contentType: file.contentType,
-        );
-        request.files.add(fileClone);
+      if (files != null && files.isNotEmpty) {
+        for (final file in files) {
+          final fileBytes = await file.finalize().toBytes();
+          final fileClone = http.MultipartFile(
+            file.field,
+            http.ByteStream.fromBytes(fileBytes),
+            fileBytes.length,
+            filename: file.filename,
+            contentType: file.contentType,
+          );
+          request.files.add(fileClone);
+        }
       }
 
       return await request.send();
@@ -215,7 +217,7 @@ class ApiClient {
   Future<http.StreamedResponse> putMultipart(
     String url, {
     required Map<String, String> fields,
-    http.MultipartFile? file,
+    List<http.MultipartFile>? files,
     bool auth = true,
   }) async {
     return _multipartRequestWithRetry(() async {
@@ -226,15 +228,18 @@ class ApiClient {
       request.headers.addAll(headers);
       request.fields.addAll(fields);
 
-      if (file != null) {
-        final fileClone = http.MultipartFile(
-          file.field,
-          http.ByteStream.fromBytes(await file.finalize().toBytes()),
-          file.length,
-          filename: file.filename,
-          contentType: file.contentType,
-        );
-        request.files.add(fileClone);
+      if (files != null && files.isNotEmpty) {
+        for (final file in files) {
+          final fileBytes = await file.finalize().toBytes();
+          final fileClone = http.MultipartFile(
+            file.field,
+            http.ByteStream.fromBytes(fileBytes),
+            fileBytes.length,
+            filename: file.filename,
+            contentType: file.contentType,
+          );
+          request.files.add(fileClone);
+        }
       }
 
       return await request.send();

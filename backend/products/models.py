@@ -40,6 +40,10 @@ class Product(models.Model):
     # Allows vendors to hide a product without deleting it
     is_available = models.BooleanField(default=True)
     
+    # Denormalized Aggregates for Performance
+    avg_rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
+    review_count = models.PositiveIntegerField(default=0)
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

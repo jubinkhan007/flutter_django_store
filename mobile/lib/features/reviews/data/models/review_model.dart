@@ -28,6 +28,9 @@ class ReviewModel {
   final int rating;
   final String comment;
   final ReviewReplyModel? reply;
+  final List<ReviewImageModel> images;
+  final bool isVerifiedPurchase;
+  final int helpfulVotes;
   final String createdAt;
 
   const ReviewModel({
@@ -37,6 +40,9 @@ class ReviewModel {
     required this.rating,
     required this.comment,
     this.reply,
+    this.images = const [],
+    this.isVerifiedPurchase = false,
+    this.helpfulVotes = 0,
     required this.createdAt,
   });
 
@@ -50,11 +56,22 @@ class ReviewModel {
       reply: json['reply'] != null
           ? ReviewReplyModel.fromJson(json['reply'])
           : null,
+      images:
+          (json['images'] as List?)
+              ?.map((i) => ReviewImageModel.fromJson(i))
+              .toList() ??
+          [],
+      isVerifiedPurchase: json['is_verified_purchase'] ?? false,
+      helpfulVotes: json['helpful_votes'] ?? 0,
       createdAt: json['created_at'] ?? '',
     );
   }
 
-  ReviewModel copyWith({ReviewReplyModel? reply}) {
+  ReviewModel copyWith({
+    ReviewReplyModel? reply,
+    List<ReviewImageModel>? images,
+    int? helpfulVotes,
+  }) {
     return ReviewModel(
       id: id,
       customerId: customerId,
@@ -62,7 +79,21 @@ class ReviewModel {
       rating: rating,
       comment: comment,
       reply: reply ?? this.reply,
+      images: images ?? this.images,
+      isVerifiedPurchase: isVerifiedPurchase,
+      helpfulVotes: helpfulVotes ?? this.helpfulVotes,
       createdAt: createdAt,
     );
+  }
+}
+
+class ReviewImageModel {
+  final int id;
+  final String imageUrl;
+
+  const ReviewImageModel({required this.id, required this.imageUrl});
+
+  factory ReviewImageModel.fromJson(Map<String, dynamic> json) {
+    return ReviewImageModel(id: json['id'] ?? 0, imageUrl: json['image'] ?? '');
   }
 }

@@ -18,6 +18,8 @@ class ProductModel extends Product {
     super.createdAt,
     super.options,
     super.variants,
+    super.avgRating,
+    super.reviewCount,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -46,6 +48,8 @@ class ProductModel extends Product {
       createdAt: json['created_at'],
       options: optionsList.map((o) => ProductOption.fromJson(o)).toList(),
       variants: variantsList.map((v) => ProductVariant.fromJson(v)).toList(),
+      avgRating: double.tryParse(json['avg_rating']?.toString() ?? '0') ?? 0.0,
+      reviewCount: json['review_count'] ?? 0,
     );
   }
 

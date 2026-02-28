@@ -22,7 +22,7 @@ import 'package:mobile/features/home/presentation/widgets/home_skeleton.dart';
 import 'package:mobile/features/home/data/models/home_feed_model.dart';
 import 'dart:ui';
 
-import 'package:mobile/features/products/presentation/widgets/search_filter_bar.dart';
+import 'package:mobile/features/products/presentation/widgets/search_overlay.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -297,7 +297,13 @@ class _ShopPage extends StatelessWidget {
                 ),
               ),
             ),
-            const SliverToBoxAdapter(child: SearchFilterBar()),
+            SliverToBoxAdapter(
+              child: SearchOverlay(
+                onSearchCleared: () async {
+                  context.read<ProductProvider>().setSearchQuery(null);
+                },
+              ),
+            ),
             Consumer<HomeProvider>(
               builder: (context, provider, _) {
                 if (provider.isLoading && provider.feed == null) {

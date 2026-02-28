@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -78,6 +80,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     int selectedRating = 0;
     final commentController = TextEditingController();
     final provider = context.read<ReviewProvider>();
+    List<String> _imagePaths = [];
+    final ImagePicker _picker = ImagePicker();
 
     showModalBottomSheet(
       context: context,
@@ -122,6 +126,98 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+              // Image Picker Section
+              SizedBox(
+                height: 70,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    GestureDetector(
+                      onTap: () async {
+                        final List<XFile> images = await _picker
+                            .pickMultiImage();
+                        if (images.isNotEmpty) {
+                          setModalState(() {
+                            // Only take up to 5 images per review rules
+                            _imagePaths.addAll(images.map((i) => i.path));
+                            if (_imagePaths.length > 5) {
+                              _imagePaths = _imagePaths.sublist(0, 5);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Maximum 5 images allowed'),
+                                ),
+                              );
+                            }
+                          });
+                        }
+                      },
+                      child: Container(
+                        width: 70,
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.lightSurface,
+                          border: Border.all(
+                            color: Theme.of(context).primaryColor,
+                          ),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).primaryColor.withOpacity(0.5),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.add_a_photo,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                    ),
+                    ..._imagePaths.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final path = entry.value;
+                      return Stack(
+                        children: [
+                          Container(
+                            width: 70,
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                              image: DecorationImage(
+                                image: FileImage(File(path)),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: -4,
+                            right: 0,
+                            child: IconButton(
+                              icon: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.close,
+                                  size: 14,
+                                  color: AppColors.error,
+                                ),
+                              ),
+                              onPressed: () {
+                                setModalState(() {
+                                  _imagePaths.removeAt(index);
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -143,6 +239,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       widget.product.id,
                       selectedRating,
                       commentController.text.trim(),
+                      imagePaths: _imagePaths,
                     );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -259,7 +356,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     final displayPrice =
         _currentVariant?.effectivePrice ?? widget.product.effectivePrice;
-    final hasActiveSale = _currentVariant == null && widget.product.salePrice != null;
+    final hasActiveSale =
+        _currentVariant == null && widget.product.salePrice != null;
     final inStock = widget.product.options.isEmpty
         ? widget.product.inStock
         : (_currentVariant != null && _currentVariant!.stockAvailable > 0);
@@ -400,9 +498,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             decoration: BoxDecoration(
                               gradient: hasActiveSale
                                   ? null
-                                  : (Theme.of(context).brightness == Brightness.dark
-                                      ? AppGradients.darkPrimary
-                                      : AppGradients.lightPrimary),
+                                  : (Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? AppGradients.darkPrimary
+                                        : AppGradients.lightPrimary),
                               color: hasActiveSale ? AppColors.error : null,
                               borderRadius: BorderRadius.circular(AppRadius.md),
                             ),

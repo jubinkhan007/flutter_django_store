@@ -47,6 +47,7 @@ class ApiConfig {
 
   // Product endpoints
   static String get productsUrl => '$baseUrl/products/';
+  static String get searchSuggestionsUrl => '$productsUrl/search/suggestions/';
   static String get categoriesUrl => '$baseUrl/products/categories/';
   static String get wishlistUrl => '$baseUrl/products/wishlist/';
   static String wishlistToggleUrl(int productId) =>
@@ -62,6 +63,8 @@ class ApiConfig {
 
   // Vendor endpoints
   static String get vendorOnboardingUrl => '$baseUrl/vendors/onboarding/';
+  static String vendorPublicProfileUrl(int vendorId) =>
+      '$baseUrl/vendors/public/$vendorId/';
   static String get vendorDashboardUrl => '$baseUrl/vendors/me/';
   static String get vendorProductsUrl => '$baseUrl/vendors/products/';
   static String get vendorOrdersUrl => '$baseUrl/vendors/orders/';
@@ -70,8 +73,10 @@ class ApiConfig {
   static String get vendorCouponsUrl => '$baseUrl/vendors/coupons/';
   static String get vendorReturnsUrl => '$baseUrl/vendors/returns/';
   static String get vendorLedgerUrl => '$baseUrl/vendors/ledger/';
-  static String get vendorWalletSummaryUrl => '$baseUrl/vendors/wallet/summary/';
-  static String get vendorPayoutMethodsUrl => '$baseUrl/vendors/payout-methods/';
+  static String get vendorWalletSummaryUrl =>
+      '$baseUrl/vendors/wallet/summary/';
+  static String get vendorPayoutMethodsUrl =>
+      '$baseUrl/vendors/payout-methods/';
   static String get vendorSettlementsUrl => '$baseUrl/vendors/settlements/';
   static String get vendorPayoutsUrl => '$baseUrl/vendors/payouts/';
   static String vendorSubOrderFulfillUrl(int subOrderId) =>

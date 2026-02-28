@@ -5,6 +5,7 @@ import '../../../orders/data/models/order_model.dart';
 import '../../data/models/vendor_customer_model.dart';
 import '../../data/models/vendor_coupon_model.dart';
 import '../../data/models/vendor_wallet_model.dart';
+import '../../data/models/vendor_profile_model.dart';
 import '../../data/repositories/vendor_repository.dart';
 
 class VendorProvider extends ChangeNotifier {
@@ -27,6 +28,7 @@ class VendorProvider extends ChangeNotifier {
   double fulfillmentRate30d = 0;
   int todayOrders = 0;
   VendorWalletSummary? _walletSummary;
+  VendorProfileModel? _publicProfile;
   bool _isWalletLoading = false;
   String? _walletError;
 
@@ -52,6 +54,7 @@ class VendorProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   Map<String, dynamic>? get dashboard => _dashboard;
+  VendorProfileModel? get publicProfile => _publicProfile;
 
   Future<void> loadStats() async {
     try {
@@ -66,7 +69,7 @@ class VendorProvider extends ChangeNotifier {
       if (available != null) {
         walletBalance = (available ?? 0).toDouble();
       }
-      
+
       revenue7d = (stats['revenue_7d'] ?? 0).toDouble();
       revenue30d = (stats['revenue_30d'] ?? 0).toDouble();
       lowStockCount = stats['low_stock_count'] ?? 0;
@@ -97,6 +100,22 @@ class VendorProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> loadPublicProfile(int vendorId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _publicProfile = await _vendorRepository.getPublicVendorProfile(vendorId);
+    } catch (e) {
+      _error = 'Failed to load vendor profile';
+      _publicProfile = null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> createPayoutMethod({
     required String method,
     required String label,
@@ -122,7 +141,10 @@ class VendorProvider extends ChangeNotifier {
     required String bankDetails,
   }) async {
     try {
-      await _vendorRepository.requestPayout(amount: amount, bankDetails: bankDetails);
+      await _vendorRepository.requestPayout(
+        amount: amount,
+        bankDetails: bankDetails,
+      );
       await loadWalletSummary();
       await loadStats();
       return true;

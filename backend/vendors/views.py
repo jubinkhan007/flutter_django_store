@@ -58,6 +58,19 @@ class VendorOnboardingView(generics.CreateAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+class PublicVendorDetailView(generics.RetrieveAPIView):
+    """
+    GET /api/vendors/public/<id>/
+    Public endpoint to view a vendor's storefront profile.
+    """
+    from rest_framework.permissions import AllowAny
+    from .serializers import PublicVendorProfileSerializer
+    
+    queryset = Vendor.objects.filter(is_approved=True)
+    serializer_class = PublicVendorProfileSerializer
+    permission_classes = [AllowAny]
+
+
 class VendorDashboardView(generics.RetrieveUpdateAPIView):
     serializer_class = VendorSerializer
     permission_classes = [IsVendorOwnerOrManager]

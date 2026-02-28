@@ -23,7 +23,7 @@
 
 from django.urls import path, include
 from .views import (
-    VendorOnboardingView, VendorDashboardView, VendorStatsView, VendorCustomersView,
+    VendorOnboardingView, PublicVendorDetailView, VendorDashboardView, VendorStatsView, VendorCustomersView,
     LedgerEntryListView, VendorWalletSummaryView, VendorPayoutMethodListCreateView,
     VendorSettlementListView, PayoutRequestListCreateView,
     BulkJobListCreateView, BulkJobDetailView
@@ -38,6 +38,7 @@ from orders.views import (
 )
 
 urlpatterns = [
+    path('public/<int:pk>/', PublicVendorDetailView.as_view(), name='public-vendor-detail'),
     path('onboarding/', VendorOnboardingView.as_view(), name='vendor-onboarding'),
     path('me/', VendorDashboardView.as_view(), name='vendor-dashboard'),
     path('products/', VendorProductListCreateView.as_view(), name='vendor-product-list'),

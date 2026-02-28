@@ -3,6 +3,7 @@ import '../../../../core/config/api_config.dart';
 import '../../../../core/network/api_client.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/entities/category.dart';
+import '../../domain/entities/search_suggestion.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../models/product_model.dart';
 import '../models/category_model.dart';
@@ -12,6 +13,22 @@ class ProductRepositoryImpl implements ProductRepository {
 
   ProductRepositoryImpl({required ApiClient apiClient})
     : _apiClient = apiClient;
+
+  @override
+  Future<List<SearchSuggestion>> getSearchSuggestions(String query) async {
+    final response = await _apiClient.get(
+      '${ApiConfig.searchSuggestionsUrl}?q=$query',
+      auth: false,
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final List results = data['results'] ?? [];
+      return results.map((json) => SearchSuggestion.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load search suggestions');
+    }
+  }
 
   @override
   Future<List<Product>> getProducts({

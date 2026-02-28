@@ -1,4 +1,5 @@
 from rest_framework import generics, permissions, status
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Category, Product
 from django.db.models import Q
@@ -88,6 +89,90 @@ class PublicProductDetailView(generics.RetrieveAPIView):
     queryset = Product.objects.filter(is_available=True)
     serializer_class = ProductSerializer
     permission_classes = [permissions.AllowAny]
+
+
+import time
+from django.db import connection
+
+class SearchSuggestionView(APIView):
+    """
+    GET /api/products/search/suggestions/?q=term
+    Returns a typed list of suggestions (PRODUCT, CATEGORY, VENDOR)
+    using pg_trgm similarity if available, with an icontains fallback.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        start_time = time.time()
+        query = request.query_params.get('q', '').strip()
+        
+        if not query or len(query) < 2:
+            return Response({
+                "query": query,
+                "results": [],
+                "server_ms": 0
+            })
+
+        results = []
+        is_postgres = connection.vendor == 'postgresql'
+
+        # 1. Product Matches (Limit 5)
+        if is_postgres:
+            from django.contrib.postgres.search import TrigramSimilarity
+            products = Product.objects.filter(is_available=True).annotate(
+                similarity=TrigramSimilarity('name', query)
+            ).filter(similarity__gt=0.2).order_by('-similarity')[:5]
+        else:
+            products = Product.objects.filter(is_available=True, name__icontains=query)[:5]
+            
+        for p in products:
+            results.append({
+                "type": "PRODUCT",
+                "id": p.id,
+                "label": p.name,
+                "subtitle": p.category.name if p.category else "Product"
+            })
+
+        # 2. Category Matches (Limit 3)
+        if is_postgres:
+            categories = Category.objects.annotate(
+                similarity=TrigramSimilarity('name', query)
+            ).filter(similarity__gt=0.3).order_by('-similarity')[:3]
+        else:
+            categories = Category.objects.filter(name__icontains=query)[:3]
+            
+        for c in categories:
+            results.append({
+                "type": "CATEGORY",
+                "id": c.id,
+                "label": c.name,
+                "subtitle": "Category"
+            })
+
+        # 3. Vendor Matches (Limit 3)
+        from vendors.models import Vendor
+        if is_postgres:
+            vendors = Vendor.objects.filter(is_approved=True).annotate(
+                similarity=TrigramSimilarity('store_name', query)
+            ).filter(similarity__gt=0.3).order_by('-similarity')[:3]
+        else:
+            vendors = Vendor.objects.filter(is_approved=True, store_name__icontains=query)[:3]
+
+        for v in vendors:
+            results.append({
+                "type": "VENDOR",
+                "id": v.id,
+                "label": v.store_name,
+                "subtitle": f"{v.avg_rating}★ ({v.review_count})" if v.review_count > 0 else "New Store"
+            })
+
+        server_ms = int((time.time() - start_time) * 1000)
+        
+        return Response({
+            "query": query,
+            "results": results,
+            "server_ms": server_ms
+        })
 
 
 # ═══════════════════════════════════════════════════════════════════
