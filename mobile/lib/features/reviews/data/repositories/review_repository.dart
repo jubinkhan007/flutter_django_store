@@ -21,6 +21,15 @@ class ReviewRepository {
     throw Exception('Failed to load reviews');
   }
 
+  String _parseError(dynamic error) {
+    if (error is Map) {
+      return error['detail'] ?? error['non_field_errors']?.first ?? error.toString();
+    } else if (error is List && error.isNotEmpty) {
+      return error.first.toString();
+    }
+    return error.toString();
+  }
+
   Future<ReviewModel> submitReview(
     int productId,
     int rating,
@@ -35,10 +44,7 @@ class ReviewRepository {
       if (response.statusCode == 201) {
         return ReviewModel.fromJson(jsonDecode(response.body));
       }
-      final error = jsonDecode(response.body);
-      throw Exception(
-        error['detail'] ?? error['non_field_errors']?.first ?? error.toString(),
-      );
+      throw Exception(_parseError(jsonDecode(response.body)));
     } else {
       // Multipart upload
       final files = <http.MultipartFile>[];
@@ -56,10 +62,7 @@ class ReviewRepository {
       if (response.statusCode == 201) {
         return ReviewModel.fromJson(jsonDecode(responseBody));
       }
-      final error = jsonDecode(responseBody);
-      throw Exception(
-        error['detail'] ?? error['non_field_errors']?.first ?? error.toString(),
-      );
+      throw Exception(_parseError(jsonDecode(responseBody)));
     }
   }
 

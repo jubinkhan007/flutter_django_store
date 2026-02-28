@@ -3,11 +3,47 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Category, Product
 from django.db.models import Q
+from django.db import connection
 from .serializers import CategorySerializer, ProductSerializer
 
 # ═══════════════════════════════════════════════════════════════════
 # PUBLIC VIEWS (Anyone can see these)
 # ═══════════════════════════════════════════════════════════════════
+
+def _normalize_match_text(value):
+    return (value or "").strip().lower()
+
+
+def _best_token_similarity(query, text):
+    """
+    Lightweight fuzzy score in [0..1] based on difflib ratio.
+    Uses both the full string and token-level comparisons.
+    """
+    q = _normalize_match_text(query)
+    t = _normalize_match_text(text)
+    if not q or not t:
+        return 0.0
+
+    from difflib import SequenceMatcher
+    import re
+
+    best = SequenceMatcher(None, q, t).ratio()
+    for token in re.split(r"[^a-z0-9]+", t):
+        if not token:
+            continue
+        best = max(best, SequenceMatcher(None, q, token).ratio())
+    return best
+
+
+def _top_fuzzy(items, score_fn, *, limit, cutoff):
+    scored = []
+    for item in items:
+        score = float(score_fn(item) or 0.0)
+        if score >= cutoff:
+            scored.append((score, item))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [item for _, item in scored[:limit]]
+
 
 class CategoryListView(generics.ListAPIView):
     """
@@ -31,17 +67,8 @@ class PublicProductListView(generics.ListAPIView):
     def get_queryset(self):
         # Start with all available products
         queryset = Product.objects.filter(is_available=True)
-        
-        # 1. Search by name or description
-        search_query = self.request.query_params.get('search')
-        if search_query:
-            queryset = queryset.filter(
-                Q(name__icontains=search_query) | 
-                Q(description__icontains=search_query) |
-                Q(vendor__store_name__icontains=search_query)
-            )
 
-        # 2. Filter by category ID(s)
+        # 1. Filter by category ID(s)
         # Expected format: ?category=1 or ?category=1,2,3
         category_param = self.request.query_params.get('category')
         if category_param:
@@ -50,7 +77,7 @@ class PublicProductListView(generics.ListAPIView):
             if category_ids:
                 queryset = queryset.filter(category_id__in=category_ids)
 
-        # 3. Filter by Price Range
+        # 2. Filter by Price Range
         min_price = self.request.query_params.get('min_price')
         max_price = self.request.query_params.get('max_price')
         
@@ -66,17 +93,79 @@ class PublicProductListView(generics.ListAPIView):
             except ValueError:
                 pass
 
+        # 3. Search by name/description/vendor (with a fuzzy fallback)
+        search_query = (self.request.query_params.get('search') or '').strip()
+        used_similarity_order = False
+        if search_query:
+            direct = queryset.filter(
+                Q(name__icontains=search_query) |
+                Q(description__icontains=search_query) |
+                Q(vendor__store_name__icontains=search_query)
+            )
+
+            if direct.exists():
+                queryset = direct
+            else:
+                is_postgres = connection.vendor == 'postgresql'
+                if is_postgres:
+                    from django.contrib.postgres.search import TrigramSimilarity
+                    from django.db.models.functions import Greatest
+
+                    queryset = queryset.annotate(
+                        similarity=Greatest(
+                            TrigramSimilarity('name', search_query),
+                            TrigramSimilarity('description', search_query),
+                            TrigramSimilarity('vendor__store_name', search_query),
+                        )
+                    ).filter(similarity__gt=0.2).order_by('-similarity')
+                    used_similarity_order = True
+                else:
+                    # SQLite/dev fallback: small in-Python fuzzy rank.
+                    candidates = list(
+                        queryset.select_related('vendor')[:500]
+                    )
+
+                    def _score(p):
+                        return max(
+                            _best_token_similarity(search_query, p.name),
+                            _best_token_similarity(
+                                search_query,
+                                getattr(p.vendor, 'store_name', '') if p.vendor else ''
+                            ),
+                        )
+
+                    top = _top_fuzzy(
+                        candidates,
+                        _score,
+                        limit=50,
+                        cutoff=0.55,
+                    )
+                    ids = [p.id for p in top]
+                    queryset = queryset.filter(id__in=ids) if ids else queryset.none()
+
+                    # If no explicit sort is requested, prefer similarity order.
+                    sort_by = (self.request.query_params.get('sort') or '').strip()
+                    if not sort_by or sort_by == 'newest':
+                        from django.db.models import Case, When, IntegerField
+                        preserved = Case(
+                            *[When(id=pk, then=pos) for pos, pk in enumerate(ids)],
+                            output_field=IntegerField(),
+                        )
+                        queryset = queryset.order_by(preserved)
+                        used_similarity_order = True
+
         # 4. Sorting
         sort_by = self.request.query_params.get('sort')
-        if sort_by == 'price_asc':
-            queryset = queryset.order_by('price')
-        elif sort_by == 'price_desc':
-            queryset = queryset.order_by('-price')
-        elif sort_by == 'newest':
-            queryset = queryset.order_by('-created_at')
-        else:
-            # Default sort (newest first or arbitrary)
-            queryset = queryset.order_by('-created_at')
+        if not used_similarity_order:
+            if sort_by == 'price_asc':
+                queryset = queryset.order_by('price')
+            elif sort_by == 'price_desc':
+                queryset = queryset.order_by('-price')
+            elif sort_by == 'newest':
+                queryset = queryset.order_by('-created_at')
+            else:
+                # Default sort (newest first or arbitrary)
+                queryset = queryset.order_by('-created_at')
             
         return queryset
 
@@ -92,7 +181,6 @@ class PublicProductDetailView(generics.RetrieveAPIView):
 
 
 import time
-from django.db import connection
 
 class SearchSuggestionView(APIView):
     """
@@ -124,6 +212,19 @@ class SearchSuggestionView(APIView):
             ).filter(similarity__gt=0.2).order_by('-similarity')[:5]
         else:
             products = Product.objects.filter(is_available=True, name__icontains=query)[:5]
+
+            if not products:
+                candidates = Product.objects.filter(
+                    is_available=True
+                ).select_related('category')[:500]
+
+                top = _top_fuzzy(
+                    candidates,
+                    lambda p: _best_token_similarity(query, p.name),
+                    limit=5,
+                    cutoff=0.55,
+                )
+                products = top
             
         for p in products:
             results.append({
@@ -140,6 +241,15 @@ class SearchSuggestionView(APIView):
             ).filter(similarity__gt=0.3).order_by('-similarity')[:3]
         else:
             categories = Category.objects.filter(name__icontains=query)[:3]
+
+            if not categories:
+                candidates = Category.objects.all()[:500]
+                categories = _top_fuzzy(
+                    candidates,
+                    lambda c: _best_token_similarity(query, c.name),
+                    limit=3,
+                    cutoff=0.55,
+                )
             
         for c in categories:
             results.append({
@@ -157,6 +267,15 @@ class SearchSuggestionView(APIView):
             ).filter(similarity__gt=0.3).order_by('-similarity')[:3]
         else:
             vendors = Vendor.objects.filter(is_approved=True, store_name__icontains=query)[:3]
+
+            if not vendors:
+                candidates = Vendor.objects.filter(is_approved=True)[:500]
+                vendors = _top_fuzzy(
+                    candidates,
+                    lambda v: _best_token_similarity(query, v.store_name),
+                    limit=3,
+                    cutoff=0.55,
+                )
 
         for v in vendors:
             results.append({
@@ -308,4 +427,3 @@ class VendorProductVariantDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return ProductVariant.objects.filter(product__vendor=self.request.vendor)
-

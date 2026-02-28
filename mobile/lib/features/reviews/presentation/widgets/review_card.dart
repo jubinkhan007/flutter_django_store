@@ -242,8 +242,15 @@ class ReviewCard extends StatelessWidget {
               ),
               const Spacer(),
               InkWell(
-                onTap: () {
-                  context.read<ReviewProvider>().voteHelpful(review.id);
+                onTap: () async {
+                  final provider = context.read<ReviewProvider>();
+                  await provider.voteHelpful(review.id);
+                  final err = provider.error;
+                  if (err != null && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(err)),
+                    );
+                  }
                 },
                 borderRadius: BorderRadius.circular(AppRadius.sm),
                 child: Padding(

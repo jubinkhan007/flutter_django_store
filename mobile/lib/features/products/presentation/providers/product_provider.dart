@@ -69,6 +69,10 @@ class ProductProvider extends ChangeNotifier {
     }
   }
 
+  Future<Product> getProductDetail(int id) {
+    return _productRepository.getProductDetail(id);
+  }
+
   void selectCategory(int? categoryId) {
     _selectedCategoryId = categoryId;
     loadProducts();

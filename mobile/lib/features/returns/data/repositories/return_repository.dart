@@ -65,7 +65,7 @@ class ReturnRepository {
       final resp = await _apiClient.postMultipart(
         '${ApiConfig.returnsUrl}$returnId/images/',
         fields: const {},
-        file: file,
+        files: [file],
       );
       final body = await resp.stream.bytesToString();
       if (resp.statusCode == 201) {

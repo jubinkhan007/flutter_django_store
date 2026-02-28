@@ -9,6 +9,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../domain/entities/search_suggestion.dart';
 import '../providers/product_provider.dart';
 import '../../../vendor/presentation/screens/public_vendor_store_screen.dart';
+import '../screens/product_detail_screen.dart';
 import 'filter_bottom_sheet.dart';
 
 class SearchOverlay extends StatefulWidget {
@@ -123,14 +124,28 @@ class _SearchOverlayState extends State<SearchOverlay> {
     }
   }
 
-  void _handleSuggestionTap(SearchSuggestion suggestion) {
+  Future<void> _handleSuggestionTap(SearchSuggestion suggestion) async {
     _focusNode.unfocus();
     setState(() => _isOverlayOpen = false);
 
     if (suggestion.type == 'PRODUCT') {
-      _executeSearch(
-        suggestion.label,
-      ); // Navigate to product logic typically handled by list click, here we execute search to show it in the list.
+      try {
+        final product = await context
+            .read<ProductProvider>()
+            .getProductDetail(suggestion.id);
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProductDetailScreen(product: product),
+          ),
+        );
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not load product')),
+        );
+      }
     } else if (suggestion.type == 'CATEGORY') {
       _searchController.clear();
       context.read<ProductProvider>().clearFilters();
@@ -164,49 +179,56 @@ class _SearchOverlayState extends State<SearchOverlay> {
           color: Theme.of(context).scaffoldBackgroundColor,
           child: Row(
             children: [
-              if (_isOverlayOpen)
-                IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () {
-                    _focusNode.unfocus();
-                    setState(() => _isOverlayOpen = false);
-                  },
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: ScaleTransition(scale: animation, child: child),
                 ),
+                child: _isOverlayOpen
+                    ? IconButton(
+                        key: const ValueKey('back_button'),
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () {
+                          _focusNode.unfocus();
+                          setState(() => _isOverlayOpen = false);
+                        },
+                      )
+                    : const SizedBox.shrink(key: ValueKey('no_back_button')),
+              ),
               Expanded(
-                child: Hero(
-                  tag: 'search_bar',
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: TextField(
-                      controller: _searchController,
-                      focusNode: _focusNode,
-                      onChanged: _onSearchChanged,
-                      onSubmitted: _executeSearch,
-                      textInputAction: TextInputAction.search,
-                      decoration: InputDecoration(
-                        hintText: 'Search products, stores...',
-                        prefixIcon: !_isOverlayOpen
-                            ? const Icon(
-                                Icons.search,
+                key: const ValueKey('search_input_expanded'),
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: TextField(
+                    controller: _searchController,
+                    focusNode: _focusNode,
+                    onChanged: _onSearchChanged,
+                    onSubmitted: _executeSearch,
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      hintText: 'Search products, stores...',
+                      prefixIcon: !_isOverlayOpen
+                          ? const Icon(
+                              Icons.search,
+                              color: AppColors.lightTextSecondary,
+                            )
+                          : null,
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(
+                                Icons.clear,
                                 color: AppColors.lightTextSecondary,
-                              )
-                            : null,
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(
-                                  Icons.clear,
-                                  color: AppColors.lightTextSecondary,
-                                ),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  _onSearchChanged('');
-                                  if (!_isOverlayOpen) {
-                                    widget.onSearchCleared();
-                                  }
-                                },
-                              )
-                            : null,
-                      ),
+                              ),
+                              onPressed: () {
+                                _searchController.clear();
+                                _onSearchChanged('');
+                                if (!_isOverlayOpen) {
+                                  widget.onSearchCleared();
+                                }
+                              },
+                            )
+                          : null,
                     ),
                   ),
                 ),
@@ -244,13 +266,14 @@ class _SearchOverlayState extends State<SearchOverlay> {
 
         // Overlay Content
         if (_isOverlayOpen)
-          Expanded(
-            child: Container(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              child: _searchController.text.trim().length >= 2
-                  ? _buildSuggestions(provider)
-                  : _buildHistory(),
+          Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
             ),
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: _searchController.text.trim().length >= 2
+                ? _buildSuggestions(provider)
+                : _buildHistory(),
           ),
       ],
     );

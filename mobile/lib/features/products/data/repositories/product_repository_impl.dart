@@ -16,10 +16,10 @@ class ProductRepositoryImpl implements ProductRepository {
 
   @override
   Future<List<SearchSuggestion>> getSearchSuggestions(String query) async {
-    final response = await _apiClient.get(
-      '${ApiConfig.searchSuggestionsUrl}?q=$query',
-      auth: false,
-    );
+    final uri = Uri.parse(
+      ApiConfig.searchSuggestionsUrl,
+    ).replace(queryParameters: {'q': query});
+    final response = await _apiClient.get(uri.toString(), auth: false);
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -38,20 +38,19 @@ class ProductRepositoryImpl implements ProductRepository {
     double? maxPrice,
     String? sortBy,
   }) async {
-    final queryParams = <String>[];
+    final params = <String, String>{};
 
-    if (query != null && query.isNotEmpty) queryParams.add('search=$query');
-    if (categoryId != null) queryParams.add('category=$categoryId');
-    if (minPrice != null) queryParams.add('min_price=$minPrice');
-    if (maxPrice != null) queryParams.add('max_price=$maxPrice');
-    if (sortBy != null && sortBy.isNotEmpty) queryParams.add('sort=$sortBy');
+    if (query != null && query.trim().isNotEmpty) params['search'] = query;
+    if (categoryId != null) params['category'] = '$categoryId';
+    if (minPrice != null) params['min_price'] = '$minPrice';
+    if (maxPrice != null) params['max_price'] = '$maxPrice';
+    if (sortBy != null && sortBy.isNotEmpty) params['sort'] = sortBy;
 
-    String url = ApiConfig.productsUrl;
-    if (queryParams.isNotEmpty) {
-      url += '?${queryParams.join('&')}';
-    }
+    final uri = Uri.parse(ApiConfig.productsUrl).replace(
+      queryParameters: params.isEmpty ? null : params,
+    );
 
-    final response = await _apiClient.get(url, auth: false);
+    final response = await _apiClient.get(uri.toString(), auth: false);
 
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);

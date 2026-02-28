@@ -1,3 +1,5 @@
+import '../../../../core/config/api_config.dart';
+
 class VendorProfileModel {
   final int id;
   final String storeName;
@@ -22,12 +24,19 @@ class VendorProfileModel {
   });
 
   factory VendorProfileModel.fromJson(Map<String, dynamic> json) {
+    final rawLogo = json['logo']?.toString();
+    final rawCover = json['cover_image']?.toString();
+
     return VendorProfileModel(
       id: json['id'],
       storeName: json['store_name'] ?? '',
       description: json['description'] ?? '',
-      logoUrl: json['logo'],
-      coverImageUrl: json['cover_image'],
+      logoUrl: (rawLogo == null || rawLogo.trim().isEmpty)
+          ? null
+          : ApiConfig.resolveUrl(rawLogo),
+      coverImageUrl: (rawCover == null || rawCover.trim().isEmpty)
+          ? null
+          : ApiConfig.resolveUrl(rawCover),
       policySummary: json['policy_summary'],
       avgRating: double.tryParse(json['avg_rating']?.toString() ?? '0') ?? 0.0,
       reviewCount: json['review_count'] ?? 0,

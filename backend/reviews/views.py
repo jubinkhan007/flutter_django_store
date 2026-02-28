@@ -1,8 +1,9 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
+from django.db.models import Count
 
 from products.models import Product
 from .models import Review, ReviewReply, ReviewImage, ReviewHelpfulness
@@ -15,7 +16,7 @@ class ProductReviewListCreateView(generics.ListCreateAPIView):
     POST /api/products/<pk>/reviews/ — authenticated customer submits a review
     """
     serializer_class = ReviewSerializer
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_permissions(self):
         if self.request.method == 'GET':
@@ -27,37 +28,41 @@ class ProductReviewListCreateView(generics.ListCreateAPIView):
             Review.objects
             .filter(product_id=self.kwargs['pk'])
             .select_related('customer', 'reply__vendor')
+            .prefetch_related('images')
+            .annotate(helpful_votes_count=Count('helpful_votes'))
         )
 
     def perform_create(self, serializer):
         product = get_object_or_404(Product, pk=self.kwargs['pk'])
         if Review.objects.filter(customer=self.request.user, product=product).exists():
-            raise ValidationError('You have already reviewed this product.')
+            raise ValidationError({'detail': 'You have already reviewed this product.'})
 
         # Attempt to link to a completed SubOrder for verified purchase
-        from orders.models import SubOrder, OrderItem
+        from orders.models import SubOrder
+        from django.db.models import Q
         sub_order = SubOrder.objects.filter(
             order__customer=self.request.user,
-            items__product_variant__product=product,
-            status='DELIVERED'
-        ).first()
+            status='DELIVERED',
+        ).filter(
+            Q(items__product=product) | Q(items__variant__product=product)
+        ).distinct().first()
 
         is_verified = sub_order is not None
-
-        review = serializer.save(
-            customer=self.request.user, 
-            product=product,
-            sub_order=sub_order,
-            is_verified_purchase=is_verified
-        )
 
         # Handle image uploads
         images = self.request.FILES.getlist('images')
         if len(images) > 5:
             raise ValidationError("You can upload a maximum of 5 images per review.")
+
+        review = serializer.save(
+            customer=self.request.user,
+            product=product,
+            sub_order=sub_order,
+            is_verified_purchase=is_verified
+        )
         
-        for image in images:
-            ReviewImage.objects.create(review=review, image=image)
+        for idx, image in enumerate(images):
+            ReviewImage.objects.create(review=review, image=image, position=idx)
 
 
 class ReviewHelpfulVoteView(generics.GenericAPIView):
@@ -78,14 +83,19 @@ class ReviewHelpfulVoteView(generics.GenericAPIView):
 
         vote, created = ReviewHelpfulness.objects.get_or_create(
             review=review,
-            user=request.user
+            user=request.user,
         )
 
         if not created:
-            # Re-clicking could toggle or simply notify it's already voted
-            return Response({"message": "You already found this review helpful."}, status=status.HTTP_200_OK)
+            return Response(
+                {"error": "You have already voted on this review."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        return Response({"message": "Review marked as helpful."}, status=status.HTTP_201_CREATED)
+        return Response(
+            {"message": "Review marked as helpful."},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class ReviewReplyView(generics.GenericAPIView):

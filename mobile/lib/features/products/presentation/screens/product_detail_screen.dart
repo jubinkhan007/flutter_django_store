@@ -15,6 +15,7 @@ import '../../../reviews/presentation/providers/review_provider.dart';
 import '../../../reviews/presentation/widgets/review_card.dart';
 import '../../../reviews/presentation/widgets/star_rating.dart';
 import '../../../vendor/presentation/providers/vendor_provider.dart';
+import '../../../vendor/presentation/screens/public_vendor_store_screen.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/entities/variant.dart';
 import 'package:mobile/features/wishlist/presentation/providers/wishlist_provider.dart';
@@ -80,8 +81,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     int selectedRating = 0;
     final commentController = TextEditingController();
     final provider = context.read<ReviewProvider>();
-    List<String> _imagePaths = [];
-    final ImagePicker _picker = ImagePicker();
+    List<String> imagePaths = [];
+    final picker = ImagePicker();
 
     showModalBottomSheet(
       context: context,
@@ -134,14 +135,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   children: [
                     GestureDetector(
                       onTap: () async {
-                        final List<XFile> images = await _picker
+                        final List<XFile> images = await picker
                             .pickMultiImage();
                         if (images.isNotEmpty) {
                           setModalState(() {
                             // Only take up to 5 images per review rules
-                            _imagePaths.addAll(images.map((i) => i.path));
-                            if (_imagePaths.length > 5) {
-                              _imagePaths = _imagePaths.sublist(0, 5);
+                            imagePaths.addAll(images.map((i) => i.path));
+                            if (imagePaths.length > 5) {
+                              imagePaths = imagePaths.sublist(0, 5);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('Maximum 5 images allowed'),
@@ -156,14 +157,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         margin: const EdgeInsets.only(right: 8),
                         decoration: BoxDecoration(
                           color: AppColors.lightSurface,
-                          border: Border.all(
-                            color: Theme.of(context).primaryColor,
-                          ),
                           borderRadius: BorderRadius.circular(AppRadius.sm),
                           border: Border.all(
-                            color: Theme.of(
-                              context,
-                            ).primaryColor.withOpacity(0.5),
+                            color: Theme.of(context).primaryColor.withValues(alpha: 0.5),
                           ),
                         ),
                         child: Icon(
@@ -172,7 +168,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
                       ),
                     ),
-                    ..._imagePaths.asMap().entries.map((entry) {
+                    ...imagePaths.asMap().entries.map((entry) {
                       final index = entry.key;
                       final path = entry.value;
                       return Stack(
@@ -206,7 +202,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ),
                               onPressed: () {
                                 setModalState(() {
-                                  _imagePaths.removeAt(index);
+                                  imagePaths.removeAt(index);
                                 });
                               },
                             ),
@@ -239,7 +235,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       widget.product.id,
                       selectedRating,
                       commentController.text.trim(),
-                      imagePaths: _imagePaths,
+                      imagePaths: imagePaths,
                     );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -555,6 +551,55 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                     ],
                   ),
+                  if (widget.product.vendorId != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PublicVendorStoreScreen(
+                              vendorId: widget.product.vendorId!,
+                            ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.sm,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.lightSurface,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.storefront_outlined,
+                              size: 18,
+                              color: AppColors.lightTextSecondary,
+                            ),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Visit store',
+                                style: TextStyle(
+                                  color: AppColors.lightTextPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            const Icon(
+                              Icons.chevron_right,
+                              color: AppColors.lightTextSecondary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.lg),
 
                   // Options Selector

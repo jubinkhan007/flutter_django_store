@@ -184,9 +184,17 @@ class ApiClient {
   Future<http.StreamedResponse> postMultipart(
     String url, {
     required Map<String, String> fields,
-    http.MultipartFile? file,
+    List<http.MultipartFile>? files,
     bool auth = true,
   }) async {
+    // Read files into memory once so we can clone them if a retry is needed.
+    final fileBytesList = <List<int>>[];
+    if (files != null) {
+      for (final file in files) {
+        fileBytesList.add(await file.finalize().toBytes());
+      }
+    }
+
     return _multipartRequestWithRetry(() async {
       final headers = await _headers(auth: auth);
       headers.remove('Content-Type');
@@ -196,12 +204,12 @@ class ApiClient {
       request.fields.addAll(fields);
 
       if (files != null && files.isNotEmpty) {
-        for (final file in files) {
-          final fileBytes = await file.finalize().toBytes();
-          final fileClone = http.MultipartFile(
+        for (int i = 0; i < files.length; i++) {
+          final file = files[i];
+          final bytes = fileBytesList[i];
+          final fileClone = http.MultipartFile.fromBytes(
             file.field,
-            http.ByteStream.fromBytes(fileBytes),
-            fileBytes.length,
+            bytes,
             filename: file.filename,
             contentType: file.contentType,
           );
@@ -220,6 +228,14 @@ class ApiClient {
     List<http.MultipartFile>? files,
     bool auth = true,
   }) async {
+    // Read files into memory once so we can clone them if a retry is needed.
+    final fileBytesList = <List<int>>[];
+    if (files != null) {
+      for (final file in files) {
+        fileBytesList.add(await file.finalize().toBytes());
+      }
+    }
+
     return _multipartRequestWithRetry(() async {
       final headers = await _headers(auth: auth);
       headers.remove('Content-Type');
@@ -229,12 +245,12 @@ class ApiClient {
       request.fields.addAll(fields);
 
       if (files != null && files.isNotEmpty) {
-        for (final file in files) {
-          final fileBytes = await file.finalize().toBytes();
-          final fileClone = http.MultipartFile(
+        for (int i = 0; i < files.length; i++) {
+          final file = files[i];
+          final bytes = fileBytesList[i];
+          final fileClone = http.MultipartFile.fromBytes(
             file.field,
-            http.ByteStream.fromBytes(fileBytes),
-            fileBytes.length,
+            bytes,
             filename: file.filename,
             contentType: file.contentType,
           );

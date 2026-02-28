@@ -22,7 +22,14 @@ class ReviewSerializer(serializers.ModelSerializer):
     customer_username = serializers.CharField(source='customer.username', read_only=True)
     reply = ReviewReplySerializer(read_only=True)
     images = ReviewImageSerializer(many=True, read_only=True)
-    helpful_votes = serializers.IntegerField(read_only=True)
+    helpful_votes = serializers.SerializerMethodField()
+
+    def get_helpful_votes(self, obj):
+        # Prefer queryset annotation when present to avoid N+1.
+        annotated = getattr(obj, 'helpful_votes_count', None)
+        if annotated is not None:
+            return int(annotated)
+        return obj.helpful_votes.count()
 
     class Meta:
         model = Review
@@ -32,6 +39,15 @@ class ReviewSerializer(serializers.ModelSerializer):
             'reply', 'created_at', 'updated_at',
         ]
         read_only_fields = [
-            'id', 'customer', 'customer_username', 'images', 'helpful_votes',
-            'is_verified_purchase', 'reply', 'created_at', 'updated_at'
+            'id',
+            'customer',
+            'customer_username',
+            'product',
+            'sub_order',
+            'images',
+            'helpful_votes',
+            'is_verified_purchase',
+            'reply',
+            'created_at',
+            'updated_at',
         ]

@@ -132,9 +132,7 @@ class FeaturedSectionSerializer(serializers.ModelSerializer):
             qs = Product.objects.filter(
                 is_available=True,
                 reviews__isnull=False,
-            ).select_related('vendor').annotate(
-                avg_rating=Avg('reviews__rating')
-            ).order_by('-avg_rating')[:12]
+            ).select_related('vendor').order_by('-avg_rating')[:12]
         elif obj.section_type == FeaturedSection.SectionType.TRENDING:
             # Trending = most ordered in last 30 days
             from django.utils import timezone

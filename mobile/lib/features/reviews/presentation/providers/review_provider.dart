@@ -44,7 +44,12 @@ class ReviewProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> submitReview(int productId, int rating, String comment) async {
+  Future<bool> submitReview(
+    int productId,
+    int rating,
+    String comment, {
+    List<String> imagePaths = const [],
+  }) async {
     _error = null;
     try {
       final review = await _repository.submitReview(
