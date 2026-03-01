@@ -207,6 +207,33 @@ class _ShopPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final productProvider = context.watch<ProductProvider>();
+
+    final hasQuery =
+        (productProvider.searchQuery != null &&
+            productProvider.searchQuery!.trim().isNotEmpty);
+    final hasCategory = productProvider.selectedCategoryId != null;
+    final hasActiveFilters =
+        productProvider.minPrice != null ||
+        productProvider.maxPrice != null ||
+        (productProvider.sortBy != null && productProvider.sortBy != 'newest');
+    final isShowingResults = hasQuery || hasCategory || hasActiveFilters;
+
+    String resultsTitle() {
+      final query = productProvider.searchQuery?.trim() ?? '';
+      if (query.isNotEmpty) return 'Results for "$query"';
+      if (hasCategory) {
+        final selectedId = productProvider.selectedCategoryId;
+        if (selectedId != null) {
+          for (final c in productProvider.categories) {
+            if (c.id == selectedId) return c.name;
+          }
+        }
+        return 'Category results';
+      }
+      return 'Filtered results';
+    }
+
     return SafeArea(
       bottom: false,
       child: RefreshIndicator(
@@ -304,161 +331,173 @@ class _ShopPage extends StatelessWidget {
                 },
               ),
             ),
-            Consumer<HomeProvider>(
-              builder: (context, provider, _) {
-                if (provider.isLoading && provider.feed == null) {
-                  return const SliverToBoxAdapter(child: HomeSkeleton());
-                }
-                if (provider.feed == null)
-                  return const SliverToBoxAdapter(child: SizedBox.shrink());
-
-                return SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final section = provider.feed!.sections[index];
-                    switch (section.type) {
-                      case HomeSectionType.banners:
-                        return HeroBannerCarousel(
-                          banners: (section as BannersSection).banners,
-                        );
-                      case HomeSectionType.flashSale:
-                        return FlashSaleRow(
-                          sale: (section as FlashSaleSection),
-                          serverNow: provider.feed!.serverNow,
-                        );
-                      case HomeSectionType.featuredRow:
-                        return FeaturedSectionRow(
-                          section: (section as FeaturedRowSection),
-                        );
-                      default:
-                        return const SizedBox.shrink();
-                    }
-                  }, childCount: provider.feed!.sections.length),
-                );
-              },
-            ),
             SliverToBoxAdapter(
-              child: Consumer<ProductProvider>(
-                builder: (context, provider, _) {
-                  if (provider.categories.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: AppSpacing.md,
-                    ),
-                    child: SizedBox(
-                      height: 44,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                        ),
-                        children: [
-                          _CategoryChip(
-                            label: 'All',
-                            isSelected: provider.selectedCategoryId == null,
-                            onTap: () => provider.selectCategory(null),
+              child: productProvider.categories.isEmpty
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md,
+                      ),
+                      child: SizedBox(
+                        height: 44,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
                           ),
-                          ...provider.categories.map(
-                            (cat) => _CategoryChip(
-                              label: cat.name,
-                              isSelected: provider.selectedCategoryId == cat.id,
-                              onTap: () => provider.selectCategory(cat.id),
+                          children: [
+                            _CategoryChip(
+                              label: 'All',
+                              isSelected: productProvider.selectedCategoryId ==
+                                  null,
+                              onTap: () =>
+                                  context.read<ProductProvider>().selectCategory(
+                                    null,
+                                  ),
                             ),
-                          ),
-                        ],
+                            ...productProvider.categories.map(
+                              (cat) => _CategoryChip(
+                                label: cat.name,
+                                isSelected:
+                                    productProvider.selectedCategoryId ==
+                                    cat.id,
+                                onTap: () => context
+                                    .read<ProductProvider>()
+                                    .selectCategory(cat.id),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
+            ),
+            if (!isShowingResults)
+              Consumer<HomeProvider>(
+                builder: (context, provider, _) {
+                  if (provider.isLoading && provider.feed == null) {
+                    return const SliverToBoxAdapter(child: HomeSkeleton());
+                  }
+                  if (provider.feed == null)
+                    return const SliverToBoxAdapter(child: SizedBox.shrink());
+
+                  return SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final section = provider.feed!.sections[index];
+                      switch (section.type) {
+                        case HomeSectionType.banners:
+                          return HeroBannerCarousel(
+                            banners: (section as BannersSection).banners,
+                          );
+                        case HomeSectionType.flashSale:
+                          return FlashSaleRow(
+                            sale: (section as FlashSaleSection),
+                            serverNow: provider.feed!.serverNow,
+                          );
+                        case HomeSectionType.featuredRow:
+                          return FeaturedSectionRow(
+                            section: (section as FeaturedRowSection),
+                          );
+                        default:
+                          return const SizedBox.shrink();
+                      }
+                    }, childCount: provider.feed!.sections.length),
                   );
                 },
               ),
-            ),
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Text(
-                  'Recommended for You',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  isShowingResults ? resultsTitle() : 'Recommended for You',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
-            Consumer<ProductProvider>(
-              builder: (context, provider, _) {
-                if (provider.isLoading && provider.products.isEmpty) {
-                  return const SliverFillRemaining(
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                if (provider.error != null && provider.products.isEmpty) {
-                  return SliverFillRemaining(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.cloud_off,
-                            size: 48,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(height: 16),
-                          const Text('Could not load products'),
-                          TextButton(
-                            onPressed: () => provider.loadProducts(),
-                            child: const Text('Retry'),
-                          ),
-                        ],
+            if (productProvider.isLoading && productProvider.products.isEmpty)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (productProvider.error != null &&
+                productProvider.products.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.cloud_off,
+                        size: 48,
+                        color: Colors.grey,
                       ),
-                    ),
-                  );
-                }
-                if (provider.products.isEmpty) {
-                  return const SliverFillRemaining(
-                    child: Center(child: Text('No products available')),
-                  );
-                }
-                return SliverPadding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+                      const SizedBox(height: 16),
+                      const Text('Could not load products'),
+                      TextButton(
+                        onPressed: () =>
+                            context.read<ProductProvider>().loadProducts(),
+                        child: const Text('Retry'),
+                      ),
+                    ],
                   ),
-                  sliver: SliverGrid(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.7,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final product = provider.products[index];
-                      return ProductCard(
-                        product: product,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  ProductDetailScreen(product: product),
-                            ),
-                          );
-                        },
-                        onAddToCart: () {
-                          context.read<CartProvider>().addToCart(product);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('${product.name} added to cart'),
-                              backgroundColor: Theme.of(context).primaryColor,
-                              behavior: SnackBarBehavior.floating,
-                              duration: const Duration(seconds: 1),
-                            ),
-                          );
-                        },
-                      );
-                    }, childCount: provider.products.length),
+                ),
+              )
+            else if (productProvider.products.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Text(
+                    isShowingResults
+                        ? 'No products match your filters'
+                        : 'No products available',
                   ),
-                );
-              },
-            ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                sliver: SliverGrid(
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.7,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final product = productProvider.products[index];
+                    return ProductCard(
+                      product: product,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ProductDetailScreen(product: product),
+                          ),
+                        );
+                      },
+                      onAddToCart: () {
+                        context.read<CartProvider>().addToCart(product);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${product.name} added to cart'),
+                            backgroundColor: Theme.of(context).primaryColor,
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 1),
+                          ),
+                        );
+                      },
+                    );
+                  }, childCount: productProvider.products.length),
+                ),
+              ),
             SliverToBoxAdapter(
               child: SizedBox(
                 height:

@@ -113,6 +113,8 @@ class FinancialService:
     def release_settlement(cls, record: SettlementRecord) -> SettlementRecord:
         """
         Moves funds from pending -> available when settlement date is reached.
+        If the vendor has an outstanding debt_balance, incoming funds first clear
+        the debt before being credited to available.
         Idempotent by record.status.
         """
         if record.status != SettlementRecord.Status.PENDING:
@@ -161,9 +163,24 @@ class FinancialService:
             )
 
             vendor.pending_balance = _money((vendor.pending_balance or Decimal('0.00')) - amount)
-            vendor.available_balance = _money((vendor.available_balance or Decimal('0.00')) + amount)
-            vendor.balance = _money(vendor.pending_balance + vendor.available_balance + vendor.held_balance)
-            vendor.save(update_fields=['pending_balance', 'available_balance', 'balance'])
+
+            # Debt recovery: new funds first clear any outstanding debt_balance.
+            debt = _money(vendor.debt_balance or Decimal('0.00'))
+            if debt > Decimal('0.00'):
+                debt_cleared = min(debt, amount)
+                vendor.debt_balance = _money(debt - debt_cleared)
+                to_available = _money(amount - debt_cleared)
+            else:
+                to_available = amount
+
+            vendor.available_balance = _money((vendor.available_balance or Decimal('0.00')) + to_available)
+            vendor.balance = _money(
+                (vendor.pending_balance or Decimal('0.00'))
+                + (vendor.available_balance or Decimal('0.00'))
+                + (vendor.held_balance or Decimal('0.00'))
+                - (vendor.debt_balance or Decimal('0.00'))
+            )
+            vendor.save(update_fields=['pending_balance', 'available_balance', 'debt_balance', 'balance'])
 
             record.status = SettlementRecord.Status.RELEASED
             record.released_at = timezone.now()
@@ -286,6 +303,111 @@ class FinancialService:
 
             vendor.held_balance = _money(vendor.held_balance - amount)
             vendor.total_withdrawn_lifetime = _money((vendor.total_withdrawn_lifetime or Decimal('0.00')) + amount)
-            vendor.balance = _money(vendor.pending_balance + vendor.available_balance + vendor.held_balance)
+            vendor.balance = _money(
+                (vendor.pending_balance or Decimal('0.00'))
+                + (vendor.available_balance or Decimal('0.00'))
+                + (vendor.held_balance or Decimal('0.00'))
+                - (vendor.debt_balance or Decimal('0.00'))
+            )
             vendor.save(update_fields=['held_balance', 'total_withdrawn_lifetime', 'balance'])
+
+    @classmethod
+    def debit_for_refund(cls, refund_obj) -> None:
+        """
+        Debits the vendor's wallet when a customer refund is completed.
+
+        The vendor's net obligation = gross refund * (1 - platform_fee_rate),
+        since the platform fee portion was never paid to the vendor.
+
+        Three scenarios based on where the vendor's money currently sits:
+          A - PENDING:   Settlement not yet released → debit pending_balance.
+          B - AVAILABLE: Available balance covers it → debit available_balance.
+          C - DEBT:      Available insufficient → deplete available to 0,
+                         record the remainder in debt_balance.
+
+        Idempotent: uses f"refund:{refund_obj.id}" as the unique idempotency key.
+        Subsequent earnings released via release_settlement() will first clear
+        any outstanding debt_balance before crediting available_balance.
+        """
+        from returns.models import ReturnItem
+
+        idempotency_key = f"refund:{refund_obj.id}"
+
+        # Fast-path idempotency check before acquiring the row lock.
+        if LedgerEntry.objects.filter(idempotency_key=idempotency_key).exists():
+            return
+
+        vendor_obj = refund_obj.return_request.vendor
+        gross_refund = _money(refund_obj.amount)
+        # The vendor only ever received (1 - fee_rate) of the sale price.
+        vendor_net = _money(gross_refund * (Decimal('1') - cls.fee_config.platform_fee_rate))
+
+        if vendor_net <= Decimal('0.00'):
+            return
+
+        with transaction.atomic():
+            vendor = Vendor.objects.select_for_update().get(id=vendor_obj.id)
+
+            # Re-check inside the lock (double-checked locking).
+            if LedgerEntry.objects.filter(idempotency_key=idempotency_key).exists():
+                return
+
+            # Determine which sub-orders are involved in this return.
+            sub_order_ids = list(
+                ReturnItem.objects.filter(return_request=refund_obj.return_request)
+                .values_list('order_item__sub_order_id', flat=True)
+                .distinct()
+            )
+
+            pending_bal = _money(vendor.pending_balance or Decimal('0.00'))
+            available_bal = _money(vendor.available_balance or Decimal('0.00'))
+            debt_bal = _money(vendor.debt_balance or Decimal('0.00'))
+
+            has_pending_settlement = SettlementRecord.objects.filter(
+                sub_order_id__in=sub_order_ids,
+                status=SettlementRecord.Status.PENDING,
+            ).exists()
+
+            update_fields = ['balance']
+
+            if has_pending_settlement and pending_bal >= vendor_net:
+                # Scenario A: funds still in pending — debit there.
+                bucket = LedgerEntry.Bucket.PENDING
+                vendor.pending_balance = _money(pending_bal - vendor_net)
+                update_fields.append('pending_balance')
+
+            elif available_bal >= vendor_net:
+                # Scenario B: enough in available — debit there.
+                bucket = LedgerEntry.Bucket.AVAILABLE
+                vendor.available_balance = _money(available_bal - vendor_net)
+                update_fields.append('available_balance')
+
+            else:
+                # Scenario C: not enough in available — deplete to 0, record debt.
+                bucket = LedgerEntry.Bucket.AVAILABLE
+                remainder = _money(vendor_net - available_bal)
+                vendor.available_balance = Decimal('0.00')
+                vendor.debt_balance = _money(debt_bal + remainder)
+                update_fields.extend(['available_balance', 'debt_balance'])
+
+            LedgerEntry.objects.create(
+                vendor=vendor,
+                entry_type=LedgerEntry.EntryType.REFUND_DEBIT,
+                bucket=bucket,
+                direction=LedgerEntry.Direction.DEBIT,
+                status=LedgerEntry.Status.POSTED,
+                amount=vendor_net,
+                reference_type=LedgerEntry.ReferenceType.REFUND,
+                reference_id=refund_obj.id,
+                idempotency_key=idempotency_key,
+                description=f"Refund debit for Refund #{refund_obj.id}",
+            )
+
+            vendor.balance = _money(
+                (vendor.pending_balance or Decimal('0.00'))
+                + (vendor.available_balance or Decimal('0.00'))
+                + (vendor.held_balance or Decimal('0.00'))
+                - (vendor.debt_balance or Decimal('0.00'))
+            )
+            vendor.save(update_fields=list(set(update_fields)))
 

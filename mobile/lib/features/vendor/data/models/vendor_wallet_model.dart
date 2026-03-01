@@ -2,6 +2,7 @@ class VendorWalletBalances {
   final double pending;
   final double available;
   final double held;
+  final double debt;
   final double total;
   final double lifetimeEarned;
   final double lifetimeWithdrawn;
@@ -11,6 +12,7 @@ class VendorWalletBalances {
     required this.pending,
     required this.available,
     required this.held,
+    required this.debt,
     required this.total,
     required this.lifetimeEarned,
     required this.lifetimeWithdrawn,
@@ -22,6 +24,7 @@ class VendorWalletBalances {
       pending: (json['pending'] ?? 0).toDouble(),
       available: (json['available'] ?? 0).toDouble(),
       held: (json['held'] ?? 0).toDouble(),
+      debt: (json['debt'] ?? 0).toDouble(),
       total: (json['total'] ?? 0).toDouble(),
       lifetimeEarned: (json['lifetime_earned'] ?? 0).toDouble(),
       lifetimeWithdrawn: (json['lifetime_withdrawn'] ?? 0).toDouble(),
@@ -62,7 +65,7 @@ class VendorLedgerEntry {
       bucket: (json['bucket'] ?? '').toString(),
       direction: (json['direction'] ?? '').toString(),
       status: (json['status'] ?? '').toString(),
-      amount: (json['amount'] ?? 0).toDouble(),
+      amount: double.tryParse(json['amount']?.toString() ?? '0') ?? 0.0,
       referenceType: (json['reference_type'] ?? '').toString(),
       referenceId: json['reference_id'] ?? 0,
       description: (json['description'] ?? '').toString(),

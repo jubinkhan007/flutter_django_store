@@ -20,6 +20,7 @@ from .serializers import (
   VendorRefundActionSerializer,
   VendorReturnActionSerializer,
 )
+from vendors.financial_service import FinancialService
 from .services import check_return_eligibility, create_refund, process_wallet_refund
 from .models import ReturnPolicy
 
@@ -350,13 +351,18 @@ class VendorCompleteRefundView(generics.GenericAPIView):
         if not refund:
             return Response({'error': 'No pending original-method refund found.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        refund.status = Refund.Status.COMPLETED
-        refund.processed_at = timezone.now()
-        refund.reference = serializer.validated_data.get('reference', '')
-        refund.save(update_fields=['status', 'processed_at', 'reference'])
+        with transaction.atomic():
+            refund.status = Refund.Status.COMPLETED
+            refund.processed_at = timezone.now()
+            refund.reference = serializer.validated_data.get('reference', '')
+            refund.save(update_fields=['status', 'processed_at', 'reference'])
 
-        rr.status = ReturnRequest.Status.REFUNDED
-        rr.save(update_fields=['status', 'updated_at'])
+            rr.status = ReturnRequest.Status.REFUNDED
+            rr.save(update_fields=['status', 'updated_at'])
+
+            # Debit the vendor's ledger for the completed refund.
+            FinancialService.debit_for_refund(refund)
+
         return Response(ReturnRequestSerializer(rr).data)
 
 

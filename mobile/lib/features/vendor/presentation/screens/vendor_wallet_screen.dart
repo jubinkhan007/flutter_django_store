@@ -102,6 +102,10 @@ class _VendorWalletScreenState extends State<VendorWalletScreen> {
                   balances: summary.balances,
                   primaryColor: primaryColor,
                 ),
+                if (summary.balances.debt > 0) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _DebtBalanceCard(debt: summary.balances.debt),
+                ],
                 const SizedBox(height: AppSpacing.md),
                 _WithdrawCard(
                   balances: summary.balances,
@@ -283,6 +287,58 @@ class _BucketCard extends StatelessWidget {
   }
 }
 
+class _DebtBalanceCard extends StatelessWidget {
+  final double debt;
+
+  const _DebtBalanceCard({required this.debt});
+
+  @override
+  Widget build(BuildContext context) {
+    final severity = debt > 100 ? AppColors.error : AppColors.warning;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: severity.withAlpha(18),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: severity.withAlpha(60)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: severity, size: 22),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Outstanding Debt',
+                  style: AppTextStyles.labelLarge.copyWith(color: severity),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'A refund was processed while your balance was insufficient. '
+                  'Your next earnings will automatically clear this debt.',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.lightTextSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            '-\$${debt.toStringAsFixed(2)}',
+            style: AppTextStyles.labelLarge.copyWith(
+              color: severity,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _WithdrawCard extends StatelessWidget {
   final VendorWalletBalances balances;
   final Color primaryColor;
@@ -390,7 +446,7 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final bottom = MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom;
     final primaryColor = Theme.of(context).primaryColor;
 
     return Padding(
@@ -569,7 +625,7 @@ class _AddPayoutMethodSheetState extends State<_AddPayoutMethodSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final bottom = MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom;
     final primaryColor = Theme.of(context).primaryColor;
 
     final field1Label = _method == 'BANK' ? 'Bank name' : 'Wallet number';
@@ -716,14 +772,25 @@ class _LedgerEntryTile extends StatelessWidget {
     final isCredit = entry.direction == 'CREDIT';
     final amountColor = isCredit ? AppColors.success : AppColors.error;
 
+    final isRefundDebit = entry.entryType == 'REFUND_DEBIT';
+
     final typeColor = switch (entry.entryType) {
       'SALE_CREDIT_PENDING' => AppColors.success,
       'SETTLEMENT_RELEASE' => primaryColor,
       'PAYOUT_REQUEST_HOLD' => AppColors.warning,
       'PAYOUT_REJECTED_RELEASE' => primaryColor,
       'PAYOUT_PAID' => AppColors.error,
+      'REFUND_DEBIT' => AppColors.error,
       _ => AppColors.lightTextSecondary,
     };
+
+    final tileIcon = isRefundDebit
+        ? Icons.undo_rounded
+        : (isCredit ? Icons.call_received_rounded : Icons.call_made_rounded);
+
+    final subtitle = isRefundDebit
+        ? 'Refund • ${entry.referenceType} #${entry.referenceId}'
+        : '${entry.bucket} • ${entry.referenceType} #${entry.referenceId}';
 
     return AppCard(
       padding: const EdgeInsets.all(12),
@@ -737,7 +804,7 @@ class _LedgerEntryTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
-              isCredit ? Icons.call_received_rounded : Icons.call_made_rounded,
+              tileIcon,
               size: 18,
               color: typeColor,
             ),
@@ -758,7 +825,7 @@ class _LedgerEntryTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${entry.bucket} • ${entry.referenceType} #${entry.referenceId}',
+                  subtitle,
                   style: AppTextStyles.caption.copyWith(
                     color: AppColors.lightTextSecondary,
                   ),

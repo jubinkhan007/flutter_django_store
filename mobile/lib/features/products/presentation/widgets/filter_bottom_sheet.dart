@@ -14,7 +14,7 @@ class FilterBottomSheet extends StatefulWidget {
 
 class _FilterBottomSheetState extends State<FilterBottomSheet> {
   double _minPrice = 0;
-  double _maxPrice = 1000;
+  double _maxPrice = 5000;
   String _sortBy = 'newest';
 
   @override
@@ -22,14 +22,16 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     super.initState();
     final provider = context.read<ProductProvider>();
     _minPrice = provider.minPrice ?? 0;
-    _maxPrice = provider.maxPrice ?? 1000;
+    _maxPrice = provider.maxPrice ?? 5000;
     _sortBy = provider.sortBy ?? 'newest';
   }
 
   void _applyFilters() {
     final provider = context.read<ProductProvider>();
-    provider.setPriceRange(_minPrice, _maxPrice);
-    provider.setSortBy(_sortBy);
+    final min = _minPrice <= 0 ? null : _minPrice;
+    final max = _maxPrice >= 5000 ? null : _maxPrice;
+    provider.setPriceRange(min, max);
+    provider.setSortBy(_sortBy == 'newest' ? null : _sortBy);
     Navigator.pop(context);
   }
 
@@ -42,10 +44,17 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: const BoxDecoration(
-        color: AppColors.lightSurface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      padding: EdgeInsets.only(
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
+        top: AppSpacing.lg,
+        bottom: AppSpacing.lg + MediaQuery.of(context).padding.bottom,
+      ),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppRadius.xl),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

@@ -251,6 +251,7 @@ class VendorWalletSummaryView(APIView):
                 'pending': float(vendor.pending_balance),
                 'available': float(vendor.available_balance),
                 'held': float(vendor.held_balance),
+                'debt': float(vendor.debt_balance),
                 'total': float(vendor.balance),
                 'lifetime_earned': float(vendor.total_earned_lifetime),
                 'lifetime_withdrawn': float(vendor.total_withdrawn_lifetime),

@@ -298,110 +298,93 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final headerColor = isDark
-        ? AppColors.darkTextPrimary
-        : AppColors.lightTextPrimary;
-
-    return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Text(
-              'Returns (RMA)',
-              style: AppTextStyles.titleMedium.copyWith(
-                fontSize: 24,
-                color: headerColor,
-              ),
-            ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Returns (RMA)'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: () => context.read<ReturnProvider>().loadVendorReturns(),
+            icon: const Icon(Icons.refresh),
           ),
-          Expanded(
-            child: Consumer<ReturnProvider>(
-              builder: (context, provider, _) {
-                if (provider.isLoading && provider.vendorReturns.isEmpty) {
-                  return const AppLoadingState(message: 'Loading returns...');
-                }
+        ],
+      ),
+      body: Consumer<ReturnProvider>(
+        builder: (context, provider, _) {
+          if (provider.isLoading && provider.vendorReturns.isEmpty) {
+            return const AppLoadingState(message: 'Loading returns...');
+          }
 
-                if (provider.error != null && provider.vendorReturns.isEmpty) {
-                  return AppErrorState(
-                    message: provider.error!,
-                    onRetry: () => provider.loadVendorReturns(),
-                  );
-                }
+          if (provider.error != null && provider.vendorReturns.isEmpty) {
+            return AppErrorState(
+              message: provider.error!,
+              onRetry: () => provider.loadVendorReturns(),
+            );
+          }
 
-                if (provider.vendorReturns.isEmpty) {
-                  return AppEmptyState(
-                    icon: Icons.assignment_return_outlined,
-                    title: 'No return requests',
-                    message: 'Customer return requests will appear here.',
-                    buttonText: 'Refresh',
-                    onAction: () => provider.loadVendorReturns(),
-                  );
-                }
+          if (provider.vendorReturns.isEmpty) {
+            return AppEmptyState(
+              icon: Icons.assignment_return_outlined,
+              title: 'No return requests',
+              message: 'Customer return requests will appear here.',
+              buttonText: 'Refresh',
+              onAction: () => provider.loadVendorReturns(),
+            );
+          }
 
-                return RefreshIndicator(
-                  color: Theme.of(context).primaryColor,
-                  onRefresh: () => provider.loadVendorReturns(),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      0,
-                      AppSpacing.md,
-                      AppSpacing.md,
-                    ),
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: provider.vendorReturns.length,
-                    itemBuilder: (context, index) {
-                      final rr = provider.vendorReturns[index];
-                      return _ReturnCard(
-                        rr: rr,
-                        onApprove: () async {
-                          final data = await _promptApprove(context, rr);
-                          if (data == null) return;
-                          await provider.vendorApproveWithDetails(
-                            rr.id,
-                            note: data.note,
-                            pickupWindowStart: data.pickupWindowStart,
-                            pickupWindowEnd: data.pickupWindowEnd,
-                            dropoffInstructions: data.dropoffInstructions,
-                          );
-                        },
-                        onReject: () async {
-                          final note = await _promptReject(context);
-                          if (note == null) return;
-                          await provider.vendorReject(rr.id, note: note);
-                        },
-                        onReceived: () async {
-                          await provider.vendorMarkReceived(rr.id);
-                        },
-                        onRefund: () async {
-                          final data = await _promptRefund(context);
-                          if (data == null) return;
-                          await provider.vendorInitiateRefund(
-                            rr.id,
-                            method: data.method,
-                            amount: data.amount,
-                          );
-                        },
-                        onCompleteOriginalRefund: () async {
-                          final ref = await _promptReference(context);
-                          if (ref == null) return;
-                          await provider.vendorCompleteOriginalRefund(
-                            rr.id,
-                            reference: ref,
-                          );
-                        },
-                        chipBuilder: _chip,
-                      );
-                    },
-                  ),
+          return RefreshIndicator(
+            color: Theme.of(context).primaryColor,
+            onRefresh: () => provider.loadVendorReturns(),
+            child: ListView.builder(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              physics: const AlwaysScrollableScrollPhysics(),
+              itemCount: provider.vendorReturns.length,
+              itemBuilder: (context, index) {
+                final rr = provider.vendorReturns[index];
+                return _ReturnCard(
+                  rr: rr,
+                  onApprove: () async {
+                    final data = await _promptApprove(context, rr);
+                    if (data == null) return;
+                    await provider.vendorApproveWithDetails(
+                      rr.id,
+                      note: data.note,
+                      pickupWindowStart: data.pickupWindowStart,
+                      pickupWindowEnd: data.pickupWindowEnd,
+                      dropoffInstructions: data.dropoffInstructions,
+                    );
+                  },
+                  onReject: () async {
+                    final note = await _promptReject(context);
+                    if (note == null) return;
+                    await provider.vendorReject(rr.id, note: note);
+                  },
+                  onReceived: () async {
+                    await provider.vendorMarkReceived(rr.id);
+                  },
+                  onRefund: () async {
+                    final data = await _promptRefund(context);
+                    if (data == null) return;
+                    await provider.vendorInitiateRefund(
+                      rr.id,
+                      method: data.method,
+                      amount: data.amount,
+                    );
+                  },
+                  onCompleteOriginalRefund: () async {
+                    final ref = await _promptReference(context);
+                    if (ref == null) return;
+                    await provider.vendorCompleteOriginalRefund(
+                      rr.id,
+                      reference: ref,
+                    );
+                  },
+                  chipBuilder: _chip,
                 );
               },
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -466,8 +449,12 @@ class _ReturnCard extends StatelessWidget {
         rr.status == 'VENDOR_APPROVED' ||
         rr.status == 'PICKUP_SCHEDULED' ||
         rr.status == 'DROPOFF_REQUESTED';
-    final canRefund = rr.status == 'RECEIVED' || rr.status == 'REFUND_PENDING';
-    final canCompleteOriginal = rr.status == 'REFUND_PENDING';
+    final hasPendingOriginalRefund = rr.refunds.any(
+      (r) => r.method == 'ORIGINAL' && r.status == 'PENDING',
+    );
+    final canRefund = rr.status == 'RECEIVED';
+    final canCompleteOriginal =
+        rr.status == 'REFUND_PENDING' && hasPendingOriginalRefund;
 
     final statusColor = switch (rr.status) {
       'ESCALATED' => AppColors.warning,
@@ -478,7 +465,7 @@ class _ReturnCard extends StatelessWidget {
       'RECEIVED' => AppColors.success,
       'REFUND_PENDING' => AppColors.warning,
       'REFUNDED' => AppColors.success,
-      'REJECTED' => AppColors.error,
+      'VENDOR_REJECTED' => AppColors.error,
       _ => textSecondary,
     };
 

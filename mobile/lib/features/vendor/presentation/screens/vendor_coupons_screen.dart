@@ -136,7 +136,7 @@ class _VendorCouponsScreenState extends State<VendorCouponsScreen> {
                 right: AppSpacing.lg,
                 top: AppSpacing.lg,
                 bottom:
-                    MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
+                    MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom + AppSpacing.lg,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,

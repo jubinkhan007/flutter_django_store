@@ -13,6 +13,7 @@ class Vendor(models.Model):
     pending_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     available_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     held_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    debt_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     total_earned_lifetime = models.DecimalField(max_digits=14, decimal_places=2, default=0.00)
     total_withdrawn_lifetime = models.DecimalField(max_digits=14, decimal_places=2, default=0.00)
     
@@ -39,8 +40,14 @@ class Vendor(models.Model):
     def recache_balance(self, save=True):
         """
         Keep the legacy `balance` field as a cached aggregate for compatibility.
+        debt_balance is subtracted so `balance` reflects the vendor's true net position.
         """
-        self.balance = (self.pending_balance or 0) + (self.available_balance or 0) + (self.held_balance or 0)
+        self.balance = (
+            (self.pending_balance or 0)
+            + (self.available_balance or 0)
+            + (self.held_balance or 0)
+            - (self.debt_balance or 0)
+        )
         if save:
             self.save(update_fields=['balance'])
 
@@ -152,6 +159,7 @@ class LedgerEntry(models.Model):
         PAYOUT_REQUEST_HOLD = 'PAYOUT_REQUEST_HOLD', 'Payout request hold'
         PAYOUT_REJECTED_RELEASE = 'PAYOUT_REJECTED_RELEASE', 'Payout rejected release'
         PAYOUT_PAID = 'PAYOUT_PAID', 'Payout paid'
+        REFUND_DEBIT = 'REFUND_DEBIT', 'Refund debit'
 
     class Bucket(models.TextChoices):
         PENDING = 'PENDING', 'Pending'
