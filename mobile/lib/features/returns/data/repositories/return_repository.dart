@@ -21,6 +21,14 @@ class ReturnRepository {
     throw Exception('Failed to load returns');
   }
 
+  Future<ReturnRequestModel> getReturnDetail(int returnId) async {
+    final resp = await _apiClient.get('${ApiConfig.returnsUrl}$returnId/');
+    if (resp.statusCode == 200) {
+      return ReturnRequestModel.fromJson(jsonDecode(resp.body));
+    }
+    throw Exception('Failed to load return details');
+  }
+
   Future<List<ReturnRequestModel>> createReturn({
     required int orderId,
     required String requestType,

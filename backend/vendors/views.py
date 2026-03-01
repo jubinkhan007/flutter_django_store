@@ -311,6 +311,32 @@ class PayoutRequestListCreateView(generics.ListCreateAPIView):
             except ValueError as e:
                 raise serializers.ValidationError(str(e))
 
+            # Admin inbox notification: PAYOUT_REQUESTED
+            def _notify_admins() -> None:
+                try:
+                    from django.contrib.auth import get_user_model
+                    from notifications.models import Notification
+                    from notifications.services import NotificationService
+
+                    User = get_user_model()
+                    admins = User.objects.filter(type=User.Types.ADMIN)
+                    for admin_user in admins:
+                        NotificationService.create(
+                            user=admin_user,
+                            title='Payout requested',
+                            body=f'Payout request #{payout.id} from {vendor.store_name} for {payout.amount}.',
+                            event_type=Notification.Type.PAYOUT_REQUESTED,
+                            category=Notification.Category.TRANSACTIONAL,
+                            deeplink=f'app://admin/payouts/{payout.id}',
+                            data={'payout_id': str(payout.id), 'vendor_id': str(vendor.id)},
+                            inbox_visible=True,
+                            push_enabled=False,
+                        )
+                except Exception:
+                    pass
+
+            transaction.on_commit(_notify_admins)
+
 # ═══════════════════════════════════════════════════════════════════
 # BULK OPERATIONS
 # ═══════════════════════════════════════════════════════════════════

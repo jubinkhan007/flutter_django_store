@@ -20,6 +20,7 @@ import 'package:mobile/features/home/presentation/widgets/flash_sale_row.dart';
 import 'package:mobile/features/home/presentation/widgets/featured_section_row.dart';
 import 'package:mobile/features/home/presentation/widgets/home_skeleton.dart';
 import 'package:mobile/features/home/data/models/home_feed_model.dart';
+import 'package:mobile/features/notifications/presentation/providers/notification_provider.dart';
 import 'dart:ui';
 
 import 'package:mobile/features/products/presentation/widgets/search_overlay.dart';
@@ -41,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProductProvider>().loadProducts();
       context.read<ProductProvider>().loadCategories();
+      context.read<NotificationProvider>().refreshUnreadCount();
     });
   }
 
@@ -284,6 +286,31 @@ class _ShopPage extends StatelessWidget {
                     ),
                     Row(
                       children: [
+                        Consumer<NotificationProvider>(
+                          builder: (context, notifications, _) {
+                            Widget icon = const Icon(Icons.notifications_none);
+                            if (notifications.unreadCount > 0) {
+                              icon = Badge(
+                                label: Text('${notifications.unreadCount}'),
+                                backgroundColor: AppColors.error,
+                                child: icon,
+                              );
+                            }
+                            return IconButton(
+                              onPressed: () async {
+                                await notifications.load();
+                                if (context.mounted) {
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/notifications',
+                                  );
+                                }
+                              },
+                              icon: icon,
+                              tooltip: 'Notifications',
+                            );
+                          },
+                        ),
                         Consumer<AuthProvider>(
                           builder: (context, auth, _) {
                             if (auth.user != null && auth.user!.isVendor) {

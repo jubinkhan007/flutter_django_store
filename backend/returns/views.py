@@ -346,6 +346,25 @@ class VendorInitiateRefundView(generics.GenericAPIView):
                 rr.save(update_fields=['status', 'updated_at'])
                 FinancialService.debit_for_refund(refund)
 
+            # Customer notification: REFUND_PROCESSED
+            try:
+                from notifications.models import Notification
+                from notifications.services import NotificationService
+
+                NotificationService.create(
+                    user=rr.customer,
+                    title='Refund processed',
+                    body=f'Your refund for {rr.rma_number} has been processed.',
+                    event_type=Notification.Type.REFUND_PROCESSED,
+                    category=Notification.Category.TRANSACTIONAL,
+                    deeplink=f'app://returns/{rr.id}',
+                    data={'return_request_id': str(rr.id), 'refund_id': str(refund.id)},
+                    inbox_visible=True,
+                    push_enabled=True,
+                )
+            except Exception:
+                pass
+
             return Response(ReturnRequestSerializer(rr).data)
 
         # ORIGINAL method: initiate via SSLCommerz refund API (async completion).
@@ -453,6 +472,25 @@ class VendorCompleteRefundView(generics.GenericAPIView):
 
             # Debit the vendor's ledger for the completed refund.
             FinancialService.debit_for_refund(refund)
+
+            # Customer notification: REFUND_PROCESSED (manual path)
+            try:
+                from notifications.models import Notification
+                from notifications.services import NotificationService
+
+                NotificationService.create(
+                    user=rr.customer,
+                    title='Refund processed',
+                    body=f'Your refund for {rr.rma_number} has been processed.',
+                    event_type=Notification.Type.REFUND_PROCESSED,
+                    category=Notification.Category.TRANSACTIONAL,
+                    deeplink=f'app://returns/{rr.id}',
+                    data={'return_request_id': str(rr.id), 'refund_id': str(refund.id)},
+                    inbox_visible=True,
+                    push_enabled=True,
+                )
+            except Exception:
+                pass
 
         return Response(ReturnRequestSerializer(rr).data)
 

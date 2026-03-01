@@ -12,23 +12,28 @@ import 'vendor_customers_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'vendor_profile_screen.dart';
 import 'vendor_bulk_upload_screen.dart';
+import '../../../notifications/presentation/providers/notification_provider.dart';
 
 class VendorDashboardScreen extends StatefulWidget {
-  const VendorDashboardScreen({super.key});
+  final int initialIndex;
+
+  const VendorDashboardScreen({super.key, this.initialIndex = 0});
 
   @override
   State<VendorDashboardScreen> createState() => _VendorDashboardScreenState();
 }
 
 class _VendorDashboardScreenState extends State<VendorDashboardScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
 
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialIndex;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<VendorProvider>().loadStats();
       context.read<VendorProvider>().loadDashboard();
+      context.read<NotificationProvider>().refreshUnreadCount();
     });
   }
 
@@ -133,6 +138,28 @@ class _DashboardPage extends StatelessWidget {
                 ),
                 Row(
                   children: [
+                    Consumer<NotificationProvider>(
+                      builder: (context, notifications, _) {
+                        Widget icon = const Icon(Icons.notifications_none);
+                        if (notifications.unreadCount > 0) {
+                          icon = Badge(
+                            label: Text('${notifications.unreadCount}'),
+                            backgroundColor: AppColors.error,
+                            child: icon,
+                          );
+                        }
+                        return IconButton(
+                          onPressed: () async {
+                            await notifications.load();
+                            if (context.mounted) {
+                              Navigator.pushNamed(context, '/notifications');
+                            }
+                          },
+                          icon: icon,
+                          tooltip: 'Notifications',
+                        );
+                      },
+                    ),
                     // Switch to customer view
                     IconButton(
                       onPressed: () {

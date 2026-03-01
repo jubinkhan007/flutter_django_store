@@ -83,4 +83,17 @@ class ApiConfig {
       '$baseUrl/vendors/sub-orders/$subOrderId/fulfill/';
   static String vendorSubOrderEventsUrl(int subOrderId) =>
       '$baseUrl/vendors/sub-orders/$subOrderId/events/';
+
+  // Notifications
+  static String get notificationsUrl => '$baseUrl/notifications/';
+  static String get notificationUnreadCountUrl =>
+      '${notificationsUrl}unread-count/';
+  static String get notificationMarkAllReadUrl =>
+      '${notificationsUrl}mark-all-read/';
+  static String notificationMarkReadUrl(String id) =>
+      '${notificationsUrl}$id/read/';
+  static String get notificationPreferencesUrl =>
+      '${notificationsUrl}preferences/';
+  static String get notificationDeviceRegisterUrl =>
+      '${notificationsUrl}devices/register/';
 }

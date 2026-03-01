@@ -6,6 +6,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/services/notification_service.dart';
 import '../providers/auth_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -43,6 +44,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
 
     if (success && mounted) {
+      await NotificationService.ensurePushInitialized(context);
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/home');
     }
   }

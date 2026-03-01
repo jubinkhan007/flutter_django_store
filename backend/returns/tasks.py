@@ -62,6 +62,28 @@ def poll_sslcommerz_refund_status(refund_id: int | None = None, batch_size: int 
 
                 FinancialService.debit_for_refund(refund)
 
+                # Customer notification on commit.
+                def _notify() -> None:
+                    try:
+                        from notifications.models import Notification
+                        from notifications.services import NotificationService
+
+                        NotificationService.create(
+                            user=rr.customer,
+                            title='Refund processed',
+                            body=f'Your refund for {rr.rma_number} has been processed.',
+                            event_type=Notification.Type.REFUND_PROCESSED,
+                            category=Notification.Category.TRANSACTIONAL,
+                            deeplink=f'app://returns/{rr.id}',
+                            data={'return_request_id': str(rr.id), 'refund_id': str(refund.id)},
+                            inbox_visible=True,
+                            push_enabled=True,
+                        )
+                    except Exception:
+                        pass
+
+                transaction.on_commit(_notify)
+
             completed += 1
             continue
 
@@ -76,4 +98,3 @@ def poll_sslcommerz_refund_status(refund_id: int | None = None, batch_size: int 
                 refund.save(update_fields=['status', 'failure_reason', 'updated_at'])
 
     return completed
-

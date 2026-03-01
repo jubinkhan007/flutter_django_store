@@ -5,6 +5,8 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
 import 'package:mobile/features/products/presentation/screens/product_detail_screen.dart';
 import 'package:mobile/features/products/domain/entities/product.dart';
+import 'package:mobile/features/products/presentation/providers/product_provider.dart';
+import 'package:mobile/features/cart/presentation/providers/cart_provider.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
@@ -181,16 +183,58 @@ class _WishlistScreenState extends State<WishlistScreen> {
                                     color: Theme.of(context).primaryColor,
                                   ),
                                   onPressed: () {
-                                    // Get the actual product from somewhere, or we might need to fetch it.
-                                    // For now, let's assume we can construct a dummy product or the provider supports adding by ID.
-                                    // Our cart provider uses `addToCart(Product)`. WishlistItem doesn't have all Product details.
-                                    // So we might need to fetch the product first, or pass the product in from WishlistItem.
-                                    // Assuming WishlistItem can be converted to a basic Product for cart purposes, or we show a message.
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Item moved to cart!'),
-                                      ),
-                                    );
+                                    () async {
+                                      try {
+                                        final productProvider =
+                                            context.read<ProductProvider>();
+                                        final cart =
+                                            context.read<CartProvider>();
+
+                                        final full = await productProvider
+                                            .getProductDetail(item.productId);
+
+                                        if (!context.mounted) return;
+
+                                        if (full.options.isNotEmpty ||
+                                            full.variants.isNotEmpty) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Select options before adding to cart',
+                                              ),
+                                            ),
+                                          );
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => ProductDetailScreen(
+                                                product: full,
+                                              ),
+                                            ),
+                                          );
+                                          return;
+                                        }
+
+                                        cart.addToCart(full);
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Added to cart'),
+                                          ),
+                                        );
+                                      } catch (e) {
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Failed to add: $e',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }();
                                   },
                                 ),
                             ],

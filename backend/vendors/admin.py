@@ -60,7 +60,32 @@ class PayoutRequestAdmin(admin.ModelAdmin):
     list_display = ('id', 'vendor', 'amount', 'status', 'requested_at', 'processed_at')
     list_filter = ('status',)
     search_fields = ('vendor__store_name', 'id')
-    actions = ['reject_and_release', 'mark_as_paid']
+    actions = ['approve_payout', 'reject_and_release', 'mark_as_paid']
+
+    @admin.action(description="Approve payout (notify vendor)")
+    def approve_payout(self, request, queryset):
+        for payout in queryset:
+            if payout.status in (PayoutRequest.Status.PAID, PayoutRequest.Status.REJECTED):
+                continue
+            payout.status = PayoutRequest.Status.APPROVED
+            payout.save(update_fields=['status'])
+            try:
+                from notifications.models import Notification
+                from notifications.services import NotificationService
+
+                NotificationService.create(
+                    user=payout.vendor.user,
+                    title='Payout approved',
+                    body=f'Your payout request #{payout.id} has been approved.',
+                    event_type=Notification.Type.PAYOUT_APPROVED,
+                    category=Notification.Category.TRANSACTIONAL,
+                    deeplink='app://vendor/wallet',
+                    data={'payout_id': str(payout.id), 'amount': str(payout.amount)},
+                    inbox_visible=True,
+                    push_enabled=True,
+                )
+            except Exception:
+                pass
 
     @admin.action(description="Reject payout + release held funds")
     def reject_and_release(self, request, queryset):

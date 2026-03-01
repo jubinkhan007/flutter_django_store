@@ -61,11 +61,27 @@ import 'features/coupons/presentation/providers/coupon_provider.dart';
 import 'features/home/data/repositories/home_repository.dart';
 import 'features/home/presentation/providers/home_provider.dart';
 
-// Global navigator key to allow showing SnackBars/dialogs without context
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+// Notifications
+import 'features/notifications/data/repositories/notification_repository.dart';
+import 'features/notifications/presentation/providers/notification_provider.dart';
+import 'features/notifications/presentation/screens/notification_screen.dart';
+
+// Firebase
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+import 'core/navigation/app_navigator.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp();
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Set transparent status bar globally
   SystemChrome.setSystemUIOverlayStyle(
@@ -99,7 +115,7 @@ void main() async {
     authProvider.logout();
 
     // 2. Try to show a snackbar using the global navigator key
-    final context = navigatorKey.currentContext;
+    final context = appNavigatorKey.currentContext;
     if (context != null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -122,6 +138,7 @@ void main() async {
   final returnRepository = ReturnRepository(apiClient: apiClient);
   final couponRepository = CouponRepository(apiClient: apiClient);
   final homeRepository = HomeRepository(apiClient: apiClient);
+  final notificationRepository = NotificationRepository(apiClient: apiClient);
 
   runApp(
     MyApp(
@@ -136,6 +153,7 @@ void main() async {
       returnRepository: returnRepository,
       couponRepository: couponRepository,
       homeRepository: homeRepository,
+      notificationRepository: notificationRepository,
     ),
   );
 }
@@ -152,6 +170,7 @@ class MyApp extends StatelessWidget {
   final ReturnRepository returnRepository;
   final CouponRepository couponRepository;
   final HomeRepository homeRepository;
+  final NotificationRepository notificationRepository;
 
   const MyApp({
     super.key,
@@ -166,6 +185,7 @@ class MyApp extends StatelessWidget {
     required this.returnRepository,
     required this.couponRepository,
     required this.homeRepository,
+    required this.notificationRepository,
   });
 
   @override
@@ -199,6 +219,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => ReturnProvider(repository: returnRepository),
         ),
+        Provider<ReturnRepository>.value(value: returnRepository),
         ChangeNotifierProvider(
           create: (_) => CouponProvider(repository: couponRepository),
         ),
@@ -206,6 +227,12 @@ class MyApp extends StatelessWidget {
           create: (_) =>
               HomeProvider(homeRepository: homeRepository)..loadFeed(),
         ),
+        ChangeNotifierProvider(
+          create: (_) =>
+              NotificationProvider(repository: notificationRepository)
+                ..refreshUnreadCount(),
+        ),
+        Provider<NotificationRepository>.value(value: notificationRepository),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, theme, _) {
@@ -223,7 +250,7 @@ class MyApp extends StatelessWidget {
               theme: AppTheme.lightTheme,
               darkTheme: AppTheme.darkTheme,
               themeMode: theme.themeMode,
-              navigatorKey: navigatorKey,
+              navigatorKey: appNavigatorKey,
               home: const AuthGate(),
               routes: {
                 '/login': (context) => const LoginScreen(),
@@ -234,6 +261,7 @@ class MyApp extends StatelessWidget {
                 '/vendor/add-product': (context) =>
                     const VendorAddProductScreen(),
                 '/vendor/wallet': (context) => const VendorWalletScreen(),
+                '/notifications': (context) => const NotificationScreen(),
               },
             ),
           );

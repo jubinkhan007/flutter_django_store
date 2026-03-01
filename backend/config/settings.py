@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'coupons',
     'returns',
     'promotions',
+    'notifications',
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -172,6 +173,15 @@ SSLCOMMERZ_IS_SANDBOX = os.getenv('SSLCOMMERZ_IS_SANDBOX', 'true').lower() in (
     'yes',
     'y',
 )
+
+# Firebase Cloud Messaging (FCM)
+# - Legacy: set FCM_MODE=legacy + FCM_SERVER_KEY
+# - HTTP v1: set FCM_MODE=v1 + FCM_PROJECT_ID + (FCM_SERVICE_ACCOUNT_JSON or FCM_SERVICE_ACCOUNT_FILE)
+FCM_MODE = os.getenv('FCM_MODE', 'v1').lower()
+FCM_SERVER_KEY = os.getenv('FCM_SERVER_KEY', '')
+FCM_PROJECT_ID = os.getenv('FCM_PROJECT_ID', '')
+FCM_SERVICE_ACCOUNT_JSON = os.getenv('FCM_SERVICE_ACCOUNT_JSON', '')
+FCM_SERVICE_ACCOUNT_FILE = os.getenv('FCM_SERVICE_ACCOUNT_FILE', '')
 
 # Celery Configuration Options
 CELERY_BROKER_URL = 'redis://localhost:6379/0'

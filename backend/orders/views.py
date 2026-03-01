@@ -306,6 +306,39 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
                     image_url=item_data['image_url']
                 )
 
+        # Notifications (Customer: Order placed; Vendor: notify immediately for COD orders)
+        try:
+            from notifications.models import Notification
+            from notifications.services import NotificationService
+
+            NotificationService.create(
+                user=request.user,
+                title='Order placed',
+                body=f'Your order #{order.id} has been placed.',
+                event_type=Notification.Type.ORDER_PLACED,
+                category=Notification.Category.TRANSACTIONAL,
+                deeplink=f'app://orders/{order.id}',
+                data={'order_id': str(order.id)},
+                inbox_visible=True,
+                push_enabled=True,
+            )
+
+            if order.payment_method == Order.PaymentMethod.COD:
+                for so in order.sub_orders.select_related('vendor__user').all():
+                    NotificationService.create(
+                        user=so.vendor.user,
+                        title='New order received',
+                        body=f'You have a new order (SubOrder #{so.id}).',
+                        event_type=Notification.Type.NEW_SUBORDER,
+                        category=Notification.Category.TRANSACTIONAL,
+                        deeplink=f'app://vendor/orders/{so.id}',
+                        data={'order_id': str(order.id), 'suborder_id': str(so.id)},
+                        inbox_visible=True,
+                        push_enabled=True,
+                    )
+        except Exception:
+            pass
+
         # ── Step 4: Return the created order ──
         result = OrderSerializer(order).data
         return Response(result, status=status.HTTP_201_CREATED)
@@ -509,6 +542,26 @@ class VendorSubOrderFulfillView(generics.GenericAPIView):
         )
 
         _recompute_master_order(sub_order.order)
+
+        # Customer notification: ORDER_SHIPPED
+        try:
+            from notifications.models import Notification
+            from notifications.services import NotificationService
+
+            NotificationService.create(
+                user=sub_order.order.customer,
+                title='Order shipped',
+                body=f'Your order #{sub_order.order.id} has been shipped.',
+                event_type=Notification.Type.ORDER_SHIPPED,
+                category=Notification.Category.TRANSACTIONAL,
+                deeplink=f'app://orders/{sub_order.order.id}?sub_id={sub_order.id}',
+                data={'order_id': str(sub_order.order.id), 'suborder_id': str(sub_order.id), 'status': 'SHIPPED'},
+                inbox_visible=True,
+                push_enabled=True,
+            )
+        except Exception:
+            pass
+
         return Response(SubOrderSerializer(sub_order, context={'request': request}).data)
 
 
@@ -662,6 +715,27 @@ class SSLCommerzSuccessView(generics.GenericAPIView):
                     # Needed for initiating refunds via SSLCommerz refund API.
                     order.bank_tran_id = response.get('bank_tran_id') or order.bank_tran_id
                     order.save()
+
+                    # Vendor notification: NEW_SUBORDER (ONLINE payment confirmed).
+                    try:
+                        from notifications.models import Notification
+                        from notifications.services import NotificationService
+
+                        for so in order.sub_orders.select_related('vendor__user').all():
+                            NotificationService.create(
+                                user=so.vendor.user,
+                                title='New paid order',
+                                body=f'You have a new paid order (SubOrder #{so.id}).',
+                                event_type=Notification.Type.NEW_SUBORDER,
+                                category=Notification.Category.TRANSACTIONAL,
+                                deeplink=f'app://vendor/orders/{so.id}',
+                                data={'order_id': str(order.id), 'suborder_id': str(so.id), 'status': 'PAID'},
+                                inbox_visible=True,
+                                push_enabled=True,
+                            )
+                    except Exception:
+                        pass
+
                     return HttpResponse(_deep_link_redirect(
                         scheme_url=f"shopease://payment/success?order_id={order.id}",
                         title='Payment Successful!',

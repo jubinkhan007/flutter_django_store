@@ -29,6 +29,7 @@ urlpatterns = [
     path('api/coupons/', include('coupons.urls')),     # Coupon validation endpoint
     path('api/returns/', include('returns.urls')),     # Return/RMA endpoints
     path('api/promotions/', include('promotions.urls')),  # Promotions/Home feed
+    path('api/notifications/', include('notifications.urls')),  # Notifications/Inbox/Push
 ]
 
 # Serve media files during development

@@ -6,6 +6,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/services/notification_service.dart';
 import '../providers/auth_provider.dart';
 import 'register_screen.dart';
 
@@ -54,6 +55,8 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     if (success && mounted) {
+      await NotificationService.ensurePushInitialized(context);
+      if (!mounted) return;
       // Role-based routing: Vendors → Dashboard, Customers → Shop
       final user = authProvider.user;
       if (user != null && user.isVendor) {
