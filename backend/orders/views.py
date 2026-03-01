@@ -653,12 +653,14 @@ class SSLCommerzSuccessView(generics.GenericAPIView):
         sslcz = SSLCOMMERZ(settings_env)
         
         if val_id:
-            response = sslcz.validationTransactionOrder(val_id)
+            response = sslcz.validationTransactionOrder(val_id) or {}
             if response.get('status') == 'VALID' or response.get('status') == 'VALIDATED':
                 try:
                     order = Order.objects.get(transaction_id=tran_id)
                     order.payment_status = Order.PaymentStatus.PAID
                     order.val_id = val_id
+                    # Needed for initiating refunds via SSLCommerz refund API.
+                    order.bank_tran_id = response.get('bank_tran_id') or order.bank_tran_id
                     order.save()
                     return HttpResponse(_deep_link_redirect(
                         scheme_url=f"shopease://payment/success?order_id={order.id}",

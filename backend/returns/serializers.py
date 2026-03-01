@@ -44,7 +44,20 @@ class ReturnItemSerializer(serializers.ModelSerializer):
 class RefundSerializer(serializers.ModelSerializer):
     class Meta:
         model = Refund
-        fields = ['id', 'amount', 'method', 'status', 'processed_at', 'reference', 'failure_reason', 'created_at']
+        fields = [
+            'id',
+            'amount',
+            'method',
+            'status',
+            'provider',
+            'provider_ref_id',
+            'provider_trans_id',
+            'processed_at',
+            'reference',
+            'failure_reason',
+            'created_at',
+            'updated_at',
+        ]
 
 
 class ReturnRequestSerializer(serializers.ModelSerializer):

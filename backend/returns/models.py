@@ -184,8 +184,14 @@ class Refund(models.Model):
     method = models.CharField(max_length=20, choices=ReturnRequest.RefundMethod.choices)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
 
+    # External processor tracking (e.g., SSLCommerz)
+    provider = models.CharField(max_length=30, blank=True, default='')
+    provider_ref_id = models.CharField(max_length=80, blank=True, default='')
+    provider_trans_id = models.CharField(max_length=30, blank=True, default='')
+
     processed_at = models.DateTimeField(null=True, blank=True)
     reference = models.CharField(max_length=255, blank=True)
     failure_reason = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)

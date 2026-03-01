@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -161,6 +162,17 @@ MEDIA_ROOT = BASE_DIR / 'media'
 RMA_VENDOR_RESPONSE_HOURS = 48
 RMA_DEFAULT_RETURN_WINDOW_DAYS = 7
 
+# SSLCommerz Configuration
+# NOTE: Set these via environment variables in production.
+SSLCOMMERZ_STORE_ID = os.getenv('SSLCOMMERZ_STORE_ID', 'testbox')
+SSLCOMMERZ_STORE_PASS = os.getenv('SSLCOMMERZ_STORE_PASS', 'qwerty')
+SSLCOMMERZ_IS_SANDBOX = os.getenv('SSLCOMMERZ_IS_SANDBOX', 'true').lower() in (
+    '1',
+    'true',
+    'yes',
+    'y',
+)
+
 # Celery Configuration Options
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
@@ -182,5 +194,10 @@ CELERY_BEAT_SCHEDULE = {
     'vendors.release_due_settlements': {
         'task': 'vendors.tasks.release_due_settlements',
         'schedule': crontab(hour=0, minute=10),
+    },
+    # Poll SSLCommerz refunds to finalize original-method refunds (no webhook available in this integration).
+    'returns.poll_sslcommerz_refunds': {
+        'task': 'returns.tasks.poll_sslcommerz_refund_status',
+        'schedule': crontab(minute='*/5'),
     },
 }

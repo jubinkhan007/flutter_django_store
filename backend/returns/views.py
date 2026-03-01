@@ -23,6 +23,8 @@ from .serializers import (
 from vendors.financial_service import FinancialService
 from .services import check_return_eligibility, create_refund, process_wallet_refund
 from .models import ReturnPolicy
+from .sslcommerz_refund_client import SSLCommerzRefundClient
+import uuid
 
 
 class CustomerReturnListCreateView(generics.GenericAPIView):
@@ -304,6 +306,27 @@ class VendorInitiateRefundView(generics.GenericAPIView):
                     {'error': 'Order must be PAID to refund to original method.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            if not getattr(rr.order, 'bank_tran_id', None):
+                return Response(
+                    {
+                        'error': 'Missing SSLCommerz bank_tran_id for this order; cannot initiate original-method refund.'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Idempotency: prevent multiple simultaneous refund initiations.
+        if method == ReturnRequest.RefundMethod.ORIGINAL:
+            in_flight = rr.refunds.filter(
+                method=ReturnRequest.RefundMethod.ORIGINAL,
+                status__in=[Refund.Status.PENDING, Refund.Status.PROCESSING],
+            ).exists()
+            if in_flight:
+                rr.status = ReturnRequest.Status.REFUND_PENDING
+                rr.save(update_fields=['status', 'updated_at'])
+                return Response(
+                    ReturnRequestSerializer(rr).data,
+                    status=status.HTTP_202_ACCEPTED,
+                )
 
         try:
             refund = create_refund(return_request=rr, amount=amount, method=method)
@@ -311,20 +334,85 @@ class VendorInitiateRefundView(generics.GenericAPIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         if method == ReturnRequest.RefundMethod.WALLET:
-            process_wallet_refund(refund=refund)
-            rr.status = ReturnRequest.Status.REFUNDED
-            rr.save(update_fields=['status', 'updated_at'])
+            refund = process_wallet_refund(refund=refund)
+            if refund.status != Refund.Status.COMPLETED:
+                return Response(
+                    {'error': refund.failure_reason or 'Wallet refund failed.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            with transaction.atomic():
+                rr.status = ReturnRequest.Status.REFUNDED
+                rr.save(update_fields=['status', 'updated_at'])
+                FinancialService.debit_for_refund(refund)
+
             return Response(ReturnRequestSerializer(rr).data)
 
-        rr.status = ReturnRequest.Status.REFUND_PENDING
-        rr.save(update_fields=['status', 'updated_at'])
-        return Response(ReturnRequestSerializer(rr).data, status=status.HTTP_202_ACCEPTED)
+        # ORIGINAL method: initiate via SSLCommerz refund API (async completion).
+        refund.provider = 'SSLCOMMERZ'
+        refund.provider_trans_id = f"TRID{refund.id}{uuid.uuid4().hex}"[:30]
+        refund.save(update_fields=['provider', 'provider_trans_id'])
+
+        client = SSLCommerzRefundClient()
+        init_res = client.initiate_refund(
+            bank_tran_id=rr.order.bank_tran_id,
+            refund_trans_id=refund.provider_trans_id,
+            refund_amount=Decimal(str(refund.amount)),
+            refund_remarks=f"Refund for {rr.rma_number}",
+            refe_id=str(refund.id),
+        )
+
+        if init_res.api_connect != 'DONE':
+            refund.status = Refund.Status.FAILED
+            refund.failure_reason = init_res.error_reason or f'APIConnect={init_res.api_connect}'
+            refund.save(update_fields=['status', 'failure_reason', 'updated_at'])
+            return Response(
+                {'error': refund.failure_reason or 'Failed to initiate refund.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if init_res.status in ('success', 'processing'):
+            if not init_res.refund_ref_id:
+                refund.status = Refund.Status.FAILED
+                refund.failure_reason = init_res.error_reason or 'Missing refund_ref_id from SSLCommerz.'
+                refund.save(update_fields=['status', 'failure_reason', 'updated_at'])
+                return Response(
+                    {'error': refund.failure_reason},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            refund.status = Refund.Status.PROCESSING
+            refund.provider_ref_id = init_res.refund_ref_id
+            refund.save(update_fields=['status', 'provider_ref_id', 'updated_at'])
+
+            rr.status = ReturnRequest.Status.REFUND_PENDING
+            rr.save(update_fields=['status', 'updated_at'])
+
+            # Fire-and-forget poll (also covered by periodic task if configured).
+            try:
+                from .tasks import poll_sslcommerz_refund_status  # local import avoids celery in import path
+                poll_sslcommerz_refund_status.delay(refund.id)
+            except Exception:
+                pass
+
+            return Response(
+                ReturnRequestSerializer(rr).data,
+                status=status.HTTP_202_ACCEPTED,
+            )
+
+        refund.status = Refund.Status.FAILED
+        refund.failure_reason = init_res.error_reason or 'Refund request failed to initiate.'
+        refund.save(update_fields=['status', 'failure_reason', 'updated_at'])
+        return Response(
+            {'error': refund.failure_reason},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 class VendorCompleteRefundView(generics.GenericAPIView):
     """
-    Marks the latest pending ORIGINAL-method refund as completed.
-    This is a manual step unless integrated with a payment gateway webhook.
+    Manually marks the latest in-flight ORIGINAL-method refund as completed.
+    This is a fallback path if automated gateway status tracking is unavailable.
     """
 
     permission_classes = [permissions.IsAuthenticated]
@@ -344,12 +432,15 @@ class VendorCompleteRefundView(generics.GenericAPIView):
             return Response({'error': 'Return is not awaiting refund completion.'}, status=status.HTTP_400_BAD_REQUEST)
 
         refund = (
-            rr.refunds.filter(method=ReturnRequest.RefundMethod.ORIGINAL, status=Refund.Status.PENDING)
+            rr.refunds.filter(
+                method=ReturnRequest.RefundMethod.ORIGINAL,
+                status__in=[Refund.Status.PENDING, Refund.Status.PROCESSING],
+            )
             .order_by('-created_at')
             .first()
         )
         if not refund:
-            return Response({'error': 'No pending original-method refund found.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'No in-flight original-method refund found.'}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
             refund.status = Refund.Status.COMPLETED

@@ -1,13 +1,16 @@
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from orders.models import Order, OrderItem
 from products.models import Category, Product
-from returns.models import ReturnItem, ReturnPolicy, ReturnRequest
+from returns.models import Refund, ReturnItem, ReturnPolicy, ReturnRequest
 from returns.services import escalate_overdue_returns
+from returns.sslcommerz_refund_client import SSLCommerzRefundInitResult, SSLCommerzRefundStatusResult
+from returns.tasks import poll_sslcommerz_refund_status
 from users.models import Address, User
 from vendors.models import Vendor
 
@@ -157,6 +160,119 @@ class ReturnsFlowTest(APITestCase):
             format="json",
         )
         self.assertEqual(resp.status_code, 400, resp.data)
+
+    def test_original_method_refund_via_sslcommerz_polling(self):
+        # Make the order an ONLINE paid order with a stored bank_tran_id.
+        self.order.payment_method = Order.PaymentMethod.ONLINE
+        self.order.payment_status = Order.PaymentStatus.PAID
+        self.order.bank_tran_id = "1709162345070ANJdZV8LyI4cMw"
+        self.order.save(update_fields=["payment_method", "payment_status", "bank_tran_id"])
+
+        # Customer creates return.
+        self.client.force_authenticate(user=self.customer)
+        resp = self.client.post(
+            "/api/returns/",
+            data={
+                "order_id": self.order.id,
+                "request_type": "RETURN",
+                "reason": "DEFECTIVE",
+                "items": [{"order_item_id": self.order_item.id, "quantity": 1, "condition": "UNOPENED"}],
+                "refund_method_preference": "ORIGINAL",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        rr_id = resp.data["returns"][0]["id"]
+
+        # Vendor approves + marks received.
+        self.client.force_authenticate(user=self.vendor_user)
+        approve = self.client.post(f"/api/vendors/returns/{rr_id}/approve/", data={}, format="json")
+        self.assertEqual(approve.status_code, 200, approve.data)
+        recv = self.client.post(f"/api/vendors/returns/{rr_id}/received/", data={}, format="json")
+        self.assertEqual(recv.status_code, 200, recv.data)
+
+        with patch(
+            "returns.views.SSLCommerzRefundClient.initiate_refund",
+            return_value=SSLCommerzRefundInitResult(
+                api_connect="DONE",
+                bank_tran_id=self.order.bank_tran_id,
+                trans_id="SSLCZ_TEST_59bd635981a94",
+                refund_ref_id="59bd63fea5455",
+                status="success",
+                error_reason="",
+            ),
+        ), patch("returns.tasks.SSLCommerzRefundClient.query_refund_status") as mock_query, patch(
+            "returns.tasks.FinancialService.debit_for_refund"
+        ) as mock_debit:
+            mock_query.return_value = SSLCommerzRefundStatusResult(
+                api_connect="DONE",
+                bank_tran_id=self.order.bank_tran_id,
+                tran_id="SSLCZ_TEST_59bd635981a94",
+                refund_ref_id="59bd63fea5455",
+                initiated_on="2017-09-16 23:48:46",
+                refunded_on="2017-09-17 08:53:51",
+                status="refunded",
+                error_reason="",
+            )
+
+            refund_resp = self.client.post(
+                f"/api/vendors/returns/{rr_id}/refund/",
+                data={"method": "ORIGINAL"},
+                format="json",
+            )
+            self.assertEqual(refund_resp.status_code, 202, refund_resp.data)
+
+            rr = ReturnRequest.objects.get(id=rr_id)
+            refund = rr.refunds.get(method=ReturnRequest.RefundMethod.ORIGINAL)
+            self.assertEqual(refund.status, Refund.Status.PROCESSING)
+            self.assertEqual(refund.provider, "SSLCOMMERZ")
+            self.assertTrue(refund.provider_ref_id)
+            self.assertTrue(refund.provider_trans_id)
+
+            # Poll completes the refund.
+            completed = poll_sslcommerz_refund_status(refund.id)
+            self.assertEqual(completed, 1)
+
+            rr.refresh_from_db()
+            refund.refresh_from_db()
+            self.assertEqual(rr.status, ReturnRequest.Status.REFUNDED)
+            self.assertEqual(refund.status, Refund.Status.COMPLETED)
+            self.assertIsNotNone(refund.processed_at)
+            mock_debit.assert_called_once()
+
+    def test_original_method_refund_requires_bank_tran_id(self):
+        self.order.payment_method = Order.PaymentMethod.ONLINE
+        self.order.payment_status = Order.PaymentStatus.PAID
+        self.order.bank_tran_id = None
+        self.order.save(update_fields=["payment_method", "payment_status", "bank_tran_id"])
+
+        self.client.force_authenticate(user=self.customer)
+        resp = self.client.post(
+            "/api/returns/",
+            data={
+                "order_id": self.order.id,
+                "request_type": "RETURN",
+                "reason": "DEFECTIVE",
+                "items": [{"order_item_id": self.order_item.id, "quantity": 1, "condition": "UNOPENED"}],
+                "refund_method_preference": "ORIGINAL",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        rr_id = resp.data["returns"][0]["id"]
+
+        self.client.force_authenticate(user=self.vendor_user)
+        approve = self.client.post(f"/api/vendors/returns/{rr_id}/approve/", data={}, format="json")
+        self.assertEqual(approve.status_code, 200, approve.data)
+        recv = self.client.post(f"/api/vendors/returns/{rr_id}/received/", data={}, format="json")
+        self.assertEqual(recv.status_code, 200, recv.data)
+
+        refund_resp = self.client.post(
+            f"/api/vendors/returns/{rr_id}/refund/",
+            data={"method": "ORIGINAL"},
+            format="json",
+        )
+        self.assertEqual(refund_resp.status_code, 400, refund_resp.data)
 
     def test_escalate_overdue(self):
         rr = ReturnRequest.objects.create(

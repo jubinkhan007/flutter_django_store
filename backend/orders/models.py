@@ -32,6 +32,12 @@ class Order(models.Model):
     payment_status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.UNPAID)
     transaction_id = models.CharField(max_length=255, blank=True, null=True, help_text="System generated trxn_id for SSLCommerz")
     val_id = models.CharField(max_length=255, blank=True, null=True, help_text="Validation ID from SSLCommerz (needed for refunds)")
+    bank_tran_id = models.CharField(
+        max_length=80,
+        blank=True,
+        null=True,
+        help_text="Bank-side transaction ID from SSLCommerz (required for refund API).",
+    )
     idempotency_key = models.CharField(max_length=64, unique=True, null=True, blank=True, help_text="Client-generated UUID to prevent duplicate orders")
     delivered_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
