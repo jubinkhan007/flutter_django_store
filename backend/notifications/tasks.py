@@ -27,6 +27,13 @@ def _should_push(notification: Notification) -> bool:
     ):
         return pref.payout_updates
 
+    if notification.type in (
+        Notification.Type.TICKET_CREATED,
+        Notification.Type.TICKET_REPLY_RECEIVED,
+        Notification.Type.DISPUTE_ESCALATED,
+    ):
+        return pref.order_updates
+
     # Orders + refunds fall under order_updates
     return pref.order_updates
 

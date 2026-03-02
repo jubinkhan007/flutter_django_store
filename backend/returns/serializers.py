@@ -64,6 +64,7 @@ class ReturnRequestSerializer(serializers.ModelSerializer):
     items = ReturnItemSerializer(many=True, read_only=True)
     images = ReturnImageSerializer(many=True, read_only=True)
     refunds = RefundSerializer(many=True, read_only=True)
+    dispute_ticket_id = serializers.SerializerMethodField()
 
     class Meta:
         model = ReturnRequest
@@ -92,10 +93,20 @@ class ReturnRequestSerializer(serializers.ModelSerializer):
             'items',
             'images',
             'refunds',
+            'dispute_ticket_id',
             'created_at',
             'updated_at',
         ]
         read_only_fields = fields
+
+    def get_dispute_ticket_id(self, obj):
+        try:
+            from support.models import Ticket
+
+            t = Ticket.objects.filter(return_request=obj).order_by('-created_at').first()
+            return t.id if t else None
+        except Exception:
+            return None
 
 
 class VendorReturnActionSerializer(serializers.Serializer):

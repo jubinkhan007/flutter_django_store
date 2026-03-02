@@ -35,6 +35,25 @@ class ReturnProvider extends ChangeNotifier {
     }
   }
 
+  Future<ReturnRequestModel?> escalateReturn(int returnId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final updated = await _repository.escalateReturn(returnId);
+      _myReturns = _myReturns.map((r) => r.id == returnId ? updated : r).toList();
+      _isLoading = false;
+      notifyListeners();
+      return updated;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    }
+  }
+
   Future<List<ReturnRequestModel>?> createReturn({
     required int orderId,
     required String requestType,

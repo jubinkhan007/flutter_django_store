@@ -18,6 +18,7 @@ class ReturnRequestModel {
   final String customerNote;
   final DateTime? vendorResponseDueAt;
   final DateTime? escalatedAt;
+  final int? disputeTicketId;
   final List<ReturnItemModel> items;
   final List<ReturnImageModel> images;
   final List<RefundModel> refunds;
@@ -41,6 +42,7 @@ class ReturnRequestModel {
     required this.customerNote,
     required this.vendorResponseDueAt,
     required this.escalatedAt,
+    required this.disputeTicketId,
     required this.items,
     required this.images,
     required this.refunds,
@@ -71,6 +73,9 @@ class ReturnRequestModel {
       customerNote: json['customer_note'] ?? '',
       vendorResponseDueAt: parseDate(json['vendor_response_due_at']),
       escalatedAt: parseDate(json['escalated_at']),
+      disputeTicketId: json['dispute_ticket_id'] == null
+          ? null
+          : int.tryParse(json['dispute_ticket_id'].toString()),
       items:
           (json['items'] as List?)
               ?.map((e) => ReturnItemModel.fromJson(e))

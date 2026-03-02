@@ -156,6 +156,35 @@ class CustomerReturnCancelView(generics.GenericAPIView):
         return Response(ReturnRequestSerializer(rr).data)
 
 
+class CustomerReturnEscalateView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            rr = ReturnRequest.objects.get(id=pk, customer=request.user)
+        except ReturnRequest.DoesNotExist:
+            return Response({'error': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if rr.status not in [ReturnRequest.Status.SUBMITTED, ReturnRequest.Status.VENDOR_REJECTED]:
+            return Response(
+                {'error': 'Only SUBMITTED or VENDOR_REJECTED returns can be escalated.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        rr.status = ReturnRequest.Status.ESCALATED
+        rr.escalated_at = timezone.now()
+        rr.save(update_fields=['status', 'escalated_at', 'updated_at'])
+
+        try:
+            from support.services import SupportService
+
+            SupportService.ensure_dispute_ticket_for_return(rr)
+        except Exception:
+            pass
+
+        return Response(ReturnRequestSerializer(rr).data)
+
+
 class CustomerReturnImageUploadView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]

@@ -9,6 +9,7 @@ import '../../../addresses/presentation/screens/address_management_screen.dart';
 import 'package:mobile/features/wishlist/presentation/screens/wishlist_screen.dart';
 import '../../../coupons/presentation/screens/coupon_center_screen.dart';
 import '../../../returns/presentation/screens/return_list_screen.dart';
+import '../../../support/presentation/screens/support_center_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -162,6 +163,20 @@ class ProfileScreen extends StatelessWidget {
                           context,
                           MaterialPageRoute(
                             builder: (_) => const CouponCenterScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(color: AppColors.lightSurface),
+                    _MenuListItem(
+                      icon: Icons.support_agent_outlined,
+                      title: 'Support Center',
+                      subtitle: 'Get help and track disputes',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SupportCenterScreen(),
                           ),
                         );
                       },

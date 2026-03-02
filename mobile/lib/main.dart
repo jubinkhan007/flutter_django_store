@@ -66,6 +66,11 @@ import 'features/notifications/data/repositories/notification_repository.dart';
 import 'features/notifications/presentation/providers/notification_provider.dart';
 import 'features/notifications/presentation/screens/notification_screen.dart';
 
+// Support
+import 'features/support/data/repositories/support_repository.dart';
+import 'features/support/presentation/providers/support_provider.dart';
+import 'features/support/presentation/screens/support_center_screen.dart';
+
 // Firebase
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -139,6 +144,7 @@ void main() async {
   final couponRepository = CouponRepository(apiClient: apiClient);
   final homeRepository = HomeRepository(apiClient: apiClient);
   final notificationRepository = NotificationRepository(apiClient: apiClient);
+  final supportRepository = SupportRepository(apiClient: apiClient);
 
   runApp(
     MyApp(
@@ -154,6 +160,7 @@ void main() async {
       couponRepository: couponRepository,
       homeRepository: homeRepository,
       notificationRepository: notificationRepository,
+      supportRepository: supportRepository,
     ),
   );
 }
@@ -171,6 +178,7 @@ class MyApp extends StatelessWidget {
   final CouponRepository couponRepository;
   final HomeRepository homeRepository;
   final NotificationRepository notificationRepository;
+  final SupportRepository supportRepository;
 
   const MyApp({
     super.key,
@@ -186,6 +194,7 @@ class MyApp extends StatelessWidget {
     required this.couponRepository,
     required this.homeRepository,
     required this.notificationRepository,
+    required this.supportRepository,
   });
 
   @override
@@ -233,6 +242,10 @@ class MyApp extends StatelessWidget {
                 ..refreshUnreadCount(),
         ),
         Provider<NotificationRepository>.value(value: notificationRepository),
+        ChangeNotifierProvider(
+          create: (_) => SupportProvider(repository: supportRepository),
+        ),
+        Provider<SupportRepository>.value(value: supportRepository),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, theme, _) {
@@ -262,6 +275,7 @@ class MyApp extends StatelessWidget {
                     const VendorAddProductScreen(),
                 '/vendor/wallet': (context) => const VendorWalletScreen(),
                 '/notifications': (context) => const NotificationScreen(),
+                '/support': (context) => const SupportCenterScreen(),
               },
             ),
           );

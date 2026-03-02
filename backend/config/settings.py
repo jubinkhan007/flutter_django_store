@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'returns',
     'promotions',
     'notifications',
+    'support',
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -209,5 +210,10 @@ CELERY_BEAT_SCHEDULE = {
     'returns.poll_sslcommerz_refunds': {
         'task': 'returns.tasks.poll_sslcommerz_refund_status',
         'schedule': crontab(minute='*/5'),
+    },
+    # Flags overdue support tickets (24h first response, 72h resolution)
+    'support.flag_overdue_tickets': {
+        'task': 'support.tasks.flag_overdue_tickets',
+        'schedule': crontab(hour=0, minute=20),
     },
 }

@@ -12,6 +12,7 @@ import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading_state.dart';
 import '../../../returns/presentation/providers/return_provider.dart';
 import '../../../returns/data/models/return_request_model.dart';
+import '../../../support/presentation/screens/ticket_chat_screen.dart';
 
 class VendorReturnsScreen extends StatefulWidget {
   const VendorReturnsScreen({super.key});
@@ -553,6 +554,26 @@ class _ReturnCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
+              if (rr.disputeTicketId != null)
+                OutlinedButton.icon(
+                  onPressed: () {
+                    final id = rr.disputeTicketId;
+                    if (id == null) return;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TicketChatScreen(ticketId: id),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.gavel_outlined, size: 18),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.full),
+                    ),
+                  ),
+                  label: const Text('View dispute'),
+                ),
               if (canDecide)
                 OutlinedButton(
                   onPressed: onApprove,

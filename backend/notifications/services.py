@@ -19,6 +19,8 @@ def _group_type(event_type: str) -> str:
         return 'PAYOUT'
     if event_type.startswith('REFUND_'):
         return 'REFUND'
+    if event_type.startswith('TICKET_') or event_type.startswith('DISPUTE_'):
+        return 'SUPPORT'
     if event_type == Notification.Type.PROMOTION:
         return 'PROMO'
     return 'GENERAL'

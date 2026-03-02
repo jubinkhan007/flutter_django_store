@@ -62,6 +62,9 @@ class Notification(models.Model):
         NEW_SUBORDER = 'NEW_SUBORDER', 'New SubOrder'
         PAYOUT_APPROVED = 'PAYOUT_APPROVED', 'Payout Approved'
         PAYOUT_REQUESTED = 'PAYOUT_REQUESTED', 'Payout Requested'
+        TICKET_CREATED = 'TICKET_CREATED', 'Ticket Created'
+        TICKET_REPLY_RECEIVED = 'TICKET_REPLY_RECEIVED', 'Ticket Reply Received'
+        DISPUTE_ESCALATED = 'DISPUTE_ESCALATED', 'Dispute Escalated'
         PROMOTION = 'PROMOTION', 'Promotion'
 
     class DeliveryStatus(models.TextChoices):
@@ -118,4 +121,3 @@ class Notification(models.Model):
 
     def __str__(self) -> str:
         return f'{self.user_id} {self.type} {self.title}'
-

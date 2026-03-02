@@ -29,6 +29,15 @@ class ReturnRepository {
     throw Exception('Failed to load return details');
   }
 
+  Future<ReturnRequestModel> escalateReturn(int returnId) async {
+    final resp = await _apiClient.post(ApiConfig.returnEscalateUrl(returnId));
+    if (resp.statusCode == 200) {
+      return ReturnRequestModel.fromJson(jsonDecode(resp.body));
+    }
+    final error = jsonDecode(resp.body);
+    throw Exception(error['error'] ?? 'Failed to escalate');
+  }
+
   Future<List<ReturnRequestModel>> createReturn({
     required int orderId,
     required String requestType,

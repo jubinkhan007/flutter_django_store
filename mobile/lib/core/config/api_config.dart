@@ -96,4 +96,22 @@ class ApiConfig {
       '${notificationsUrl}preferences/';
   static String get notificationDeviceRegisterUrl =>
       '${notificationsUrl}devices/register/';
+
+  // Support
+  static String get supportTicketsUrl => '$baseUrl/support/tickets/';
+  static String supportTicketDetailUrl(int ticketId) =>
+      '$baseUrl/support/tickets/$ticketId/';
+  static String supportTicketMessagesUrl(int ticketId) =>
+      '$baseUrl/support/tickets/$ticketId/messages/';
+  static String supportTicketAssignUrl(int ticketId) =>
+      '$baseUrl/support/tickets/$ticketId/assign/';
+  static String supportTicketStatusUrl(int ticketId) =>
+      '$baseUrl/support/tickets/$ticketId/status/';
+  static String supportTicketCloseUrl(int ticketId) =>
+      '$baseUrl/support/tickets/$ticketId/close/';
+  static String supportTicketReopenUrl(int ticketId) =>
+      '$baseUrl/support/tickets/$ticketId/reopen/';
+
+  // Returns
+  static String returnEscalateUrl(int returnId) => '${returnsUrl}$returnId/escalate/';
 }

@@ -178,5 +178,11 @@ def escalate_overdue_returns() -> int:
         rr.status = ReturnRequest.Status.ESCALATED
         rr.escalated_at = now
         rr.save(update_fields=['status', 'escalated_at', 'updated_at'])
+        try:
+            from support.services import SupportService
+
+            SupportService.ensure_dispute_ticket_for_return(rr)
+        except Exception:
+            pass
         updated += 1
     return updated

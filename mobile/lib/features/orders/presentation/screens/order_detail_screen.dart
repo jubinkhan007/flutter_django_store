@@ -6,6 +6,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../data/models/order_model.dart';
 import '../widgets/shipment_timeline.dart';
+import '../../../support/presentation/screens/create_ticket_screen.dart';
 
 class OrderDetailScreen extends StatelessWidget {
   final OrderModel order;
@@ -142,6 +143,56 @@ class OrderDetailScreen extends StatelessWidget {
                     ],
                   ),
                 ],
+              ),
+            ),
+          ),
+
+          // Need help CTA
+          SliverToBoxAdapter(
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.md,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withAlpha(18),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(
+                    color: Theme.of(context).primaryColor.withAlpha(40),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.support_agent_outlined),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Need help with this order?',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CreateTicketScreen(
+                              prefillCategory: 'ORDER',
+                              prefillSubject: 'Issue with Order #${order.id}',
+                              prefillOrderId: order.id,
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Text('Contact support'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

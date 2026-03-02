@@ -8,6 +8,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/vendor_provider.dart';
 import 'vendor_coupons_screen.dart';
 import 'vendor_returns_screen.dart';
+import '../../../support/presentation/screens/support_center_screen.dart';
 
 class VendorProfileScreen extends StatelessWidget {
   const VendorProfileScreen({super.key});
@@ -136,6 +137,20 @@ class VendorProfileScreen extends StatelessWidget {
                           context,
                           MaterialPageRoute(
                             builder: (_) => const VendorReturnsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(color: AppColors.lightSurface),
+                    _MenuListItem(
+                      icon: Icons.support_agent_outlined,
+                      title: 'Support Center',
+                      subtitle: 'Disputes and ticket history',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SupportCenterScreen(),
                           ),
                         );
                       },
