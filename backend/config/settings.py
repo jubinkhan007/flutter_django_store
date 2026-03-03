@@ -17,6 +17,32 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def _load_dotenv(path: Path) -> None:
+    """
+    Minimal .env loader (no external dependency).
+    - Only sets keys that are not already present in the environment.
+    - Ignores comments/blank lines.
+    """
+    try:
+        if not path.exists():
+            return
+        for raw_line in path.read_text().splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+            key, value = line.split('=', 1)
+            key = key.strip()
+            value = value.strip().strip("'").strip('"')
+            if key and key not in os.environ:
+                os.environ[key] = value
+    except Exception:
+        return
+
+
+# Load backend/.env for local development (ignored by git).
+_load_dotenv(BASE_DIR / '.env')
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
@@ -52,6 +78,7 @@ INSTALLED_APPS = [
     'promotions',
     'notifications',
     'support',
+    'logistics',
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -215,5 +242,10 @@ CELERY_BEAT_SCHEDULE = {
     'support.flag_overdue_tickets': {
         'task': 'support.tasks.flag_overdue_tickets',
         'schedule': crontab(hour=0, minute=20),
+    },
+    # Poll couriers for tracking updates (fallback when webhooks are missing/unreliable).
+    'logistics.poll_courier_updates': {
+        'task': 'logistics.tasks.poll_courier_updates_task',
+        'schedule': crontab(minute='*/30'),
     },
 }

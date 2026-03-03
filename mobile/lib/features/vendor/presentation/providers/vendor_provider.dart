@@ -279,6 +279,9 @@ class VendorProvider extends ChangeNotifier {
           paymentMethod: existing.paymentMethod,
           transactionId: existing.transactionId,
           valId: existing.valId,
+          provisionStatus: existing.provisionStatus,
+          courierReferenceId: existing.courierReferenceId,
+          lastError: existing.lastError,
           items: existing.items,
           createdAt: existing.createdAt,
           deliveryAddress: existing.deliveryAddress,
@@ -296,16 +299,24 @@ class VendorProvider extends ChangeNotifier {
 
   Future<bool> fulfillSubOrder(
     int subOrderId, {
-    required String courierName,
-    required String trackingNumber,
+    bool autoProvision = false,
+    String courierCode = '',
+    String courierName = '',
+    String trackingNumber = '',
     String? trackingUrl,
+    String mode = 'SANDBOX',
+    Map<String, dynamic>? provisionRequest,
   }) async {
     try {
       await _vendorRepository.fulfillSubOrder(
         subOrderId,
+        autoProvision: autoProvision,
+        courierCode: courierCode,
         courierName: courierName,
         trackingNumber: trackingNumber,
         trackingUrl: trackingUrl,
+        mode: mode,
+        provisionRequest: provisionRequest,
       );
       await loadOrders();
       return true;

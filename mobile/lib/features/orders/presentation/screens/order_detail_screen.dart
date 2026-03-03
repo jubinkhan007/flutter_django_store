@@ -559,7 +559,8 @@ class _SubOrderCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (subOrder.courierName != null)
+                            if (subOrder.courierName != null &&
+                                subOrder.courierName!.isNotEmpty)
                               Text(
                                 subOrder.courierName!,
                                 style: const TextStyle(
@@ -583,7 +584,8 @@ class _SubOrderCard extends StatelessWidget {
                                   onTap: () {
                                     Clipboard.setData(
                                       ClipboardData(
-                                          text: subOrder.trackingNumber!),
+                                        text: subOrder.trackingNumber!,
+                                      ),
                                     );
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
@@ -622,8 +624,57 @@ class _SubOrderCard extends StatelessWidget {
                             padding: EdgeInsets.zero,
                             minimumSize: const Size(48, 28),
                           ),
-                          child: const Text('Track', style: TextStyle(fontSize: 12)),
+                          child: const Text(
+                            'Track',
+                            style: TextStyle(fontSize: 12),
+                          ),
                         ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                ] else ...[
+                  Divider(height: 1, color: Colors.grey.shade200),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.local_shipping_outlined,
+                        size: 14,
+                        color: AppColors.lightTextSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              subOrder.provisionStatus == 'REQUESTED'
+                                  ? 'Carrier assignment pending'
+                                  : subOrder.provisionStatus == 'FAILED'
+                                      ? 'Failed to provision shipment'
+                                      : 'Tracking not available yet',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (subOrder.provisionStatus == 'FAILED' &&
+                                subOrder.lastError.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  subOrder.lastError,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.lightTextSecondary,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 10),

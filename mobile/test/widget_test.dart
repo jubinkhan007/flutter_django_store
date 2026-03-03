@@ -19,6 +19,7 @@ import 'package:mobile/core/providers/theme_provider.dart';
 import 'package:mobile/features/home/data/repositories/home_repository.dart';
 import 'package:mobile/features/notifications/data/repositories/notification_repository.dart';
 import 'package:mobile/features/support/data/repositories/support_repository.dart';
+import 'package:mobile/features/logistics/data/repositories/logistics_repository.dart';
 
 void main() {
   testWidgets('Boots to login when logged out', (WidgetTester tester) async {
@@ -43,6 +44,7 @@ void main() {
     final homeRepo = HomeRepository(apiClient: apiClient);
     final notificationRepo = NotificationRepository(apiClient: apiClient);
     final supportRepo = SupportRepository(apiClient: apiClient);
+    final logisticsRepo = LogisticsRepository(apiClient: apiClient);
 
     final prefs = await SharedPreferences.getInstance();
     final themeProvider = ThemeProvider(prefs);
@@ -62,6 +64,7 @@ void main() {
         homeRepository: homeRepo,
         notificationRepository: notificationRepo,
         supportRepository: supportRepo,
+        logisticsRepository: logisticsRepo,
       ),
     );
     await tester.pumpAndSettle();
@@ -96,6 +99,7 @@ void main() {
     final homeRepo = HomeRepository(apiClient: apiClient);
     final notificationRepo = NotificationRepository(apiClient: apiClient);
     final supportRepo = SupportRepository(apiClient: apiClient);
+    final logisticsRepo = LogisticsRepository(apiClient: apiClient);
 
     final prefs = await SharedPreferences.getInstance();
     final themeProvider = ThemeProvider(prefs);
@@ -115,6 +119,7 @@ void main() {
         homeRepository: homeRepo,
         notificationRepository: notificationRepo,
         supportRepository: supportRepo,
+        logisticsRepository: logisticsRepo,
       ),
     );
     await tester.pumpAndSettle();

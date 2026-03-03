@@ -114,4 +114,15 @@ class ApiConfig {
 
   // Returns
   static String returnEscalateUrl(int returnId) => '${returnsUrl}$returnId/escalate/';
+
+  // Logistics / Couriers
+  static String get logisticsStoresUrl => '$baseUrl/logistics/stores/';
+  static String get pathaoCitiesUrl => '$baseUrl/logistics/pathao/cities/';
+  static String get pathaoStoresUrl => '$baseUrl/logistics/pathao/stores/';
+  static String get pathaoZonesUrl => '$baseUrl/logistics/pathao/zones/';
+  static String get pathaoAreasUrl => '$baseUrl/logistics/pathao/areas/';
+  static String logisticsAreaSearchUrl(String courier) =>
+      '$baseUrl/logistics/areas/$courier/search/';
+  static String logisticsRetryProvisionUrl(int subOrderId) =>
+      '$baseUrl/logistics/sub-orders/$subOrderId/retry/';
 }

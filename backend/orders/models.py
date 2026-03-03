@@ -50,6 +50,12 @@ class SubOrder(models.Model):
     """
     SubOrder groups order items by vendor.
     """
+    class ProvisionStatus(models.TextChoices):
+        NOT_STARTED = 'NOT_STARTED', 'Not started'
+        REQUESTED = 'REQUESTED', 'Requested'
+        CREATED = 'CREATED', 'Created'
+        FAILED = 'FAILED', 'Failed'
+
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='sub_orders')
     vendor = models.ForeignKey(Vendor, on_delete=models.PROTECT, related_name='sub_orders')
     status = models.CharField(max_length=20, choices=Order.Status.choices, default=Order.Status.PENDING)
@@ -59,6 +65,14 @@ class SubOrder(models.Model):
     courier_name = models.CharField(max_length=100, blank=True, help_text="e.g. 'Pathao Delivers'")
     tracking_number = models.CharField(max_length=100, blank=True)
     tracking_url = models.URLField(blank=True)
+    provision_status = models.CharField(
+        max_length=20,
+        choices=ProvisionStatus.choices,
+        default=ProvisionStatus.NOT_STARTED,
+    )
+    courier_reference_id = models.CharField(max_length=255, blank=True, default='')
+    last_error = models.TextField(blank=True, default='')
+    provision_request = models.JSONField(default=dict, blank=True)
 
     # SLA Timers
     accepted_at = models.DateTimeField(null=True, blank=True)
@@ -119,7 +133,8 @@ class ShipmentEvent(models.Model):
 
     class Source(models.TextChoices):
         VENDOR = 'VENDOR', 'Vendor'
-        COURIER_WEBHOOK = 'COURIER_WEBHOOK', 'Courier Webhook'
+        WEBHOOK = 'WEBHOOK', 'Webhook'
+        POLLING = 'POLLING', 'Polling'
         SYSTEM = 'SYSTEM', 'System'
 
     sub_order = models.ForeignKey(SubOrder, on_delete=models.CASCADE, related_name='events')
@@ -134,12 +149,19 @@ class ShipmentEvent(models.Model):
         null=True, blank=True, related_name='shipment_events'
     )
     external_event_id = models.CharField(
-        max_length=255, blank=True, null=True, unique=True,
+        max_length=255, blank=True, null=True,
         help_text="Idempotency key for courier webhooks"
     )
 
     class Meta:
         ordering = ['sequence', 'timestamp']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['sub_order', 'external_event_id'],
+                name='uniq_shipmentevent_suborder_external_event_id',
+                condition=models.Q(external_event_id__isnull=False),
+            )
+        ]
 
     def __str__(self):
         return f"[{self.status}] SubOrder #{self.sub_order_id} @ {self.timestamp}"

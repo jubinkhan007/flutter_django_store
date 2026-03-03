@@ -150,15 +150,25 @@ class VendorRepository {
   /// Fulfill a sub-order: mark SHIPPED + supply courier details
   Future<void> fulfillSubOrder(
     int subOrderId, {
-    required String courierName,
-    required String trackingNumber,
+    bool autoProvision = false,
+    String courierCode = '',
+    String courierName = '',
+    String trackingNumber = '',
     String? trackingUrl,
+    String mode = 'SANDBOX',
+    Map<String, dynamic>? provisionRequest,
   }) async {
     final body = <String, dynamic>{
-      'courier_name': courierName,
-      'tracking_number': trackingNumber,
-      if (trackingUrl != null && trackingUrl.isNotEmpty)
+      if (autoProvision) 'auto_provision': true,
+      if (courierCode.trim().isNotEmpty) 'courier_code': courierCode.trim(),
+      if (autoProvision) 'mode': mode,
+      if (!autoProvision) 'courier_name': courierName,
+      if (!autoProvision) 'tracking_number': trackingNumber,
+      if (!autoProvision && trackingUrl != null && trackingUrl.isNotEmpty)
         'tracking_url': trackingUrl,
+      if (autoProvision && provisionRequest != null) 'provision_request': provisionRequest,
+      // Also flatten common provision fields for compatibility with backend.
+      if (autoProvision && provisionRequest != null) ...provisionRequest,
     };
     final response = await _apiClient.post(
       ApiConfig.vendorSubOrderFulfillUrl(subOrderId),

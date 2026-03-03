@@ -42,6 +42,9 @@ class SubOrderModel {
   final String? courierName;
   final String? trackingNumber;
   final String? trackingUrl;
+  final String provisionStatus;
+  final String courierReferenceId;
+  final String lastError;
   final String paymentStatus;
   final String paymentMethod;
   final String totalAmount;
@@ -63,6 +66,9 @@ class SubOrderModel {
     this.courierName,
     this.trackingNumber,
     this.trackingUrl,
+    required this.provisionStatus,
+    required this.courierReferenceId,
+    required this.lastError,
     required this.paymentStatus,
     required this.paymentMethod,
     required this.totalAmount,
@@ -86,6 +92,9 @@ class SubOrderModel {
       courierName: json['courier_name']?.toString().isEmpty == true ? null : json['courier_name'],
       trackingNumber: json['tracking_number']?.toString().isEmpty == true ? null : json['tracking_number'],
       trackingUrl: json['tracking_url']?.toString().isEmpty == true ? null : json['tracking_url'],
+      provisionStatus: json['provision_status']?.toString() ?? 'NOT_STARTED',
+      courierReferenceId: json['courier_reference_id']?.toString() ?? '',
+      lastError: json['last_error']?.toString() ?? '',
       paymentStatus: json['payment_status'] ?? 'UNPAID',
       paymentMethod: json['payment_method'] ?? 'ONLINE',
       totalAmount: json['total_amount']?.toString() ?? '0.00',
@@ -118,6 +127,10 @@ class OrderModel {
   final String paymentMethod; // ONLINE, COD
   final String? transactionId;
   final String? valId;
+  // Present for vendor sub-orders (SubOrderSerializer)
+  final String? provisionStatus;
+  final String? courierReferenceId;
+  final String? lastError;
   final List<OrderItemModel> items;
   final List<SubOrderModel> subOrders;
   final String createdAt;
@@ -135,6 +148,9 @@ class OrderModel {
     required this.paymentMethod,
     this.transactionId,
     this.valId,
+    this.provisionStatus,
+    this.courierReferenceId,
+    this.lastError,
     required this.items,
     this.subOrders = const [],
     required this.createdAt,
@@ -188,6 +204,9 @@ class OrderModel {
           'ONLINE',
       transactionId: json['transaction_id'],
       valId: json['val_id'],
+      provisionStatus: json['provision_status']?.toString(),
+      courierReferenceId: json['courier_reference_id']?.toString(),
+      lastError: json['last_error']?.toString(),
       items: parsedItems,
       subOrders: parsedSubOrders,
       createdAt: json['created_at'] ?? '',

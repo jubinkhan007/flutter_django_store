@@ -71,6 +71,9 @@ import 'features/support/data/repositories/support_repository.dart';
 import 'features/support/presentation/providers/support_provider.dart';
 import 'features/support/presentation/screens/support_center_screen.dart';
 
+// Logistics
+import 'features/logistics/data/repositories/logistics_repository.dart';
+
 // Firebase
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -145,6 +148,7 @@ void main() async {
   final homeRepository = HomeRepository(apiClient: apiClient);
   final notificationRepository = NotificationRepository(apiClient: apiClient);
   final supportRepository = SupportRepository(apiClient: apiClient);
+  final logisticsRepository = LogisticsRepository(apiClient: apiClient);
 
   runApp(
     MyApp(
@@ -161,6 +165,7 @@ void main() async {
       homeRepository: homeRepository,
       notificationRepository: notificationRepository,
       supportRepository: supportRepository,
+      logisticsRepository: logisticsRepository,
     ),
   );
 }
@@ -179,6 +184,7 @@ class MyApp extends StatelessWidget {
   final HomeRepository homeRepository;
   final NotificationRepository notificationRepository;
   final SupportRepository supportRepository;
+  final LogisticsRepository logisticsRepository;
 
   const MyApp({
     super.key,
@@ -195,6 +201,7 @@ class MyApp extends StatelessWidget {
     required this.homeRepository,
     required this.notificationRepository,
     required this.supportRepository,
+    required this.logisticsRepository,
   });
 
   @override
@@ -246,6 +253,7 @@ class MyApp extends StatelessWidget {
           create: (_) => SupportProvider(repository: supportRepository),
         ),
         Provider<SupportRepository>.value(value: supportRepository),
+        Provider<LogisticsRepository>.value(value: logisticsRepository),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, theme, _) {

@@ -31,6 +31,7 @@ urlpatterns = [
     path('api/promotions/', include('promotions.urls')),  # Promotions/Home feed
     path('api/notifications/', include('notifications.urls')),  # Notifications/Inbox/Push
     path('api/support/', include('support.urls')),  # Support tickets / disputes
+    path('api/logistics/', include('logistics.urls')),  # Courier integrations / webhooks
 ]
 
 # Serve media files during development

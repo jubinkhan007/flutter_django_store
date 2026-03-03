@@ -500,8 +500,9 @@ def _recompute_master_order(order):
 class VendorSubOrderFulfillView(generics.GenericAPIView):
     """
     POST /api/vendors/sub-orders/<id>/fulfill/
-    Mark the sub-order as SHIPPED and attach courier details.
-    Also creates an automatic ShipmentEvent of status PICKED_UP.
+    Either:
+      - Manual: mark sub-order as SHIPPED and attach courier details, OR
+      - Automated: request courier provisioning (async) and return provision_status.
     """
     permission_classes = [IsVendorPackerOrAbove]
 
@@ -514,10 +515,52 @@ class VendorSubOrderFulfillView(generics.GenericAPIView):
         except SubOrder.DoesNotExist:
             return Response({"error": "SubOrder not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        auto_provision = bool(request.data.get('auto_provision') is True or str(request.data.get('auto_provision')).lower() in ('1', 'true', 'yes'))
+        courier_code = request.data.get('courier_code', '').strip().lower()
+
+        if auto_provision:
+            if not courier_code:
+                return Response({"error": "courier_code is required for auto provisioning."}, status=status.HTTP_400_BAD_REQUEST)
+            if sub_order.status in [Order.Status.CANCELED, Order.Status.DELIVERED]:
+                return Response({"error": "Cannot provision this order."}, status=status.HTTP_400_BAD_REQUEST)
+
+            mode = (request.data.get('mode') or 'SANDBOX').upper()
+            provision_request = dict(request.data.get('provision_request') or {})
+            # Allow common fields at root for convenience.
+            for key in [
+                'store_id',
+                'recipient_city',
+                'recipient_zone',
+                'recipient_area',
+                'item_weight',
+                'item_type',
+                'delivery_type',
+                'special_instruction',
+            ]:
+                if key in request.data and key not in provision_request:
+                    provision_request[key] = request.data.get(key)
+
+            sub_order.provision_status = SubOrder.ProvisionStatus.REQUESTED
+            sub_order.courier_code = courier_code
+            sub_order.last_error = ''
+            sub_order.provision_request = provision_request
+            sub_order.save(update_fields=['provision_status', 'courier_code', 'last_error', 'provision_request', 'updated_at'])
+
+            try:
+                from logistics.tasks import provision_suborder_task
+
+                provision_suborder_task.delay(sub_order.id, mode=mode)
+            except Exception:
+                pass
+
+            return Response(SubOrderSerializer(sub_order, context={'request': request}).data)
+
         courier_name = request.data.get('courier_name', '').strip()
         tracking_number = request.data.get('tracking_number', '').strip()
         tracking_url = request.data.get('tracking_url', '').strip()
-        courier_code = request.data.get('courier_code', '').strip().lower()
+
+        if not courier_name or not tracking_number:
+            return Response({"error": "courier_name and tracking_number are required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             sub_order.advance_status(Order.Status.SHIPPED)
@@ -528,6 +571,9 @@ class VendorSubOrderFulfillView(generics.GenericAPIView):
         sub_order.tracking_number = tracking_number
         sub_order.tracking_url = tracking_url
         sub_order.courier_code = courier_code
+        sub_order.provision_status = SubOrder.ProvisionStatus.CREATED
+        sub_order.courier_reference_id = tracking_number
+        sub_order.last_error = ''
         sub_order.save()
 
         # Auto-create a PICKED_UP shipment event
@@ -590,8 +636,8 @@ class VendorSubOrderEventsView(generics.GenericAPIView):
             )
 
         external_id = request.data.get('external_event_id') or None
-        if external_id and ShipmentEvent.objects.filter(external_event_id=external_id).exists():
-            existing = ShipmentEvent.objects.get(external_event_id=external_id)
+        if external_id and ShipmentEvent.objects.filter(sub_order=sub_order, external_event_id=external_id).exists():
+            existing = ShipmentEvent.objects.get(sub_order=sub_order, external_event_id=external_id)
             return Response(ShipmentEventSerializer(existing).data, status=status.HTTP_200_OK)
 
         event = ShipmentEvent.objects.create(

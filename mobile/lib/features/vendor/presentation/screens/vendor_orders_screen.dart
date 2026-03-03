@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
+import '../../../logistics/data/models/logistics_area_model.dart';
+import '../../../logistics/data/models/logistics_store_model.dart';
+import '../../../logistics/data/repositories/logistics_repository.dart';
 import '../providers/vendor_provider.dart';
 
 class VendorOrdersScreen extends StatefulWidget {
@@ -75,11 +78,33 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
   /// Shows a bottom sheet to collect courier details, then calls fulfill endpoint.
   Future<void> _showFulfillSheet(BuildContext context, int subOrderId) async {
     final vendor = context.read<VendorProvider>();
+    final logistics = context.read<LogisticsRepository>();
     final courierController = TextEditingController();
     final trackingController = TextEditingController();
     final urlController = TextEditingController();
+    final weightController = TextEditingController();
+    final instructionController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     bool isSaving = false;
+
+    String courier = 'PATHAO'; // PATHAO / STEADFAST / REDX / MANUAL
+    String mode = 'SANDBOX';
+
+    bool didInit = false;
+    bool loadingStores = false;
+    bool loadingCities = false;
+    bool loadingZones = false;
+    bool loadingAreas = false;
+
+    List<LogisticsStoreModel> stores = const [];
+    LogisticsStoreModel? store;
+
+    List<LogisticsAreaModel> cities = const [];
+    LogisticsAreaModel? city;
+    List<LogisticsAreaModel> zones = const [];
+    LogisticsAreaModel? zone;
+    List<LogisticsAreaModel> areas = const [];
+    LogisticsAreaModel? area;
 
     await showModalBottomSheet(
       context: context,
@@ -90,6 +115,79 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
       builder: (sheetCtx) {
         return StatefulBuilder(
           builder: (sheetCtx, setSheetState) {
+            Future<void> ensurePathaoLists() async {
+              if (courier != 'PATHAO') return;
+              if (stores.isEmpty && !loadingStores) {
+                setSheetState(() => loadingStores = true);
+                try {
+                  final res = await logistics.pathaoStores(mode: mode);
+                  setSheetState(() => stores = res);
+                } catch (_) {
+                  // ignore
+                } finally {
+                  setSheetState(() => loadingStores = false);
+                }
+              }
+              if (cities.isEmpty && !loadingCities) {
+                setSheetState(() => loadingCities = true);
+                try {
+                  final res = await logistics.pathaoCities(mode: mode);
+                  setSheetState(() => cities = res);
+                } catch (_) {
+                  // ignore
+                } finally {
+                  setSheetState(() => loadingCities = false);
+                }
+              }
+            }
+
+            Future<void> loadZonesForCity(LogisticsAreaModel selected) async {
+              setSheetState(() {
+                city = selected;
+                zone = null;
+                area = null;
+                zones = const [];
+                areas = const [];
+                loadingZones = true;
+              });
+              try {
+                final res = await logistics.pathaoZones(
+                  cityId: selected.externalId,
+                  mode: mode,
+                );
+                setSheetState(() => zones = res);
+              } catch (_) {
+                // ignore
+              } finally {
+                setSheetState(() => loadingZones = false);
+              }
+            }
+
+            Future<void> loadAreasForZone(LogisticsAreaModel selected) async {
+              setSheetState(() {
+                zone = selected;
+                area = null;
+                areas = const [];
+                loadingAreas = true;
+              });
+              try {
+                final res = await logistics.pathaoAreas(
+                  zoneId: selected.externalId,
+                  mode: mode,
+                );
+                setSheetState(() => areas = res);
+              } catch (_) {
+                // ignore
+              } finally {
+                setSheetState(() => loadingAreas = false);
+              }
+            }
+
+            if (!didInit) {
+              didInit = true;
+              Future.microtask(ensurePathaoLists);
+            }
+
             return Padding(
               padding: EdgeInsets.only(
                 left: 20,
@@ -130,55 +228,213 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      TextFormField(
-                        controller: courierController,
+                      DropdownButtonFormField<String>(
+                        value: courier,
                         decoration: InputDecoration(
-                          labelText: 'Courier Name *',
-                          hintText: 'e.g. Pathao, RedX, Sundarban',
+                          labelText: 'Courier',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppRadius.sm),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 12,
-                          ),
                         ),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        items: const [
+                          DropdownMenuItem(value: 'PATHAO', child: Text('Pathao (Auto)')),
+                          DropdownMenuItem(value: 'STEADFAST', child: Text('Steadfast (Auto)')),
+                          DropdownMenuItem(value: 'REDX', child: Text('RedX (Auto)')),
+                          DropdownMenuItem(value: 'MANUAL', child: Text('Manual / Other')),
+                        ],
+                        onChanged: (v) {
+                          setSheetState(() {
+                            courier = v ?? 'PATHAO';
+                          });
+                          Future.microtask(ensurePathaoLists);
+                        },
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
-                        controller: trackingController,
-                        decoration: InputDecoration(
-                          labelText: 'Tracking Number *',
-                          hintText: 'e.g. PH-12345678',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                      if (courier == 'PATHAO') ...[
+                        DropdownButtonFormField<LogisticsStoreModel>(
+                          value: store,
+                          decoration: InputDecoration(
+                            labelText: 'Pickup store',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 12,
+                          items: stores
+                              .map(
+                                (s) => DropdownMenuItem(
+                                  value: s,
+                                  child: Text(s.name),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: loadingStores ? null : (v) => setSheetState(() => store = v),
+                          validator: (_) => store == null ? 'Select a store' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<LogisticsAreaModel>(
+                          value: city,
+                          decoration: InputDecoration(
+                            labelText: 'City',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                          ),
+                          items: cities
+                              .map(
+                                (c) => DropdownMenuItem(
+                                  value: c,
+                                  child: Text(c.name),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: loadingCities ? null : (v) {
+                            if (v == null) return;
+                            loadZonesForCity(v);
+                          },
+                          validator: (_) => city == null ? 'Select a city' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<LogisticsAreaModel>(
+                          value: zone,
+                          decoration: InputDecoration(
+                            labelText: 'Zone',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                          ),
+                          items: zones
+                              .map(
+                                (z) => DropdownMenuItem(
+                                  value: z,
+                                  child: Text(z.name),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: loadingZones || city == null ? null : (v) {
+                            if (v == null) return;
+                            loadAreasForZone(v);
+                          },
+                          validator: (_) => zone == null ? 'Select a zone' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<LogisticsAreaModel>(
+                          value: area,
+                          decoration: InputDecoration(
+                            labelText: 'Area',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                          ),
+                          items: areas
+                              .map(
+                                (a) => DropdownMenuItem(
+                                  value: a,
+                                  child: Text(a.name),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: loadingAreas || zone == null ? null : (v) => setSheetState(() => area = v),
+                          validator: (_) => area == null ? 'Select an area' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: weightController,
+                          decoration: InputDecoration(
+                            labelText: 'Weight (kg) *',
+                            hintText: 'e.g. 0.5',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          validator: (v) {
+                            final val = double.tryParse((v ?? '').trim());
+                            if (val == null || val <= 0) return 'Enter a valid weight';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: instructionController,
+                          decoration: InputDecoration(
+                            labelText: 'Special instruction (optional)',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                          ),
+                          maxLines: 2,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'If the order is COD, the amount-to-collect is set automatically.',
+                          style: TextStyle(
+                            color: AppColors.lightTextSecondary,
+                            fontSize: 12,
                           ),
                         ),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Required' : null,
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: urlController,
-                        keyboardType: TextInputType.url,
-                        decoration: InputDecoration(
-                          labelText: 'Tracking URL (optional)',
-                          hintText: 'https://track.pathao.com/...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 12,
+                        const SizedBox(height: 12),
+                      ],
+                      if (courier == 'STEADFAST' || courier == 'REDX') ...[
+                        const Text(
+                          'This will request automatic courier provisioning. You can monitor status from the order card once tracking is assigned.',
+                          style: TextStyle(
+                            color: AppColors.lightTextSecondary,
+                            fontSize: 12,
                           ),
                         ),
-                      ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (courier == 'MANUAL') ...[
+                        TextFormField(
+                          controller: courierController,
+                          decoration: InputDecoration(
+                            labelText: 'Courier Name *',
+                            hintText: 'e.g. Pathao, RedX, Sundarban',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                          ),
+                          validator: (v) =>
+                              (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: trackingController,
+                          decoration: InputDecoration(
+                            labelText: 'Tracking Number *',
+                            hintText: 'e.g. PH-12345678',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                          ),
+                          validator: (v) =>
+                              (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: urlController,
+                          keyboardType: TextInputType.url,
+                          decoration: InputDecoration(
+                            labelText: 'Tracking URL (optional)',
+                            hintText: 'https://track.pathao.com/...',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
@@ -188,12 +444,27 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                               : () async {
                                   if (!formKey.currentState!.validate()) return;
                                   setSheetState(() => isSaving = true);
+                                  final isAuto = courier != 'MANUAL';
                                   final success = await vendor.fulfillSubOrder(
                                     subOrderId,
+                                    autoProvision: isAuto,
+                                    courierCode: courier.toLowerCase(),
                                     courierName: courierController.text.trim(),
-                                    trackingNumber: trackingController.text
-                                        .trim(),
+                                    trackingNumber: trackingController.text.trim(),
                                     trackingUrl: urlController.text.trim(),
+                                    mode: mode,
+                                    provisionRequest: isAuto
+                                        ? {
+                                            if (courier == 'PATHAO') ...{
+                                              'store_id': int.tryParse(store!.externalStoreId) ?? store!.id,
+                                              'recipient_city': int.parse(city!.externalId),
+                                              'recipient_zone': int.parse(zone!.externalId),
+                                              'recipient_area': int.parse(area!.externalId),
+                                              'item_weight': double.parse(weightController.text.trim()),
+                                              'special_instruction': instructionController.text.trim(),
+                                            },
+                                          }
+                                        : null,
                                   );
                                   if (sheetCtx.mounted) Navigator.pop(sheetCtx);
                                   if (context.mounted) {
@@ -201,7 +472,9 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                                       SnackBar(
                                         content: Text(
                                           success
-                                              ? 'Order marked as shipped!'
+                                              ? (isAuto
+                                                    ? 'Provision requested. Tracking will appear soon.'
+                                                    : 'Order marked as shipped!')
                                               : vendor.error ??
                                                     'Failed to update',
                                         ),
@@ -462,36 +735,109 @@ class _VendorOrdersScreenState extends State<VendorOrdersScreen> {
                                     ),
                                   ),
                                 if (nextStatus != null)
-                                  ElevatedButton(
-                                    onPressed: () async {
-                                      if (nextStatus == 'SHIPPED') {
-                                        // Show tracking details bottom sheet
-                                        await _showFulfillSheet(
-                                          context,
-                                          order.id,
-                                        );
-                                      } else {
-                                        await vendor.updateOrderStatus(
-                                          order.id,
-                                          nextStatus,
+                                  Builder(
+                                    builder: (context) {
+                                      final provision =
+                                          (order.provisionStatus ?? 'NOT_STARTED')
+                                              .toUpperCase();
+                                      final isProvisioning =
+                                          provision == 'REQUESTED';
+                                      final isFailed = provision == 'FAILED';
+
+                                      if (nextStatus == 'SHIPPED' &&
+                                          isProvisioning) {
+                                        return ElevatedButton(
+                                          onPressed: null,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                Theme.of(context).primaryColor,
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 0,
+                                            ),
+                                            textStyle: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          child: const Text('Provisioning…'),
                                         );
                                       }
+
+                                      if (nextStatus == 'SHIPPED' && isFailed) {
+                                        return OutlinedButton(
+                                          onPressed: () async {
+                                            try {
+                                              await context
+                                                  .read<LogisticsRepository>()
+                                                  .retryProvision(order.id);
+                                              if (context.mounted) {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'Retry requested. Tracking will appear soon.',
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                              await vendor.loadOrders();
+                                            } catch (e) {
+                                              if (context.mounted) {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      e
+                                                          .toString()
+                                                          .replaceAll(
+                                                            'Exception: ',
+                                                            '',
+                                                          ),
+                                                    ),
+                                                    backgroundColor:
+                                                        AppColors.error,
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          },
+                                          child: const Text('Retry'),
+                                        );
+                                      }
+
+                                      return ElevatedButton(
+                                        onPressed: () async {
+                                          if (nextStatus == 'SHIPPED') {
+                                            await _showFulfillSheet(
+                                              context,
+                                              order.id,
+                                            );
+                                          } else {
+                                            await vendor.updateOrderStatus(
+                                              order.id,
+                                              nextStatus,
+                                            );
+                                          }
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              Theme.of(context).primaryColor,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 0,
+                                          ),
+                                          textStyle: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        child:
+                                            Text(_nextStatusLabel(nextStatus)),
+                                      );
                                     },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Theme.of(
-                                        context,
-                                      ).primaryColor,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 0,
-                                      ),
-                                      textStyle: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    child: Text(_nextStatusLabel(nextStatus)),
                                   ),
                               ],
                             ),

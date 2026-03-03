@@ -17,7 +17,16 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class ShipmentEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShipmentEvent
-        fields = ['id', 'status', 'location', 'timestamp', 'description', 'sequence', 'source']
+        fields = [
+            'id',
+            'status',
+            'location',
+            'timestamp',
+            'description',
+            'sequence',
+            'source',
+            'external_event_id',
+        ]
 
 
 class SubOrderSerializer(serializers.ModelSerializer):
@@ -35,6 +44,7 @@ class SubOrderSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'order_id', 'vendor', 'vendor_store_name', 'package_label', 'status',
             'courier_code', 'courier_name', 'tracking_number', 'tracking_url',
+            'provision_status', 'courier_reference_id', 'last_error',
             'payment_status', 'payment_method', 'total_amount',
             'accepted_at', 'packed_at', 'shipped_at', 'delivered_at', 'canceled_at',
             'ship_by_date', 'created_at', 'updated_at', 'items', 'events'
