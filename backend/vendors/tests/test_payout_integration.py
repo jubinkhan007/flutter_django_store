@@ -274,6 +274,10 @@ class ConcurrentRefundDebitTest(TransactionTestCase):
     """
 
     def test_concurrent_same_refund_no_double_debit(self):
+        from django.db import connection
+        if connection.vendor == 'sqlite':
+            self.skipTest('SQLite locking makes this concurrency test unreliable.')
+
         vendor = _make_vendor('concurrent_vendor')
         _set_vendor_balances(vendor, available=Decimal('1000.00'))
 

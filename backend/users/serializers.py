@@ -28,6 +28,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'email': self.user.email,
             'username': self.user.username,
             'type': self.user.type,
+            'personalization_enabled': self.user.personalization_enabled,
         }
         return data
 
@@ -49,6 +50,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return user
 
 from .models import User, Address
+
+class UserPreferenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['personalization_enabled']
 
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:

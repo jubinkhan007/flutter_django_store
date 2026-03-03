@@ -12,6 +12,10 @@ class User(AbstractUser):
     )
     email = models.EmailField(unique=True)
     wallet_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    personalization_enabled = models.BooleanField(
+        default=True,
+        help_text="If false, the system will not log behavior events for personalization.",
+    )
     # Add other fields like avatar here if needed
     
     USERNAME_FIELD = 'email'

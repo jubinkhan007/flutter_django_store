@@ -22,6 +22,8 @@ import 'package:mobile/features/home/presentation/widgets/home_skeleton.dart';
 import 'package:mobile/features/home/data/models/home_feed_model.dart';
 import 'package:mobile/features/notifications/presentation/providers/notification_provider.dart';
 import 'dart:ui';
+import 'package:mobile/core/services/analytics_service.dart';
+import 'package:mobile/features/products/presentation/widgets/discovery_widgets.dart';
 
 import 'package:mobile/features/products/presentation/widgets/search_overlay.dart';
 
@@ -410,23 +412,37 @@ class _ShopPage extends StatelessWidget {
                   return SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final section = provider.feed!.sections[index];
+                      Widget child;
                       switch (section.type) {
                         case HomeSectionType.banners:
-                          return HeroBannerCarousel(
+                          child = HeroBannerCarousel(
                             banners: (section as BannersSection).banners,
                           );
+                          break;
                         case HomeSectionType.flashSale:
-                          return FlashSaleRow(
+                          child = FlashSaleRow(
                             sale: (section as FlashSaleSection),
                             serverNow: provider.feed!.serverNow,
                           );
+                          break;
                         case HomeSectionType.featuredRow:
-                          return FeaturedSectionRow(
+                          child = FeaturedSectionRow(
                             section: (section as FeaturedRowSection),
                           );
+                          break;
                         default:
-                          return const SizedBox.shrink();
+                          child = const SizedBox.shrink();
                       }
+
+                      return ImpressionOnce(
+                        eventType: 'IMPRESSION',
+                        source: 'HOME',
+                        metadata: {
+                          'section_type': section.type.name,
+                          'position': index,
+                        },
+                        child: child,
+                      );
                     }, childCount: provider.feed!.sections.length),
                   );
                 },
@@ -502,6 +518,19 @@ class _ShopPage extends StatelessWidget {
                     return ProductCard(
                       product: product,
                       onTap: () {
+                        final query = productProvider.searchQuery?.trim() ?? '';
+                        final source = query.isNotEmpty ? 'SEARCH' : 'HOME';
+                        context.read<AnalyticsService>().logEvent(
+                          eventType: 'CLICK',
+                          source: source,
+                          productId: product.id,
+                          metadata: {
+                            'position': index,
+                            if (query.isNotEmpty) 'query': query,
+                            if (productProvider.selectedCategoryId != null)
+                              'category_id': productProvider.selectedCategoryId,
+                          },
+                        );
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -512,6 +541,12 @@ class _ShopPage extends StatelessWidget {
                       },
                       onAddToCart: () {
                         context.read<CartProvider>().addToCart(product);
+                        context.read<AnalyticsService>().logEvent(
+                          eventType: 'ADD_TO_CART',
+                          source: 'HOME',
+                          productId: product.id,
+                          metadata: {'position': index},
+                        );
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('${product.name} added to cart'),

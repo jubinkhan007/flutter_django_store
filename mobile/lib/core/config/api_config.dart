@@ -125,4 +125,11 @@ class ApiConfig {
       '$baseUrl/logistics/areas/$courier/search/';
   static String logisticsRetryProvisionUrl(int subOrderId) =>
       '$baseUrl/logistics/sub-orders/$subOrderId/retry/';
+
+  // Analytics / Discovery
+  static String get analyticsEventsUrl => '$baseUrl/analytics/events/';
+  static String get discoveryHomeUrl => '$baseUrl/discovery/home/';
+  static String discoveryProductRecommendationsUrl(int productId) =>
+      '$baseUrl/discovery/product/$productId/recommendations/';
+  static String collectionDetailUrl(String slug) => '$baseUrl/collections/$slug/';
 }

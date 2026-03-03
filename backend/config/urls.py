@@ -32,6 +32,9 @@ urlpatterns = [
     path('api/notifications/', include('notifications.urls')),  # Notifications/Inbox/Push
     path('api/support/', include('support.urls')),  # Support tickets / disputes
     path('api/logistics/', include('logistics.urls')),  # Courier integrations / webhooks
+    path('api/analytics/', include('analytics.urls')),  # User events / personalization analytics
+    path('api/discovery/', include('discovery.urls')),  # Discovery / recommendations
+    path('api/collections/', include('discovery.collection_urls')),  # Scheduled collections
 ]
 
 # Serve media files during development

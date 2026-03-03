@@ -79,6 +79,8 @@ INSTALLED_APPS = [
     'notifications',
     'support',
     'logistics',
+    'analytics',
+    'discovery',
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -211,6 +213,21 @@ FCM_PROJECT_ID = os.getenv('FCM_PROJECT_ID', '')
 FCM_SERVICE_ACCOUNT_JSON = os.getenv('FCM_SERVICE_ACCOUNT_JSON', '')
 FCM_SERVICE_ACCOUNT_FILE = os.getenv('FCM_SERVICE_ACCOUNT_FILE', '')
 
+# Analytics / Personalization
+def _clamp_int(value: str, default: int, min_value: int, max_value: int) -> int:
+    try:
+        parsed = int(str(value).strip())
+    except Exception:
+        return default
+    return max(min_value, min(max_value, parsed))
+
+ANALYTICS_RETENTION_DAYS = _clamp_int(
+    os.getenv('ANALYTICS_RETENTION_DAYS', '90'),
+    default=90,
+    min_value=30,
+    max_value=90,
+)
+
 # Celery Configuration Options
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
@@ -247,5 +264,15 @@ CELERY_BEAT_SCHEDULE = {
     'logistics.poll_courier_updates': {
         'task': 'logistics.tasks.poll_courier_updates_task',
         'schedule': crontab(minute='*/30'),
+    },
+    # Purge raw behavioral events after retention window (privacy).
+    'analytics.purge_old_user_events': {
+        'task': 'analytics.tasks.purge_old_user_events',
+        'schedule': crontab(hour=0, minute=30, day_of_week='sun'),
+    },
+    # Batch update product co-occurrence affinities.
+    'discovery.compute_product_affinities': {
+        'task': 'discovery.tasks.compute_product_affinities',
+        'schedule': crontab(hour=1, minute=0),
     },
 }

@@ -31,7 +31,14 @@ class UserRegistrationView(generics.CreateAPIView):
 
 from rest_framework.permissions import IsAuthenticated
 from .models import Address
-from .serializers import AddressSerializer
+from .serializers import AddressSerializer, UserPreferenceSerializer
+
+class UserPreferenceView(generics.RetrieveUpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserPreferenceSerializer
+
+    def get_object(self):
+        return self.request.user
 
 class AddressListCreateView(generics.ListCreateAPIView):
     serializer_class = AddressSerializer

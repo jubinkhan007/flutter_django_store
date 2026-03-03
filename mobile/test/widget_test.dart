@@ -20,6 +20,9 @@ import 'package:mobile/features/home/data/repositories/home_repository.dart';
 import 'package:mobile/features/notifications/data/repositories/notification_repository.dart';
 import 'package:mobile/features/support/data/repositories/support_repository.dart';
 import 'package:mobile/features/logistics/data/repositories/logistics_repository.dart';
+import 'package:mobile/core/storage/session_storage.dart';
+import 'package:mobile/core/services/analytics_service.dart';
+import 'package:mobile/features/products/data/repositories/discovery_repository_impl.dart';
 
 void main() {
   testWidgets('Boots to login when logged out', (WidgetTester tester) async {
@@ -45,6 +48,12 @@ void main() {
     final notificationRepo = NotificationRepository(apiClient: apiClient);
     final supportRepo = SupportRepository(apiClient: apiClient);
     final logisticsRepo = LogisticsRepository(apiClient: apiClient);
+    final sessionStorage = SessionStorage();
+    final analyticsService = AnalyticsService(
+      apiClient: apiClient,
+      sessionStorage: sessionStorage,
+    );
+    final discoveryRepo = DiscoveryRepositoryImpl(apiClient: apiClient);
 
     final prefs = await SharedPreferences.getInstance();
     final themeProvider = ThemeProvider(prefs);
@@ -53,7 +62,9 @@ void main() {
       MyApp(
         themeProvider: themeProvider,
         authProvider: authProvider,
+        analyticsService: analyticsService,
         productRepository: productRepo,
+        discoveryRepository: discoveryRepo,
         orderRepository: orderRepo,
         vendorRepository: vendorRepo,
         addressRepository: addressRepo,
@@ -100,6 +111,12 @@ void main() {
     final notificationRepo = NotificationRepository(apiClient: apiClient);
     final supportRepo = SupportRepository(apiClient: apiClient);
     final logisticsRepo = LogisticsRepository(apiClient: apiClient);
+    final sessionStorage = SessionStorage();
+    final analyticsService = AnalyticsService(
+      apiClient: apiClient,
+      sessionStorage: sessionStorage,
+    );
+    final discoveryRepo = DiscoveryRepositoryImpl(apiClient: apiClient);
 
     final prefs = await SharedPreferences.getInstance();
     final themeProvider = ThemeProvider(prefs);
@@ -108,7 +125,9 @@ void main() {
       MyApp(
         themeProvider: themeProvider,
         authProvider: authProvider,
+        analyticsService: analyticsService,
         productRepository: productRepo,
+        discoveryRepository: discoveryRepo,
         orderRepository: orderRepo,
         vendorRepository: vendorRepo,
         addressRepository: addressRepo,

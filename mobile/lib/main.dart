@@ -7,7 +7,9 @@ import 'core/theme/app_theme.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/network/api_client.dart';
 import 'core/storage/token_storage.dart';
+import 'core/storage/session_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'core/services/analytics_service.dart';
 
 // Auth
 import 'features/auth/data/repositories/auth_repository_impl.dart';
@@ -18,7 +20,9 @@ import 'features/auth/presentation/screens/login_screen.dart';
 
 // Products
 import 'features/products/data/repositories/product_repository_impl.dart';
+import 'features/products/data/repositories/discovery_repository_impl.dart';
 import 'features/products/domain/repositories/product_repository.dart';
+import 'features/products/domain/repositories/discovery_repository.dart';
 import 'features/products/presentation/providers/product_provider.dart';
 import 'features/products/presentation/screens/home_screen.dart';
 
@@ -108,6 +112,11 @@ void main() async {
   // ── Shared Dependencies (created once for the app lifetime) ──
   final tokenStorage = TokenStorage();
   final apiClient = ApiClient(tokenStorage: tokenStorage);
+  final sessionStorage = SessionStorage();
+  final analyticsService = AnalyticsService(
+    apiClient: apiClient,
+    sessionStorage: sessionStorage,
+  );
 
   // ── Repository Instances ──
   final AuthRepository authRepository = AuthRepositoryImpl(
@@ -138,6 +147,9 @@ void main() async {
   final ProductRepository productRepository = ProductRepositoryImpl(
     apiClient: apiClient,
   );
+  final DiscoveryRepository discoveryRepository = DiscoveryRepositoryImpl(
+    apiClient: apiClient,
+  );
   final orderRepository = OrderRepository(apiClient: apiClient);
   final vendorRepository = VendorRepository(apiClient: apiClient);
   final addressRepository = AddressRepository(apiClient: apiClient);
@@ -154,7 +166,9 @@ void main() async {
     MyApp(
       themeProvider: themeProvider,
       authProvider: authProvider,
+      analyticsService: analyticsService,
       productRepository: productRepository,
+      discoveryRepository: discoveryRepository,
       orderRepository: orderRepository,
       vendorRepository: vendorRepository,
       addressRepository: addressRepository,
@@ -173,7 +187,9 @@ void main() async {
 class MyApp extends StatelessWidget {
   final ThemeProvider themeProvider;
   final AuthProvider authProvider;
+  final AnalyticsService analyticsService;
   final ProductRepository productRepository;
+  final DiscoveryRepository discoveryRepository;
   final OrderRepository orderRepository;
   final VendorRepository vendorRepository;
   final AddressRepository addressRepository;
@@ -190,7 +206,9 @@ class MyApp extends StatelessWidget {
     super.key,
     required this.themeProvider,
     required this.authProvider,
+    required this.analyticsService,
     required this.productRepository,
+    required this.discoveryRepository,
     required this.orderRepository,
     required this.vendorRepository,
     required this.addressRepository,
@@ -210,9 +228,11 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider.value(value: themeProvider),
         ChangeNotifierProvider.value(value: authProvider),
+        Provider<AnalyticsService>.value(value: analyticsService),
         ChangeNotifierProvider(
           create: (_) => ProductProvider(productRepository: productRepository),
         ),
+        Provider<DiscoveryRepository>.value(value: discoveryRepository),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         Provider<OrderRepository>.value(value: orderRepository),
         ChangeNotifierProvider(

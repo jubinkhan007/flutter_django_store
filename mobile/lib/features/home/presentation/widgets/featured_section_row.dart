@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/features/home/data/models/home_feed_model.dart';
+import 'package:mobile/features/cart/presentation/providers/cart_provider.dart';
+import 'package:mobile/core/services/analytics_service.dart';
+import 'package:provider/provider.dart';
 import 'package:mobile/features/products/presentation/widgets/product_card.dart';
+import 'package:mobile/features/products/presentation/screens/product_detail_screen.dart';
 
 class FeaturedSectionRow extends StatelessWidget {
   final FeaturedRowSection section;
@@ -44,10 +48,40 @@ class FeaturedSectionRow extends StatelessWidget {
                 child: ProductCard(
                   product: product,
                   onTap: () {
-                    // Navigate to product detail
+                    context.read<AnalyticsService>().logEvent(
+                      eventType: 'CLICK',
+                      source: 'HOME',
+                      productId: product.id,
+                      metadata: {
+                        'section_type': section.sectionType,
+                        'position': index,
+                      },
+                    );
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ProductDetailScreen(product: product),
+                      ),
+                    );
                   },
                   onAddToCart: () {
-                    // Add to cart logic
+                    context.read<CartProvider>().addToCart(product);
+                    context.read<AnalyticsService>().logEvent(
+                      eventType: 'ADD_TO_CART',
+                      source: 'HOME',
+                      productId: product.id,
+                      metadata: {
+                        'section_type': section.sectionType,
+                        'position': index,
+                      },
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${product.name} added to cart'),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
                   },
                 ),
               );

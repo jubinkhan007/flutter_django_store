@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'package:mobile/features/cart/presentation/providers/cart_provider.dart';
 import 'package:mobile/features/home/data/models/home_feed_model.dart';
+import 'package:mobile/core/services/analytics_service.dart';
 import 'package:mobile/features/products/presentation/screens/product_detail_screen.dart';
 import 'package:mobile/features/products/presentation/widgets/product_card.dart';
 
@@ -117,6 +118,16 @@ class _FlashSaleRowState extends State<FlashSaleRow> {
               return _FlashSaleCard(
                 saleProduct: saleProduct,
                 onTap: () {
+                  context.read<AnalyticsService>().logEvent(
+                    eventType: 'CLICK',
+                    source: 'HOME',
+                    productId: saleProduct.product.id,
+                    metadata: {
+                      'section_type': 'FLASH_SALE',
+                      'position': index,
+                      'sale_id': widget.sale.id,
+                    },
+                  );
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -128,6 +139,16 @@ class _FlashSaleRowState extends State<FlashSaleRow> {
                 },
                 onAddToCart: () {
                   context.read<CartProvider>().addToCart(saleProduct.product);
+                  context.read<AnalyticsService>().logEvent(
+                    eventType: 'ADD_TO_CART',
+                    source: 'HOME',
+                    productId: saleProduct.product.id,
+                    metadata: {
+                      'section_type': 'FLASH_SALE',
+                      'position': index,
+                      'sale_id': widget.sale.id,
+                    },
+                  );
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('${saleProduct.product.name} added to cart'),

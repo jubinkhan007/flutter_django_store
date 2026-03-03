@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:async';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -19,6 +20,8 @@ import '../../../vendor/presentation/screens/public_vendor_store_screen.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/entities/variant.dart';
 import 'package:mobile/features/wishlist/presentation/providers/wishlist_provider.dart';
+import 'package:mobile/core/services/analytics_service.dart';
+import 'package:mobile/features/products/presentation/widgets/discovery_widgets.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
@@ -32,12 +35,22 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   final Map<int, int> _selectedOptions = {};
   ProductVariant? _currentVariant;
+  Timer? _viewTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ReviewProvider>().loadReviews(widget.product.id);
+      _viewTimer?.cancel();
+      _viewTimer = Timer(const Duration(seconds: 3), () {
+        if (!mounted) return;
+        context.read<AnalyticsService>().logEvent(
+          eventType: 'VIEW',
+          source: 'PDP',
+          productId: widget.product.id,
+        );
+      });
     });
 
     // Auto-select first available option values if options exist
@@ -67,6 +80,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       _currentVariant = null; // No matching variant found
     }
     setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _viewTimer?.cancel();
+    super.dispose();
   }
 
   bool _isVendorOfProduct(BuildContext context) {
@@ -703,6 +722,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xl),
 
+                  FrequentlyBoughtTogetherCard(
+                    anchorProductId: widget.product.id,
+                  ),
+
                   // ── Reviews ──────────────────────────────────────
                   Consumer<ReviewProvider>(
                     builder: (context, reviewProvider, _) {
@@ -929,6 +952,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     context.read<CartProvider>().addToCart(
                       widget.product,
                       variant: _currentVariant,
+                    );
+                    context.read<AnalyticsService>().logEvent(
+                      eventType: 'ADD_TO_CART',
+                      source: 'PDP',
+                      productId: widget.product.id,
+                      metadata: {
+                        if (_currentVariant != null) 'variant_id': _currentVariant!.id,
+                      },
                     );
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
