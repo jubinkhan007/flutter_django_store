@@ -8,7 +8,9 @@ class Vendor(models.Model):
     store_name = models.CharField(max_length=255, unique=True)
     description = models.TextField(blank=True)
     is_approved = models.BooleanField(default=False)
+    is_live = models.BooleanField(default=False, help_text="Controls if vendor products are visible in search/discovery")
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    ad_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     # Ledger-first cached balances (source of truth is LedgerEntry aggregate)
     pending_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     available_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
@@ -50,6 +52,24 @@ class Vendor(models.Model):
         )
         if save:
             self.save(update_fields=['balance'])
+
+    def recache_ad_balance(self, save=True):
+        """
+        Recalculates the Ad Credit balance from LedgerEntry records.
+        Pending bucket is unused for ads; we sum AVAILABLE bucket for AD_CREDITS.
+        """
+        ad_aggregate = self.ledger_entries.filter(
+            bucket=LedgerEntry.Bucket.AD_CREDITS,
+            status=LedgerEntry.Status.POSTED
+        ).aggregate(
+            total_credits=models.Sum('amount', filter=models.Q(direction=LedgerEntry.Direction.CREDIT)),
+            total_debits=models.Sum('amount', filter=models.Q(direction=LedgerEntry.Direction.DEBIT))
+        )
+        credits = ad_aggregate['total_credits'] or Decimal('0.00')
+        debits = ad_aggregate['total_debits'] or Decimal('0.00')
+        self.ad_balance = credits - debits
+        if save:
+            self.save(update_fields=['ad_balance'])
 
 class Permission(models.Model):
     codename = models.CharField(max_length=50, unique=True)
@@ -160,11 +180,14 @@ class LedgerEntry(models.Model):
         PAYOUT_REJECTED_RELEASE = 'PAYOUT_REJECTED_RELEASE', 'Payout rejected release'
         PAYOUT_PAID = 'PAYOUT_PAID', 'Payout paid'
         REFUND_DEBIT = 'REFUND_DEBIT', 'Refund debit'
+        AD_CREDIT_TOPUP = 'AD_CREDIT_TOPUP', 'Ad credit top-up'
+        AD_SPEND_CLICK = 'AD_SPEND_CLICK', 'Ad spend (Click)'
 
     class Bucket(models.TextChoices):
         PENDING = 'PENDING', 'Pending'
         AVAILABLE = 'AVAILABLE', 'Available'
         HELD = 'HELD', 'Held'
+        AD_CREDITS = 'AD_CREDITS', 'Ad Credits'
 
     class Direction(models.TextChoices):
         CREDIT = 'CREDIT', 'Credit'
@@ -179,6 +202,7 @@ class LedgerEntry(models.Model):
         SUBORDER = 'SUBORDER', 'SubOrder'
         PAYOUT = 'PAYOUT', 'Payout'
         REFUND = 'REFUND', 'Refund'
+        AD_CAMPAIGN = 'AD_CAMPAIGN', 'Ad Campaign'
 
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='ledger_entries')
     entry_type = models.CharField(max_length=50, choices=EntryType.choices)
@@ -245,6 +269,8 @@ class BulkJob(models.Model):
         PRODUCT_UPLOAD = 'PRODUCT_UPLOAD', 'Product Upload'
         PRICE_UPDATE = 'PRICE_UPDATE', 'Price Update'
         STOCK_UPDATE = 'STOCK_UPDATE', 'Stock Update'
+        VARIANT_UPLOAD = 'VARIANT_UPLOAD', 'Variant Upload'
+        SCHEDULED_PROMOTION = 'SCHEDULED_PROMOTION', 'Scheduled Promotion'
 
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='bulk_jobs')
     job_type = models.CharField(max_length=50, choices=JobType.choices)
@@ -256,6 +282,27 @@ class BulkJob(models.Model):
 
     def __str__(self):
         return f"BulkJob {self.id} ({self.job_type}) for {self.vendor.store_name}"
+
+class VendorProductAnalyticsDaily(models.Model):
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='product_analytics_daily')
+    product = models.ForeignKey('products.Product', on_delete=models.CASCADE, related_name='analytics_daily')
+    date = models.DateField()
+    
+    impressions = models.PositiveIntegerField(default=0)
+    clicks = models.PositiveIntegerField(default=0)
+    carts = models.PositiveIntegerField(default=0)
+    purchases = models.PositiveIntegerField(default=0)
+    revenue = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    
+    sponsored_impressions = models.PositiveIntegerField(default=0)
+    sponsored_clicks = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        unique_together = ('vendor', 'product', 'date')
+        ordering = ['-date', '-purchases']
+
+    def __str__(self):
+        return f"Analytics for {self.product_id} on {self.date}"
 
 class VendorPerformanceDaily(models.Model):
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='daily_performance')

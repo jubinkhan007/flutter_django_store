@@ -24,6 +24,7 @@ class UserEvent(models.Model):
 
     event_type = models.CharField(max_length=30, choices=EventType.choices)
     source = models.CharField(max_length=30, choices=Source.choices, default=Source.OTHER)
+    is_sponsored = models.BooleanField(default=False)
 
     product = models.ForeignKey(
         'products.Product',

@@ -26,6 +26,16 @@ class ProductModel extends Product {
     var optionsList = (json['options'] as List?) ?? [];
     var variantsList = (json['variants'] as List?) ?? [];
 
+    final rawStockQty = json['stock_quantity'];
+    final parsedStockQty = rawStockQty == null
+        ? 0
+        : int.tryParse(rawStockQty.toString()) ?? 0;
+
+    final bool derivedInStock = parsedStockQty > 0;
+    final bool parsedInStock = json.containsKey('in_stock')
+        ? (json['in_stock'] == true)
+        : derivedInStock;
+
     final rawImage = json['image']?.toString();
     final resolvedImage = (rawImage == null || rawImage.trim().isEmpty)
         ? null
@@ -41,15 +51,16 @@ class ProductModel extends Product {
           : null,
       vendorId: json['vendor'],
       categoryId: json['category'],
-      stockQuantity: json['stock_quantity'] ?? 0,
+      stockQuantity: parsedStockQty,
       image: resolvedImage,
       isAvailable: json['is_available'] ?? true,
-      inStock: json['in_stock'] ?? true,
+      inStock: parsedInStock,
       createdAt: json['created_at'],
       options: optionsList.map((o) => ProductOption.fromJson(o)).toList(),
       variants: variantsList.map((v) => ProductVariant.fromJson(v)).toList(),
       avgRating: double.tryParse(json['avg_rating']?.toString() ?? '0') ?? 0.0,
       reviewCount: json['review_count'] ?? 0,
+      isSponsored: json['is_sponsored'] ?? false,
     );
   }
 

@@ -695,7 +695,7 @@ class SSLCommerzPaymentInitiateView(generics.GenericAPIView):
 
         # Build req dictionary
         post_body = {}
-        post_body['total_amount'] = order.total_amount
+        post_body['total_amount'] = str(order.total_amount)
         post_body['currency'] = "BDT"
         post_body['tran_id'] = order.transaction_id
         post_body['success_url'] = request.build_absolute_uri('/api/orders/payment/success/')
@@ -723,11 +723,34 @@ class SSLCommerzPaymentInitiateView(generics.GenericAPIView):
         post_body['product_category'] = "General"
         post_body['product_profile'] = "general"
 
-        response = sslcz.createSession(post_body)
-        if response.get('status') == 'SUCCESS':
+        # sslcommerz_lib may return None (or raise) on network/auth issues.
+        try:
+            response = sslcz.createSession(post_body)
+        except Exception as exc:
+            return Response(
+                {
+                    "error": "Failed to initiate payment.",
+                    "details": str(exc),
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        if not isinstance(response, dict):
+            return Response(
+                {
+                    "error": "Failed to initiate payment.",
+                    "details": {"raw": str(response)},
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        if response.get('status') == 'SUCCESS' and response.get('GatewayPageURL'):
             return Response({"GatewayPageURL": response['GatewayPageURL']})
-        else:
-            return Response({"error": "Failed to initiate payment.", "details": response}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response(
+            {"error": "Failed to initiate payment.", "details": response},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
 
 
 from django.http import HttpResponse

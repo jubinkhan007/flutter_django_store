@@ -58,21 +58,27 @@ class RecommendationService:
 
     def trending(self, *, limit: int = 12, days: int = 7) -> list[Product]:
         cutoff = timezone.now() - timedelta(days=days)
+        purchase_q = (
+            models.Q(
+                orderitem__sub_order__order__payment_status=Order.PaymentStatus.PAID,
+                orderitem__sub_order__order__status__in=[
+                    Order.Status.PAID,
+                    Order.Status.SHIPPED,
+                    Order.Status.DELIVERED,
+                ],
+            )
+            | models.Q(
+                orderitem__sub_order__order__payment_method=Order.PaymentMethod.COD,
+                orderitem__sub_order__order__status=Order.Status.DELIVERED,
+            )
+        )
         qs = (
             Product.objects.filter(is_available=True)
             .select_related('vendor', 'category')
             .annotate(
                 order_count=Count(
                     'orderitem',
-                    filter=models.Q(
-                        orderitem__sub_order__created_at__gte=cutoff,
-                        orderitem__sub_order__order__payment_status=Order.PaymentStatus.PAID,
-                        orderitem__sub_order__order__status__in=[
-                            Order.Status.PAID,
-                            Order.Status.SHIPPED,
-                            Order.Status.DELIVERED,
-                        ],
-                    ),
+                    filter=models.Q(orderitem__sub_order__created_at__gte=cutoff) & purchase_q,
                 )
             )
             .order_by('-order_count', '-created_at')
@@ -110,9 +116,14 @@ class RecommendationService:
     def fbt_from_last_purchase(self, *, limit: int = 12) -> list[Product]:
         if self.user is None:
             return []
+        purchase_q = models.Q(payment_status=Order.PaymentStatus.PAID) | models.Q(
+            payment_method=Order.PaymentMethod.COD,
+            status=Order.Status.DELIVERED,
+        )
         last_order = (
             Order.objects.filter(customer=self.user)
             .exclude(status=Order.Status.CANCELED)
+            .filter(purchase_q)
             .order_by('-created_at')
             .first()
         )
@@ -184,8 +195,26 @@ class RecommendationService:
             .values_list('to_product_id', flat=True)[: limit * 3]
         )
 
-        fbt_qs = Product.objects.filter(id__in=edge_ids, is_available=True).select_related('vendor', 'category')
-        frequently_bought_together = self.ranker.rank(fbt_qs, limit=min(limit, 8))
+        if edge_ids:
+            fbt_qs = Product.objects.filter(id__in=edge_ids, is_available=True).select_related(
+                'vendor', 'category'
+            )
+            frequently_bought_together = self.ranker.rank(fbt_qs, limit=min(limit, 8))
+        else:
+            # Cold-start fallback: never return empty bundles when we can avoid it.
+            try:
+                base = Product.objects.get(id=product_id)
+                fallback_qs = (
+                    Product.objects.filter(is_available=True, category_id=base.category_id)
+                    .exclude(id=product_id)
+                    .select_related('vendor', 'category')
+                    .order_by('-avg_rating', '-review_count', '-created_at')
+                )
+            except Product.DoesNotExist:
+                fallback_qs = Product.objects.none()
+            frequently_bought_together = self.ranker.rank(fallback_qs, limit=min(limit, 8))
+            if not frequently_bought_together:
+                frequently_bought_together = self.trending(limit=min(limit, 8), days=7)
 
         # Similar items: affinity first, then category fallback.
         if edge_ids:

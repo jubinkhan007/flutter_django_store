@@ -28,6 +28,8 @@ from .views import (
     VendorSettlementListView, PayoutRequestListCreateView,
     BulkJobListCreateView, BulkJobDetailView
 )
+from .analytics_views import VendorProductAnalyticsView, VendorSLAScoreView
+from .onboarding_views import VendorOnboardingProgressView
 from products.views import (
     VendorProductListCreateView, VendorProductDetailView,
     VendorProductVariantListCreateView, VendorProductVariantDetailView
@@ -40,6 +42,7 @@ from orders.views import (
 urlpatterns = [
     path('public/<int:pk>/', PublicVendorDetailView.as_view(), name='public-vendor-detail'),
     path('onboarding/', VendorOnboardingView.as_view(), name='vendor-onboarding'),
+    path('onboarding/progress/', VendorOnboardingProgressView.as_view(), name='vendor-onboarding-progress'),
     path('me/', VendorDashboardView.as_view(), name='vendor-dashboard'),
     path('products/', VendorProductListCreateView.as_view(), name='vendor-product-list'),
     path('products/<int:pk>/', VendorProductDetailView.as_view(), name='vendor-product-detail'),
@@ -59,6 +62,8 @@ urlpatterns = [
     path('payouts/', PayoutRequestListCreateView.as_view(), name='vendor-payouts'),
     path('bulk-jobs/', BulkJobListCreateView.as_view(), name='vendor-bulk-jobs'),
     path('bulk-jobs/<int:pk>/', BulkJobDetailView.as_view(), name='vendor-bulk-job-detail'),
+    path('analytics/products/', VendorProductAnalyticsView.as_view(), name='vendor-analytics-products'),
+    path('analytics/sla/', VendorSLAScoreView.as_view(), name='vendor-analytics-sla'),
     path('coupons/', include('coupons.vendor_urls')),
     path('returns/', include('returns.vendor_urls')),
 ]

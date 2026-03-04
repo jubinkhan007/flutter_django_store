@@ -63,6 +63,11 @@ class ApiConfig {
 
   // Vendor endpoints
   static String get vendorOnboardingUrl => '$baseUrl/vendors/onboarding/';
+  static String get vendorOnboardingProgressUrl =>
+      '$baseUrl/vendors/onboarding/progress/';
+  static String get vendorAnalyticsProductsUrl =>
+      '$baseUrl/vendors/analytics/products/';
+  static String get vendorAnalyticsSlaUrl => '$baseUrl/vendors/analytics/sla/';
   static String vendorPublicProfileUrl(int vendorId) =>
       '$baseUrl/vendors/public/$vendorId/';
   static String get vendorDashboardUrl => '$baseUrl/vendors/me/';
@@ -113,7 +118,8 @@ class ApiConfig {
       '$baseUrl/support/tickets/$ticketId/reopen/';
 
   // Returns
-  static String returnEscalateUrl(int returnId) => '${returnsUrl}$returnId/escalate/';
+  static String returnEscalateUrl(int returnId) =>
+      '${returnsUrl}$returnId/escalate/';
 
   // Logistics / Couriers
   static String get logisticsStoresUrl => '$baseUrl/logistics/stores/';
@@ -131,5 +137,6 @@ class ApiConfig {
   static String get discoveryHomeUrl => '$baseUrl/discovery/home/';
   static String discoveryProductRecommendationsUrl(int productId) =>
       '$baseUrl/discovery/product/$productId/recommendations/';
-  static String collectionDetailUrl(String slug) => '$baseUrl/collections/$slug/';
+  static String collectionDetailUrl(String slug) =>
+      '$baseUrl/collections/$slug/';
 }

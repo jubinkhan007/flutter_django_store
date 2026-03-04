@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/services/analytics_service.dart';
@@ -99,6 +100,10 @@ class _FrequentlyBoughtTogetherCardState
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+        if (snapshot.hasError) {
+          debugPrint('FBT load error for anchor=${widget.anchorProductId}: ${snapshot.error}');
           return const SizedBox.shrink();
         }
         if (!snapshot.hasData) return const SizedBox.shrink();
@@ -395,4 +400,3 @@ class _VariantSelectorSheetState extends State<_VariantSelectorSheet> {
     );
   }
 }
-

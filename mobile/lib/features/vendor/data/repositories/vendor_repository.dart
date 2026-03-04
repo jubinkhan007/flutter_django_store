@@ -26,6 +26,37 @@ class VendorRepository {
     }
   }
 
+  Future<Map<String, dynamic>> getOnboardingProgress() async {
+    final response = await _apiClient.get(
+      ApiConfig.vendorOnboardingProgressUrl,
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to load onboarding progress');
+    }
+  }
+
+  Future<List<dynamic>> getProductAnalytics(int days) async {
+    final response = await _apiClient.get(
+      '${ApiConfig.vendorAnalyticsProductsUrl}?days=$days',
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to load product analytics');
+    }
+  }
+
+  Future<Map<String, dynamic>> getSlaScorecard() async {
+    final response = await _apiClient.get(ApiConfig.vendorAnalyticsSlaUrl);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to load SLA scorecard');
+    }
+  }
+
   /// Get public vendor profile
   Future<VendorProfileModel> getPublicVendorProfile(int vendorId) async {
     final response = await _apiClient.get(
@@ -166,7 +197,8 @@ class VendorRepository {
       if (!autoProvision) 'tracking_number': trackingNumber,
       if (!autoProvision && trackingUrl != null && trackingUrl.isNotEmpty)
         'tracking_url': trackingUrl,
-      if (autoProvision && provisionRequest != null) 'provision_request': provisionRequest,
+      if (autoProvision && provisionRequest != null)
+        'provision_request': provisionRequest,
       // Also flatten common provision fields for compatibility with backend.
       if (autoProvision && provisionRequest != null) ...provisionRequest,
     };

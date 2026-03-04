@@ -74,6 +74,30 @@ class ProductCard extends StatelessWidget {
                               size: 40,
                             ),
                     ),
+                    // Sponsored Badge
+                    if (product.isSponsored)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withAlpha((0.6 * 255).round()),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'Sponsored',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
                     // Wishlist Heart Icon
                     Positioned(
                       top: 4,

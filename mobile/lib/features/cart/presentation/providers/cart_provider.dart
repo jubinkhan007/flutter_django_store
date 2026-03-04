@@ -107,7 +107,9 @@ class CartProvider extends ChangeNotifier {
           int.tryParse(json['stockQuantity']?.toString() ?? '') ?? 0,
       image: resolvedImage,
       isAvailable: json['isAvailable'] == null ? true : json['isAvailable'] == true,
-      inStock: json['inStock'] == null ? true : json['inStock'] == true,
+      inStock: json['inStock'] == null
+          ? ((int.tryParse(json['stockQuantity']?.toString() ?? '') ?? 0) > 0)
+          : json['inStock'] == true,
       createdAt: json['createdAt']?.toString(),
     );
   }

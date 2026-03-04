@@ -108,6 +108,30 @@ class ProductVariant(models.Model):
 
     @property
     def effective_price(self):
+        from django.utils import timezone
+        now = timezone.now()
+        
+        # 1. FlashSale Precedence
+        fs_product = self.product.flash_sale_entries.filter(
+            flash_sale__is_active=True,
+            flash_sale__starts_at__lte=now,
+            flash_sale__ends_at__gte=now,
+            is_active=True
+        ).first()
+        if fs_product:
+            return fs_product.effective_sale_price
+            
+        # 2. Scheduled Price Rule Precedence (Variant first, then Product)
+        active_rule = self.price_rules.filter(
+            is_active=True, starts_at__lte=now, ends_at__gte=now
+        ).first() or self.product.price_rules.filter(
+            is_active=True, starts_at__lte=now, ends_at__gte=now, variant__isnull=True
+        ).first()
+        
+        if active_rule:
+            return active_rule.sale_price
+            
+        # 3. Base Fallback
         return self.price_override if self.price_override is not None else self.product.price
 
     @property
@@ -129,3 +153,19 @@ class Wishlist(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.product.name}"
+
+class ScheduledPriceRule(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='price_rules')
+    variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, related_name='price_rules', null=True, blank=True)
+    sale_price = models.DecimalField(max_digits=10, decimal_places=2)
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+    priority = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-priority', '-created_at']
+
+    def __str__(self):
+        return f"Rule {self.id} for {self.product.name}: {self.sale_price}"

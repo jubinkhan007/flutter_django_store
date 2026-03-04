@@ -56,6 +56,30 @@ class VendorProvider extends ChangeNotifier {
   Map<String, dynamic>? get dashboard => _dashboard;
   VendorProfileModel? get publicProfile => _publicProfile;
 
+  // Analytics
+  List<dynamic> productAnalytics = [];
+  Map<String, dynamic>? slaScorecard;
+  Map<String, dynamic>? onboardingProgress;
+
+  Future<void> loadOnboardingProgress() async {
+    try {
+      onboardingProgress = await _vendorRepository.getOnboardingProgress();
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+    }
+  }
+
+  Future<void> loadAnalyticsData({int days = 30}) async {
+    try {
+      productAnalytics = await _vendorRepository.getProductAnalytics(days);
+      slaScorecard = await _vendorRepository.getSlaScorecard();
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+    }
+  }
+
   Future<void> loadStats() async {
     try {
       final stats = await _vendorRepository.getStats();

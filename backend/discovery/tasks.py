@@ -4,6 +4,7 @@ from collections import Counter, defaultdict
 from datetime import timedelta
 
 from celery import shared_task
+from django.db.models import Q
 from django.utils import timezone
 
 from orders.models import Order, OrderItem
@@ -19,9 +20,15 @@ def compute_product_affinities(*, window_days: int = 90, top_k: int = 50) -> dic
     """
     cutoff = timezone.now() - timedelta(days=int(window_days))
 
+    purchase_q = Q(payment_status=Order.PaymentStatus.PAID) | Q(
+        payment_method=Order.PaymentMethod.COD,
+        status=Order.Status.DELIVERED,
+    )
+
     order_qs = (
         Order.objects.exclude(status=Order.Status.CANCELED)
-        .filter(created_at__gte=cutoff, payment_status=Order.PaymentStatus.PAID)
+        .filter(created_at__gte=cutoff)
+        .filter(purchase_q)
     )
 
     # Load (order_id, product_id) pairs.

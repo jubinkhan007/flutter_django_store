@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_radius.dart';
-import '../../../../core/theme/app_gradients.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -22,6 +19,16 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
   final _storeNameController = TextEditingController();
   final _descriptionController = TextEditingController();
 
+  int _currentStep = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<VendorProvider>().loadOnboardingProgress();
+    });
+  }
+
   @override
   void dispose() {
     _storeNameController.dispose();
@@ -29,32 +36,17 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
     super.dispose();
   }
 
-  Future<void> _handleOnboard() async {
+  Future<void> _handleCreateStore() async {
     if (!_formKey.currentState!.validate()) return;
-
     final vendor = context.read<VendorProvider>();
-    final authProvider = context.read<AuthProvider>();
     final success = await vendor.onboard(
       _storeNameController.text.trim(),
       _descriptionController.text.trim(),
     );
 
     if (success && mounted) {
-      // Promote local user type so the app shows vendor screens
-      await authProvider.updateUserType('VENDOR');
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('🎉 Store created! Welcome aboard!'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-        ),
-      );
-      Navigator.pushReplacementNamed(context, '/vendor');
+      context.read<AuthProvider>().updateUserType('VENDOR');
+      await vendor.loadOnboardingProgress();
     }
   }
 
@@ -62,123 +54,235 @@ class _VendorOnboardingScreenState extends State<VendorOnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Become a Vendor'),
+        title: const Text('Vendor Setup Wizard'),
         leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacementNamed(context, '/home');
+            }
+          },
+          icon: const Icon(Icons.close),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Illustration / Header ──
-            Center(
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  gradient: AppGradients.lightPrimary,
-                  borderRadius: BorderRadius.circular(24),
+      body: Consumer<VendorProvider>(
+        builder: (context, vendor, _) {
+          final progress = vendor.onboardingProgress;
+          if (progress == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final storeCreated = progress['store_created'] == true;
+          final payoutAdded = progress['payout_method_added'] == true;
+          final pickupLinked = progress['pickup_store_linked'] == true;
+          final productAdded = progress['first_product_with_variant'] == true;
+          final isReady = progress['is_ready'] == true;
+
+          // Auto-advance step logic based on completion
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            int targetStep = 0;
+            if (storeCreated) targetStep = 1;
+            if (storeCreated && payoutAdded) targetStep = 2;
+            if (storeCreated && payoutAdded && pickupLinked) targetStep = 3;
+            if (storeCreated && payoutAdded && pickupLinked && productAdded)
+              targetStep = 4;
+
+            if (_currentStep != targetStep && targetStep < 4) {
+              setState(() => _currentStep = targetStep);
+            }
+          });
+
+          if (isReady) {
+            return _buildSuccessView();
+          }
+
+          return Stepper(
+            currentStep: _currentStep,
+            onStepTapped: (index) {
+              // Only allow tapping previous completed steps
+              if (index <= _currentStep) {
+                setState(() => _currentStep = index);
+              }
+            },
+            controlsBuilder: (context, details) {
+              return const SizedBox.shrink(); // Hide default continue/cancel buttons
+            },
+            steps: [
+              Step(
+                title: const Text('Create Store Profile'),
+                subtitle: const Text('Name and description'),
+                isActive: _currentStep >= 0,
+                state: storeCreated ? StepState.complete : StepState.editing,
+                content: storeCreated
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8.0),
+                        child: Text(
+                          '✅ Store created successfully.',
+                          style: TextStyle(color: AppColors.success),
+                        ),
+                      )
+                    : _buildStoreForm(vendor),
+              ),
+              Step(
+                title: const Text('Setup Payout Method'),
+                subtitle: const Text('Add bank details'),
+                isActive: _currentStep >= 1,
+                state: payoutAdded ? StepState.complete : StepState.indexed,
+                content: _buildActionContent(
+                  isCompleted: payoutAdded,
+                  completedText: '✅ Payout method is setup.',
+                  actionText: 'Go to Wallet to add details',
+                  onAction: () async {
+                    await Navigator.pushNamed(context, '/vendor/wallet');
+                    vendor.loadOnboardingProgress();
+                  },
                 ),
-                child: const Icon(Icons.store, color: Colors.white, size: 48),
+              ),
+              Step(
+                title: const Text('Add Pickup Location'),
+                subtitle: const Text('Logistics / Warehouse'),
+                isActive: _currentStep >= 2,
+                state: pickupLinked ? StepState.complete : StepState.indexed,
+                content: _buildActionContent(
+                  isCompleted: pickupLinked,
+                  completedText: '✅ Pickup location linked.',
+                  actionText: 'Contact Support to map warehouse',
+                  onAction: () {
+                    // Placeholder for logistics self-service
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Feature coming soon. Please contact vendor support.',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Step(
+                title: const Text('Create First Product'),
+                subtitle: const Text('Upload a product with variants'),
+                isActive: _currentStep >= 3,
+                state: productAdded ? StepState.complete : StepState.indexed,
+                content: _buildActionContent(
+                  isCompleted: productAdded,
+                  completedText: '✅ First product added.',
+                  actionText: 'Go to Product Catalog',
+                  onAction: () async {
+                    await Navigator.pushNamed(context, '/vendor/add-product');
+                    vendor.loadOnboardingProgress();
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildStoreForm(VendorProvider vendor) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          const SizedBox(height: AppSpacing.sm),
+          AppTextField(
+            controller: _storeNameController,
+            hintText: 'e.g., TechWorld Store',
+            labelText: 'Store Name',
+            validator: (v) =>
+                (v == null || v.isEmpty) ? 'Please enter name' : null,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppTextField(
+            controller: _descriptionController,
+            hintText: 'Tell customers about your store...',
+            labelText: 'Description',
+            maxLines: 2,
+            validator: (v) =>
+                (v == null || v.isEmpty) ? 'Please enter description' : null,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (vendor.error != null) ...[
+            Text(vendor.error!, style: const TextStyle(color: AppColors.error)),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          PrimaryButton(
+            text: 'Save Store',
+            isLoading: vendor.isLoading,
+            onPressed: _handleCreateStore,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionContent({
+    required bool isCompleted,
+    required String completedText,
+    required String actionText,
+    required VoidCallback onAction,
+  }) {
+    if (isCompleted) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Text(
+          completedText,
+          style: const TextStyle(color: AppColors.success),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: OutlinedButton(onPressed: onAction, child: Text(actionText)),
+    );
+  }
+
+  Widget _buildSuccessView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.success.withAlpha(20),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_circle,
+                size: 80,
+                color: AppColors.success,
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            const Center(
-              child: Text(
-                'Set Up Your Store',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.lightTextPrimary,
-                ),
+            const Text(
+              'You are all set!',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: AppColors.lightTextPrimary,
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            const Center(
-              child: Text(
-                'Start selling your products to customers worldwide',
-                style: TextStyle(
-                  color: AppColors.lightTextSecondary,
-                  fontSize: 14,
-                ),
-                textAlign: TextAlign.center,
+            const SizedBox(height: AppSpacing.md),
+            const Text(
+              'Your store onboarding is complete. Your products can now go live!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.lightTextSecondary,
+                fontSize: 16,
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-
-            // ── Form ──
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  AppTextField(
-                    controller: _storeNameController,
-                    hintText: 'e.g., TechWorld Store',
-                    labelText: 'Store Name',
-                    prefixIcon: Icons.storefront_outlined,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your store name';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  AppTextField(
-                    controller: _descriptionController,
-                    hintText: 'Tell customers about your store...',
-                    labelText: 'Store Description',
-                    prefixIcon: Icons.description_outlined,
-                    maxLines: 4,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please describe your store';
-                      }
-                      return null;
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Error
-            Consumer<VendorProvider>(
-              builder: (context, vendor, _) {
-                if (vendor.error != null) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withAlpha(25),
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                      ),
-                      child: Text(
-                        vendor.error!,
-                        style: const TextStyle(
-                          color: AppColors.error,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-
-            // Submit
-            Consumer<VendorProvider>(
-              builder: (context, vendor, _) {
-                return PrimaryButton(
-                  text: 'Create My Store',
-                  isLoading: vendor.isLoading,
-                  onPressed: _handleOnboard,
-                );
+            PrimaryButton(
+              text: 'Go to Dashboard',
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, '/vendor');
               },
             ),
           ],

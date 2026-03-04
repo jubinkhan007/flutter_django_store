@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import '../../../../core/config/api_config.dart';
 import '../../../../core/network/api_client.dart';
 import '../../domain/entities/product_recommendations.dart';
@@ -19,6 +21,10 @@ class DiscoveryRepositoryImpl implements DiscoveryRepository {
     );
 
     if (response.statusCode != 200) {
+      debugPrint(
+        'DiscoveryRepositoryImpl.getProductRecommendations($productId) failed: '
+        '${response.statusCode} ${response.body}',
+      );
       throw Exception('Failed to load recommendations');
     }
 
@@ -38,4 +44,3 @@ class DiscoveryRepositoryImpl implements DiscoveryRepository {
     );
   }
 }
-

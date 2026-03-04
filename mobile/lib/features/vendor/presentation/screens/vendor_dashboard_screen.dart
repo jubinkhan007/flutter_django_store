@@ -12,6 +12,8 @@ import 'vendor_customers_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'vendor_profile_screen.dart';
 import 'vendor_bulk_upload_screen.dart';
+import 'vendor_analytics_screen.dart';
+import 'vendor_ads_screen.dart';
 import '../../../notifications/presentation/providers/notification_provider.dart';
 
 class VendorDashboardScreen extends StatefulWidget {
@@ -355,6 +357,36 @@ class _DashboardPage extends StatelessWidget {
                     icon: Icons.account_balance_wallet_outlined,
                     label: 'Wallet',
                     onTap: () => Navigator.pushNamed(context, '/vendor/wallet'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickAction(
+                    icon: Icons.bar_chart,
+                    label: 'Analytics',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const VendorAnalyticsScreen(),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _QuickAction(
+                    icon: Icons.campaign_outlined,
+                    label: 'Ads (Boost)',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const VendorAdsScreen(),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),

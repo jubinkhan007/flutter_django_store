@@ -17,10 +17,22 @@ class CompactProductSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     rating = serializers.SerializerMethodField()
     active_sale_price = serializers.SerializerMethodField()
+    in_stock = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'price', 'active_sale_price', 'image', 'rating', 'vendor_name', 'stock_quantity', 'is_available']
+        fields = [
+            'id',
+            'name',
+            'price',
+            'active_sale_price',
+            'image',
+            'rating',
+            'vendor_name',
+            'stock_quantity',
+            'is_available',
+            'in_stock',
+        ]
 
     def get_active_sale_price(self, obj):
         now = timezone.now()

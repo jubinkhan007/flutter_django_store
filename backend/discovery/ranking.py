@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 
+from django.db.models import Q
 from django.db.models import Count
 from django.utils import timezone
 
@@ -36,12 +37,16 @@ class DiscoveryRanker:
         cutoff = now - timedelta(days=self.velocity_days)
 
         ids = [p.id for p in products]
+        purchase_q = Q(sub_order__order__payment_status=Order.PaymentStatus.PAID) | Q(
+            sub_order__order__payment_method=Order.PaymentMethod.COD,
+            sub_order__order__status=Order.Status.DELIVERED,
+        )
         velocity_rows = (
             OrderItem.objects.filter(
                 product_id__in=ids,
                 sub_order__created_at__gte=cutoff,
-                sub_order__order__payment_status=Order.PaymentStatus.PAID,
             )
+            .filter(purchase_q)
             .exclude(sub_order__order__status=Order.Status.CANCELED)
             .values('product_id')
             .annotate(c=Count('id'))

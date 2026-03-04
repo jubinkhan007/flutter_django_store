@@ -123,6 +123,60 @@ def process_bulk_job_task(job_id):
                                 variant.price_override = price
                                 variant.save()
                     
+                elif job.job_type == BulkJob.JobType.VARIANT_UPLOAD:
+                    product_id = row_dict.get('product_id')
+                    if not product_id:
+                        raise ValueError("product_id is required")
+                        
+                    price = Decimal(str(row_dict.get('price', 0) or 0))
+                    stock = int(float(str(row_dict.get('stock', 0) or 0)))
+                    
+                    with transaction.atomic():
+                        product = Product.objects.get(id=product_id, vendor=job.vendor)
+                        
+                        variant, v_created = ProductVariant.objects.get_or_create(
+                            product=product,
+                            sku=sku,
+                            defaults={
+                                'stock_on_hand': stock,
+                                'price_override': price
+                            }
+                        )
+                        if not v_created:
+                            variant.stock_on_hand = stock
+                            variant.price_override = price
+                            variant.save()
+                            
+                elif job.job_type == BulkJob.JobType.SCHEDULED_PROMOTION:
+                    sale_price = Decimal(str(row_dict.get('sale_price', 0) or 0))
+                    priority = int(float(str(row_dict.get('priority', 0) or 0)))
+                    
+                    starts_at_str = str(row_dict.get('starts_at', '')).strip()
+                    ends_at_str = str(row_dict.get('ends_at', '')).strip()
+                    
+                    if not starts_at_str or not ends_at_str or starts_at_str == 'nan' or ends_at_str == 'nan':
+                        raise ValueError("starts_at and ends_at are required")
+                        
+                    from django.utils.dateparse import parse_datetime
+                    starts_at = parse_datetime(starts_at_str)
+                    ends_at = parse_datetime(ends_at_str)
+                    
+                    if not starts_at or not ends_at:
+                        raise ValueError("Invalid datetime format. Use ISO 8601 (e.g. 2024-01-01T10:00:00Z)")
+                        
+                    from products.models import ScheduledPriceRule
+                    with transaction.atomic():
+                        variant = ProductVariant.objects.get(sku=sku, product__vendor=job.vendor)
+                        
+                        ScheduledPriceRule.objects.create(
+                            product=variant.product,
+                            variant=variant,
+                            sale_price=sale_price,
+                            starts_at=starts_at,
+                            ends_at=ends_at,
+                            priority=priority
+                        )
+                        
                 report["success"] += 1
 
             except ProductVariant.DoesNotExist:
@@ -226,3 +280,66 @@ def release_due_settlements(batch_size=200):
         processed += 1
 
     return {'processed': processed}
+
+@shared_task
+def aggregate_vendor_product_analytics_daily(date_str=None):
+    from analytics.models import UserEvent
+    from vendors.models import VendorProductAnalyticsDaily, Vendor
+    from django.db.models import Count, Sum, Q, DecimalField
+    from datetime import datetime, timedelta
+    from django.db.models.functions import Coalesce
+    from decimal import Decimal
+    
+    if date_str:
+        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    else:
+        target_date = timezone.now().date() - timedelta(days=1)
+        
+    start_dt = timezone.make_aware(datetime.combine(target_date, datetime.min.time()))
+    end_dt = timezone.make_aware(datetime.combine(target_date, datetime.max.time()))
+
+    # Process events
+    events = UserEvent.objects.filter(
+        created_at__gte=start_dt,
+        created_at__lte=end_dt,
+        product__isnull=False
+    ).values('product_id', 'product__vendor_id').annotate(
+        impressions=Count('id', filter=Q(event_type=UserEvent.EventType.IMPRESSION)),
+        sponsored_impressions=Count('id', filter=Q(event_type=UserEvent.EventType.IMPRESSION, is_sponsored=True)),
+        clicks=Count('id', filter=Q(event_type=UserEvent.EventType.CLICK)),
+        sponsored_clicks=Count('id', filter=Q(event_type=UserEvent.EventType.CLICK, is_sponsored=True)),
+        carts=Count('id', filter=Q(event_type=UserEvent.EventType.ADD_TO_CART)),
+        purchases=Count('id', filter=Q(event_type=UserEvent.EventType.PURCHASE))
+    )
+
+    revenue_data = OrderItem.objects.filter(
+        sub_order__created_at__gte=start_dt,
+        sub_order__created_at__lte=end_dt
+    ).values('product_variant__product_id').annotate(
+        total_revenue=Sum(F('price') * F('quantity'))
+    )
+    revenue_map = {item['product_variant__product_id']: item['total_revenue'] for item in revenue_data}
+
+    for item in events:
+        vendor_id = item['product__vendor_id']
+        product_id = item['product_id']
+        if not vendor_id:
+            continue
+            
+        revenue = revenue_map.get(product_id, Decimal('0.00'))
+
+        VendorProductAnalyticsDaily.objects.update_or_create(
+            vendor_id=vendor_id,
+            product_id=product_id,
+            date=target_date,
+            defaults={
+                'impressions': item['impressions'],
+                'clicks': item['clicks'],
+                'carts': item['carts'],
+                'purchases': item['purchases'],
+                'sponsored_impressions': item['sponsored_impressions'],
+                'sponsored_clicks': item['sponsored_clicks'],
+                'revenue': revenue
+            }
+        )
+    return "Analytics Aggregation Complete"
