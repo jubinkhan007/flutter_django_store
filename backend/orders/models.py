@@ -50,6 +50,10 @@ class SubOrder(models.Model):
     """
     SubOrder groups order items by vendor.
     """
+    class FulfillmentType(models.TextChoices):
+        LOCAL = 'LOCAL', 'Local'
+        CROSS_BORDER_DIRECT = 'CROSS_BORDER_DIRECT', 'Cross-Border (Direct Import)'
+
     class ProvisionStatus(models.TextChoices):
         NOT_STARTED = 'NOT_STARTED', 'Not started'
         REQUESTED = 'REQUESTED', 'Requested'
@@ -59,6 +63,11 @@ class SubOrder(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='sub_orders')
     vendor = models.ForeignKey(Vendor, on_delete=models.PROTECT, related_name='sub_orders')
     status = models.CharField(max_length=20, choices=Order.Status.choices, default=Order.Status.PENDING)
+    fulfillment_type = models.CharField(
+        max_length=30,
+        choices=FulfillmentType.choices,
+        default=FulfillmentType.LOCAL,
+    )
 
     # Courier / Tracking
     courier_code = models.CharField(max_length=50, blank=True, help_text="e.g. 'pathao', 'redx'")
@@ -130,6 +139,10 @@ class ShipmentEvent(models.Model):
         DELIVERED = 'DELIVERED', 'Delivered'
         CANCELLED = 'CANCELLED', 'Cancelled'
         RETURNED = 'RETURNED', 'Returned'
+        # Cross-border milestones
+        ORDERED = 'ORDERED', 'Ordered from Supplier'
+        SHIPPED_INTL = 'SHIPPED_INTL', 'Shipped Internationally'
+        CUSTOMS_HELD = 'CUSTOMS_HELD', 'Held at Customs'
 
     class Source(models.TextChoices):
         VENDOR = 'VENDOR', 'Vendor'

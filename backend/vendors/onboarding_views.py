@@ -15,7 +15,20 @@ class VendorOnboardingProgressView(APIView):
         try:
             vendor = request.user.vendor_profile
         except Vendor.DoesNotExist:
-            return Response({"error": "User is not a vendor"}, status=403)
+            # User is authenticated but hasn't created a vendor profile yet.
+            # Return an "all false" checklist so the client can render onboarding steps.
+            return Response(
+                {
+                    "has_vendor_profile": False,
+                    "store_created": False,
+                    "payout_method_added": False,
+                    "pickup_store_linked": False,
+                    "first_product_with_variant": False,
+                    "is_ready": False,
+                    "is_live": False,
+                },
+                status=200,
+            )
             
         store_created = bool(vendor.store_name)
         
@@ -42,6 +55,7 @@ class VendorOnboardingProgressView(APIView):
             pass
 
         return Response({
+            "has_vendor_profile": True,
             "store_created": store_created,
             "payout_method_added": payout_method_added,
             "pickup_store_linked": pickup_store_linked,

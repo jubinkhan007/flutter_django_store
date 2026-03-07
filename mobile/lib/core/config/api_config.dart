@@ -139,4 +139,14 @@ class ApiConfig {
       '$baseUrl/discovery/product/$productId/recommendations/';
   static String collectionDetailUrl(String slug) =>
       '$baseUrl/collections/$slug/';
+
+  // Cross-Border
+  static String get cbProductsUrl => '$baseUrl/crossborder/products/';
+  static String cbProductDetailUrl(int id) => '$baseUrl/crossborder/products/$id/';
+  static String get cbShippingConfigUrl => '$baseUrl/crossborder/shipping-config/';
+  static String get cbRequestsUrl => '$baseUrl/crossborder/requests/';
+  static String get cbRequestsListUrl => '$baseUrl/crossborder/requests/list/';
+  static String cbRequestDetailUrl(int id) => '$baseUrl/crossborder/requests/$id/';
+  static String cbCheckoutUrl(int id) => '$baseUrl/crossborder/requests/$id/checkout/';
+  static String cbMarkReceivedUrl(int id) => '$baseUrl/crossborder/requests/$id/mark-received/';
 }

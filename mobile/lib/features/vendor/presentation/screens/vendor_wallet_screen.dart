@@ -52,7 +52,8 @@ class _VendorWalletScreenState extends State<VendorWalletScreen> {
               return const Center(child: CircularProgressIndicator());
             }
 
-            if (provider.walletError != null && provider.walletSummary == null) {
+            if (provider.walletError != null &&
+                provider.walletSummary == null) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(AppSpacing.lg),
@@ -76,8 +77,9 @@ class _VendorWalletScreenState extends State<VendorWalletScreen> {
                         const SizedBox(height: AppSpacing.md),
                         PrimaryButton(
                           text: 'Retry',
-                          onPressed: () =>
-                              context.read<VendorProvider>().loadWalletSummary(),
+                          onPressed: () => context
+                              .read<VendorProvider>()
+                              .loadWalletSummary(),
                         ),
                       ],
                     ),
@@ -407,9 +409,7 @@ class _WithdrawCard extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
-      builder: (_) => _WithdrawSheet(
-        balances: balances,
-      ),
+      builder: (_) => _WithdrawSheet(balances: balances),
     );
   }
 }
@@ -437,16 +437,33 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<VendorProvider>();
-    final payoutMethods = provider.walletSummary?.payoutMethods ?? [];
-    
-    // Auto-select a method if needed
-    if (_selectedMethod == null && payoutMethods.isNotEmpty) {
-      _selectedMethod = payoutMethods.first;
-    } else if (_selectedMethod != null && !payoutMethods.any((m) => m.id == _selectedMethod!.id)) {
-      _selectedMethod = payoutMethods.isNotEmpty ? payoutMethods.first : null;
+    final rawPayoutMethods = provider.walletSummary?.payoutMethods ?? [];
+    final payoutMethods = <VendorPayoutMethodModel>[];
+    final seenMethodIds = <int>{};
+    for (final method in rawPayoutMethods) {
+      if (seenMethodIds.add(method.id)) {
+        payoutMethods.add(method);
+      }
     }
 
-    final bottom = MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom;
+    // Keep the selected method in sync with the current list instance(s).
+    // DropdownButton requires `value` to match exactly one item (by `==`), so we
+    // always rebind to the list's object for the selected id.
+    if (payoutMethods.isEmpty) {
+      _selectedMethod = null;
+    } else if (_selectedMethod == null) {
+      _selectedMethod = payoutMethods.first;
+    } else {
+      final selectedId = _selectedMethod!.id;
+      final matching = payoutMethods.where((m) => m.id == selectedId).toList();
+      _selectedMethod = matching.length == 1
+          ? matching.first
+          : payoutMethods.first;
+    }
+
+    final bottom =
+        MediaQuery.of(context).viewInsets.bottom +
+        MediaQuery.of(context).padding.bottom;
     final primaryColor = Theme.of(context).primaryColor;
 
     return Padding(
@@ -508,7 +525,8 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
                             ),
                           )
                           .toList(),
-                      onChanged: (value) => setState(() => _selectedMethod = value),
+                      onChanged: (value) =>
+                          setState(() => _selectedMethod = value),
                     ),
                   ),
                 ),
@@ -562,9 +580,9 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
 
     setState(() => _submitting = true);
     final ok = await context.read<VendorProvider>().requestPayout(
-          amount: amount,
-          bankDetails: _selectedMethod!.toBankDetailsText(),
-        );
+      amount: amount,
+      bankDetails: _selectedMethod!.toBankDetailsText(),
+    );
     if (!context.mounted) return;
     setState(() => _submitting = false);
 
@@ -625,11 +643,15 @@ class _AddPayoutMethodSheetState extends State<_AddPayoutMethodSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom;
+    final bottom =
+        MediaQuery.of(context).viewInsets.bottom +
+        MediaQuery.of(context).padding.bottom;
     final primaryColor = Theme.of(context).primaryColor;
 
     final field1Label = _method == 'BANK' ? 'Bank name' : 'Wallet number';
-    final field2Label = _method == 'BANK' ? 'Account number' : 'Account name (optional)';
+    final field2Label = _method == 'BANK'
+        ? 'Account number'
+        : 'Account name (optional)';
 
     return Padding(
       padding: EdgeInsets.only(
@@ -728,15 +750,16 @@ class _AddPayoutMethodSheetState extends State<_AddPayoutMethodSheet> {
       if (_method == 'BANK') 'bank_name': _field1Controller.text.trim(),
       if (_method == 'BANK') 'account_number': _field2Controller.text.trim(),
       if (_method != 'BANK') 'wallet_number': _field1Controller.text.trim(),
-      if (_field2Controller.text.trim().isNotEmpty) 'name': _field2Controller.text.trim(),
+      if (_field2Controller.text.trim().isNotEmpty)
+        'name': _field2Controller.text.trim(),
     };
 
     setState(() => _saving = true);
     final ok = await context.read<VendorProvider>().createPayoutMethod(
-          method: _method,
-          label: _labelController.text.trim(),
-          details: details,
-        );
+      method: _method,
+      label: _labelController.text.trim(),
+      details: details,
+    );
     if (!context.mounted) return;
     setState(() => _saving = false);
 
@@ -803,11 +826,7 @@ class _LedgerEntryTile extends StatelessWidget {
               color: typeColor.withAlpha(18),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              tileIcon,
-              size: 18,
-              color: typeColor,
-            ),
+            child: Icon(tileIcon, size: 18, color: typeColor),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -815,7 +834,9 @@ class _LedgerEntryTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  entry.description.isNotEmpty ? entry.description : entry.entryType,
+                  entry.description.isNotEmpty
+                      ? entry.description
+                      : entry.entryType,
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: AppColors.lightTextPrimary,
                     fontWeight: FontWeight.w600,

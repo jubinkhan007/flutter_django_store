@@ -82,6 +82,7 @@ INSTALLED_APPS = [
     'analytics',
     'discovery',
     'ads',
+    'crossborder',
 ]
 
 AUTH_USER_MODEL = 'users.User'

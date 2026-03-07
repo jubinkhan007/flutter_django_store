@@ -182,6 +182,11 @@ class LedgerEntry(models.Model):
         REFUND_DEBIT = 'REFUND_DEBIT', 'Refund debit'
         AD_CREDIT_TOPUP = 'AD_CREDIT_TOPUP', 'Ad credit top-up'
         AD_SPEND_CLICK = 'AD_SPEND_CLICK', 'Ad spend (Click)'
+        CB_PAYMENT_RECEIVED = 'CB_PAYMENT_RECEIVED', 'CB Payment Received'
+        CB_ITEM_COST = 'CB_ITEM_COST', 'CB Real Item Purchase Cost'
+        CB_SERVICE_FEE = 'CB_SERVICE_FEE', 'CB Service Fee Margin'
+        CB_TOPUP_RECEIVED = 'CB_TOPUP_RECEIVED', 'CB Top-up Received'
+        CB_REFUND = 'CB_REFUND', 'CB Refund'
 
     class Bucket(models.TextChoices):
         PENDING = 'PENDING', 'Pending'

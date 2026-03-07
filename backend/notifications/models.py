@@ -66,6 +66,10 @@ class Notification(models.Model):
         TICKET_REPLY_RECEIVED = 'TICKET_REPLY_RECEIVED', 'Ticket Reply Received'
         DISPUTE_ESCALATED = 'DISPUTE_ESCALATED', 'Dispute Escalated'
         PROMOTION = 'PROMOTION', 'Promotion'
+        CB_ORDER_QUOTED = 'CB_ORDER_QUOTED', 'CB Order Quoted'
+        CB_ORDER_SHIPPED = 'CB_ORDER_SHIPPED', 'CB Order Shipped Internationally'
+        CB_ORDER_DELIVERED = 'CB_ORDER_DELIVERED', 'CB Order Delivered'
+        CB_CUSTOMS_HELD = 'CB_CUSTOMS_HELD', 'CB Order Held at Customs'
 
     class DeliveryStatus(models.TextChoices):
         PENDING = 'PENDING', 'Pending'

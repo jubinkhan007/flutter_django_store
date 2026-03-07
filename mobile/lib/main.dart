@@ -78,6 +78,12 @@ import 'features/support/presentation/screens/support_center_screen.dart';
 // Logistics
 import 'features/logistics/data/repositories/logistics_repository.dart';
 
+// Cross-Border
+import 'features/crossborder/data/repositories/crossborder_repository.dart';
+import 'features/crossborder/presentation/providers/crossborder_provider.dart';
+import 'features/crossborder/presentation/screens/cb_catalog_screen.dart';
+import 'features/crossborder/presentation/screens/cb_my_orders_screen.dart';
+
 // Firebase
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -161,6 +167,7 @@ void main() async {
   final notificationRepository = NotificationRepository(apiClient: apiClient);
   final supportRepository = SupportRepository(apiClient: apiClient);
   final logisticsRepository = LogisticsRepository(apiClient: apiClient);
+  final crossBorderRepository = CrossBorderRepository(apiClient: apiClient);
 
   runApp(
     MyApp(
@@ -180,6 +187,7 @@ void main() async {
       notificationRepository: notificationRepository,
       supportRepository: supportRepository,
       logisticsRepository: logisticsRepository,
+      crossBorderRepository: crossBorderRepository,
     ),
   );
 }
@@ -201,6 +209,7 @@ class MyApp extends StatelessWidget {
   final NotificationRepository notificationRepository;
   final SupportRepository supportRepository;
   final LogisticsRepository logisticsRepository;
+  final CrossBorderRepository crossBorderRepository;
 
   const MyApp({
     super.key,
@@ -220,6 +229,7 @@ class MyApp extends StatelessWidget {
     required this.notificationRepository,
     required this.supportRepository,
     required this.logisticsRepository,
+    required this.crossBorderRepository,
   });
 
   @override
@@ -274,6 +284,9 @@ class MyApp extends StatelessWidget {
         ),
         Provider<SupportRepository>.value(value: supportRepository),
         Provider<LogisticsRepository>.value(value: logisticsRepository),
+        ChangeNotifierProvider(
+          create: (_) => CrossBorderProvider(repository: crossBorderRepository),
+        ),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, theme, _) {
@@ -304,6 +317,8 @@ class MyApp extends StatelessWidget {
                 '/vendor/wallet': (context) => const VendorWalletScreen(),
                 '/notifications': (context) => const NotificationScreen(),
                 '/support': (context) => const SupportCenterScreen(),
+                '/crossborder': (context) => const CbCatalogScreen(),
+                '/crossborder/orders': (context) => const CbMyOrdersScreen(),
               },
             ),
           );

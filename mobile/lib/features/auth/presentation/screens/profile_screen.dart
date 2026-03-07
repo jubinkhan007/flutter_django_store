@@ -10,6 +10,8 @@ import 'package:mobile/features/wishlist/presentation/screens/wishlist_screen.da
 import '../../../coupons/presentation/screens/coupon_center_screen.dart';
 import '../../../returns/presentation/screens/return_list_screen.dart';
 import '../../../support/presentation/screens/support_center_screen.dart';
+import '../../../crossborder/presentation/screens/cb_catalog_screen.dart';
+import '../../../crossborder/presentation/screens/cb_my_orders_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -163,6 +165,34 @@ class ProfileScreen extends StatelessWidget {
                           context,
                           MaterialPageRoute(
                             builder: (_) => const CouponCenterScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(color: AppColors.lightSurface),
+                    _MenuListItem(
+                      icon: Icons.flight_takeoff_outlined,
+                      title: 'Shop Abroad',
+                      subtitle: 'Order from international marketplaces',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CbCatalogScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(color: AppColors.lightSurface),
+                    _MenuListItem(
+                      icon: Icons.public_outlined,
+                      title: 'International Orders',
+                      subtitle: 'Track your cross-border purchases',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CbMyOrdersScreen(),
                           ),
                         );
                       },
