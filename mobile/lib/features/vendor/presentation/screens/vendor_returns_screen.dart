@@ -34,249 +34,31 @@ class _VendorReturnsScreenState extends State<VendorReturnsScreen> {
     BuildContext context,
     ReturnRequestModel rr,
   ) async {
-    final controller = TextEditingController();
-    DateTime? pickupStart = rr.pickupWindowStart;
-    DateTime? pickupEnd = rr.pickupWindowEnd;
-    final dropoffController = TextEditingController(
-      text: rr.dropoffInstructions,
-    );
-
-    final res = await showDialog<_ApproveData>(
+    return showDialog<_ApproveData>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          Future<DateTime?> pickDateTime(DateTime? initial) async {
-            final now = DateTime.now();
-            final date = await showDatePicker(
-              context: context,
-              initialDate: initial ?? now,
-              firstDate: now.subtract(const Duration(days: 1)),
-              lastDate: now.add(const Duration(days: 30)),
-            );
-            if (date == null) return null;
-            if (!context.mounted) return null;
-            final time = await showTimePicker(
-              context: context,
-              initialTime: TimeOfDay.fromDateTime(initial ?? now),
-            );
-            if (time == null || !context.mounted) return null;
-            return DateTime(
-              date.year,
-              date.month,
-              date.day,
-              time.hour,
-              time.minute,
-            );
-          }
-
-          String fmt(DateTime? dt) {
-            if (dt == null) return 'Not set';
-            return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
-                '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-          }
-
-          return AlertDialog(
-            title: const Text('Approve return'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: controller,
-                    decoration: const InputDecoration(
-                      hintText: 'Optional note',
-                    ),
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 12),
-                  if (rr.fulfillment == 'PICKUP') ...[
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Pickup window start'),
-                      subtitle: Text(fmt(pickupStart)),
-                      trailing: const Icon(Icons.schedule),
-                      onTap: () async {
-                        final dt = await pickDateTime(pickupStart);
-                        if (dt == null) return;
-                        setState(() => pickupStart = dt);
-                      },
-                    ),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Pickup window end'),
-                      subtitle: Text(fmt(pickupEnd)),
-                      trailing: const Icon(Icons.schedule),
-                      onTap: () async {
-                        final dt = await pickDateTime(pickupEnd ?? pickupStart);
-                        if (dt == null) return;
-                        setState(() => pickupEnd = dt);
-                      },
-                    ),
-                    const Text(
-                      'Tip: setting both times moves status to PICKUP_SCHEDULED.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.lightTextSecondary,
-                      ),
-                    ),
-                  ] else ...[
-                    TextField(
-                      controller: dropoffController,
-                      decoration: const InputDecoration(
-                        labelText: 'Drop-off instructions',
-                        hintText: 'Address, hours, what to include, etc.',
-                      ),
-                      maxLines: 3,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(
-                    context,
-                    _ApproveData(
-                      note: controller.text.trim(),
-                      pickupWindowStart: pickupStart,
-                      pickupWindowEnd: pickupEnd,
-                      dropoffInstructions: dropoffController.text.trim(),
-                    ),
-                  );
-                },
-                child: const Text('OK'),
-              ),
-            ],
-          );
-        },
-      ),
+      builder: (context) => _ApproveDialog(rr: rr),
     );
-    controller.dispose();
-    dropoffController.dispose();
-    return res;
   }
 
   Future<_RefundData?> _promptRefund(BuildContext context) async {
-    String method = 'WALLET';
-    final amountController = TextEditingController();
-    final res = await showDialog<_RefundData>(
+    return showDialog<_RefundData>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Initiate refund'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                initialValue: method,
-                decoration: const InputDecoration(labelText: 'Method'),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'WALLET',
-                    child: Text('Wallet credit'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'ORIGINAL',
-                    child: Text('Original method'),
-                  ),
-                ],
-                onChanged: (v) => setState(() => method = v ?? 'WALLET'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: amountController,
-                decoration: const InputDecoration(
-                  labelText: 'Partial amount (optional)',
-                  hintText: 'Leave blank for full amount',
-                ),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                final raw = amountController.text.trim();
-                final amount = raw.isEmpty ? null : double.tryParse(raw);
-                Navigator.pop(
-                  context,
-                  _RefundData(method: method, amount: amount),
-                );
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      ),
+      builder: (context) => const _RefundDialog(),
     );
-    amountController.dispose();
-    return res;
   }
 
   Future<String?> _promptReference(BuildContext context) async {
-    final controller = TextEditingController();
-    final res = await showDialog<String>(
+    return showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Refund reference (optional)'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'Gateway txn id, note, etc.',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+      builder: (context) => const _ReferenceDialog(),
     );
-    controller.dispose();
-    return res;
   }
 
   Future<String?> _promptReject(BuildContext context) async {
-    final controller = TextEditingController();
-    final res = await showDialog<String>(
+    return showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reject return'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(hintText: 'Reason (optional)'),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+      builder: (context) => const _RejectDialog(),
     );
-    controller.dispose();
-    return res;
   }
 
   Widget _chip(String text, Color color) {
@@ -634,6 +416,301 @@ class _ReturnCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RejectDialog extends StatefulWidget {
+  const _RejectDialog();
+  @override
+  State<_RejectDialog> createState() => _RejectDialogState();
+}
+
+class _RejectDialogState extends State<_RejectDialog> {
+  late final TextEditingController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Reject return'),
+      content: TextField(
+        controller: controller,
+        decoration: const InputDecoration(hintText: 'Reason (optional)'),
+        maxLines: 3,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, controller.text.trim()),
+          child: const Text('OK'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReferenceDialog extends StatefulWidget {
+  const _ReferenceDialog();
+  @override
+  State<_ReferenceDialog> createState() => _ReferenceDialogState();
+}
+
+class _ReferenceDialogState extends State<_ReferenceDialog> {
+  late final TextEditingController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Refund reference (optional)'),
+      content: TextField(
+        controller: controller,
+        decoration: const InputDecoration(
+          hintText: 'Gateway txn id, note, etc.',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, controller.text.trim()),
+          child: const Text('OK'),
+        ),
+      ],
+    );
+  }
+}
+
+class _RefundDialog extends StatefulWidget {
+  const _RefundDialog();
+  @override
+  State<_RefundDialog> createState() => _RefundDialogState();
+}
+
+class _RefundDialogState extends State<_RefundDialog> {
+  String method = 'WALLET';
+  late final TextEditingController amountController;
+
+  @override
+  void initState() {
+    super.initState();
+    amountController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    amountController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Initiate refund'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DropdownButtonFormField<String>(
+            initialValue: method,
+            decoration: const InputDecoration(labelText: 'Method'),
+            items: const [
+              DropdownMenuItem(value: 'WALLET', child: Text('Wallet credit')),
+              DropdownMenuItem(
+                value: 'ORIGINAL',
+                child: Text('Original method'),
+              ),
+            ],
+            onChanged: (v) => setState(() => method = v ?? 'WALLET'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: amountController,
+            decoration: const InputDecoration(
+              labelText: 'Partial amount (optional)',
+              hintText: 'Leave blank for full amount',
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () {
+            final raw = amountController.text.trim();
+            final amount = raw.isEmpty ? null : double.tryParse(raw);
+            Navigator.pop(context, _RefundData(method: method, amount: amount));
+          },
+          child: const Text('OK'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ApproveDialog extends StatefulWidget {
+  final ReturnRequestModel rr;
+  const _ApproveDialog({required this.rr});
+  @override
+  State<_ApproveDialog> createState() => _ApproveDialogState();
+}
+
+class _ApproveDialogState extends State<_ApproveDialog> {
+  late final TextEditingController controller;
+  late final TextEditingController dropoffController;
+  DateTime? pickupStart;
+  DateTime? pickupEnd;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = TextEditingController();
+    dropoffController = TextEditingController(
+      text: widget.rr.dropoffInstructions,
+    );
+    pickupStart = widget.rr.pickupWindowStart;
+    pickupEnd = widget.rr.pickupWindowEnd;
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    dropoffController.dispose();
+    super.dispose();
+  }
+
+  Future<DateTime?> pickDateTime(DateTime? initial) async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial ?? now,
+      firstDate: now.subtract(const Duration(days: 1)),
+      lastDate: now.add(const Duration(days: 30)),
+    );
+    if (date == null) return null;
+    if (!mounted) return null;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial ?? now),
+    );
+    if (time == null || !mounted) return null;
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  String fmt(DateTime? dt) {
+    if (dt == null) return 'Not set';
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Approve return'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(hintText: 'Optional note'),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 12),
+            if (widget.rr.fulfillment == 'PICKUP') ...[
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Pickup window start'),
+                subtitle: Text(fmt(pickupStart)),
+                trailing: const Icon(Icons.schedule),
+                onTap: () async {
+                  final dt = await pickDateTime(pickupStart);
+                  if (dt == null) return;
+                  setState(() => pickupStart = dt);
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Pickup window end'),
+                subtitle: Text(fmt(pickupEnd)),
+                trailing: const Icon(Icons.schedule),
+                onTap: () async {
+                  final dt = await pickDateTime(pickupEnd ?? pickupStart);
+                  if (dt == null) return;
+                  setState(() => pickupEnd = dt);
+                },
+              ),
+              const Text(
+                'Tip: setting both times moves status to PICKUP_SCHEDULED.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.lightTextSecondary,
+                ),
+              ),
+            ] else ...[
+              TextField(
+                controller: dropoffController,
+                decoration: const InputDecoration(
+                  labelText: 'Drop-off instructions',
+                  hintText: 'Address, hours, what to include, etc.',
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.pop(
+              context,
+              _ApproveData(
+                note: controller.text.trim(),
+                pickupWindowStart: pickupStart,
+                pickupWindowEnd: pickupEnd,
+                dropoffInstructions: dropoffController.text.trim(),
+              ),
+            );
+          },
+          child: const Text('OK'),
+        ),
+      ],
     );
   }
 }

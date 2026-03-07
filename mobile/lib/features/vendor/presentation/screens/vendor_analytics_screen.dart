@@ -264,22 +264,22 @@ class _VendorAnalyticsScreenState extends State<VendorAnalyticsScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withAlpha(20),
+                    color: Theme.of(context).colorScheme.primary.withAlpha(20),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.campaign,
                         size: 14,
-                        color: AppColors.primary,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         'Sponsored: ${sponsored['impressions']} views, ${sponsored['clicks']} clicks',
-                        style: const TextStyle(
-                          color: AppColors.primary,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
                           fontSize: 12,
                         ),
                       ),

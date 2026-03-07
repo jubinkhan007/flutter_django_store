@@ -3,7 +3,6 @@ import 'app_colors.dart';
 import 'app_radius.dart';
 import 'app_spacing.dart';
 import 'typography.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'app_shadows.dart';
 
 class AppTheme {
@@ -97,11 +96,7 @@ class AppTheme {
       elevation: 0,
       centerTitle: true,
       surfaceTintColor: Colors.transparent, // Prevents Material 3 tinting
-      titleTextStyle: GoogleFonts.plusJakartaSans(
-        fontSize: 18,
-        fontWeight: FontWeight.w600,
-        color: fgColor,
-      ),
+      titleTextStyle: AppTextStyles.titleMedium.copyWith(color: fgColor),
       iconTheme: IconThemeData(color: fgColor),
     );
   }

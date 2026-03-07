@@ -20,6 +20,7 @@ class ProductModel extends Product {
     super.variants,
     super.avgRating,
     super.reviewCount,
+    super.isSponsored,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {

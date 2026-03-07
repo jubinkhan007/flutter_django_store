@@ -409,7 +409,6 @@ class _WithdrawCard extends StatelessWidget {
       ),
       builder: (_) => _WithdrawSheet(
         balances: balances,
-        payoutMethods: payoutMethods,
       ),
     );
   }
@@ -417,9 +416,8 @@ class _WithdrawCard extends StatelessWidget {
 
 class _WithdrawSheet extends StatefulWidget {
   final VendorWalletBalances balances;
-  final List<VendorPayoutMethodModel> payoutMethods;
 
-  const _WithdrawSheet({required this.balances, required this.payoutMethods});
+  const _WithdrawSheet({required this.balances});
 
   @override
   State<_WithdrawSheet> createState() => _WithdrawSheetState();
@@ -431,14 +429,6 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
   bool _submitting = false;
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.payoutMethods.isNotEmpty) {
-      _selectedMethod = widget.payoutMethods.first;
-    }
-  }
-
-  @override
   void dispose() {
     _amountController.dispose();
     super.dispose();
@@ -446,6 +436,16 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<VendorProvider>();
+    final payoutMethods = provider.walletSummary?.payoutMethods ?? [];
+    
+    // Auto-select a method if needed
+    if (_selectedMethod == null && payoutMethods.isNotEmpty) {
+      _selectedMethod = payoutMethods.first;
+    } else if (_selectedMethod != null && !payoutMethods.any((m) => m.id == _selectedMethod!.id)) {
+      _selectedMethod = payoutMethods.isNotEmpty ? payoutMethods.first : null;
+    }
+
     final bottom = MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom;
     final primaryColor = Theme.of(context).primaryColor;
 
@@ -497,7 +497,7 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
                       isExpanded: true,
                       value: _selectedMethod,
                       hint: const Text('Select payout method'),
-                      items: widget.payoutMethods
+                      items: payoutMethods
                           .map(
                             (m) => DropdownMenuItem(
                               value: m,
