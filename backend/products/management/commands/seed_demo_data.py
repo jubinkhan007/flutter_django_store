@@ -70,6 +70,7 @@ class Command(BaseCommand):
         vendors = []
         for i in range(3):
             user = User.objects.create_user(
+                username=f'vendor{i+1}',
                 email=f'vendor{i+1}@demo.com',
                 password='password123',
                 first_name=fake.first_name(),
@@ -146,6 +147,7 @@ class Command(BaseCommand):
         self.stdout.write("Creating Customers...")
         for i in range(5):
             User.objects.create_user(
+                username=f'customer{i+1}',
                 email=f'customer{i+1}@demo.com',
                 password='password123',
                 first_name=fake.first_name(),
