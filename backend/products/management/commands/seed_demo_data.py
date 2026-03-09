@@ -80,11 +80,9 @@ class Command(BaseCommand):
             vendor = Vendor.objects.create(
                 user=user,
                 store_name=f"{fake.company()} Official",
-                store_description=fake.catch_phrase(),
-                support_email=user.email,
-                phone_number=fake.phone_number()[:15],
+                description=fake.catch_phrase(),
                 is_approved=True,
-                status='ACTIVE'
+                is_live=True,
             )
             vendors.append(vendor)
 
