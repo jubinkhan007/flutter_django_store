@@ -75,7 +75,7 @@ class Command(BaseCommand):
                 password='password123',
                 first_name=fake.first_name(),
                 last_name=fake.last_name(),
-                role='VENDOR'
+                type='VENDOR'
             )
             vendor = Vendor.objects.create(
                 user=user,
@@ -152,7 +152,7 @@ class Command(BaseCommand):
                 password='password123',
                 first_name=fake.first_name(),
                 last_name=fake.last_name(),
-                role='CUSTOMER'
+                type='CUSTOMER'
             )
 
         self.stdout.write(self.style.SUCCESS("Demo Data Seeded Successfully! 🚀"))
