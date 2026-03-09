@@ -30,16 +30,15 @@ if [ ! -d "$VENV_DIR" ]; then
     python3.12 -m venv $VENV_DIR
 fi
 
-source $VENV_DIR/bin/activate
-pip install --upgrade pip
-pip install -r $APP_DIR/requirements.txt
+$VENV_DIR/bin/python -m pip install --upgrade pip
+$VENV_DIR/bin/pip install -r $APP_DIR/requirements.txt
 
 echo "Preparing Static Files..."
 mkdir -p $APP_DIR/staticfiles
-python $APP_DIR/manage.py collectstatic --noinput
+$VENV_DIR/bin/python $APP_DIR/manage.py collectstatic --noinput
 
 echo "Running Migrations..."
-python $APP_DIR/manage.py migrate
+$VENV_DIR/bin/python $APP_DIR/manage.py migrate
 
 echo "Configuring Nginx..."
 sudo cp $APP_DIR/deploy/nginx/shopease.conf /etc/nginx/sites-available/
