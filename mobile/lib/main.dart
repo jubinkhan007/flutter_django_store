@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 // Core
+import 'core/config/app_config.dart';
 import 'core/theme/app_theme.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/network/api_client.dart';
@@ -299,7 +300,7 @@ class MyApp extends StatelessWidget {
                     statusBarColor: Colors.transparent,
                   ),
             child: MaterialApp(
-              title: 'ShopEase',
+              title: AppConfig.appName,
               debugShowCheckedModeBanner: false,
               theme: AppTheme.lightTheme,
               darkTheme: AppTheme.darkTheme,

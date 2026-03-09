@@ -19,7 +19,6 @@ import '../../features/vendor/presentation/screens/vendor_wallet_screen.dart';
 import '../../features/support/presentation/screens/ticket_chat_screen.dart';
 import '../navigation/app_navigator.dart';
 
-
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _local =
       FlutterLocalNotificationsPlugin();
@@ -47,10 +46,10 @@ class NotificationService {
       // For iOS: ensure foreground notifications can be handled without double-rendering.
       await FirebaseMessaging.instance
           .setForegroundNotificationPresentationOptions(
-        alert: false,
-        badge: true,
-        sound: true,
-      );
+            alert: false,
+            badge: true,
+            sound: true,
+          );
 
       // Register current token (if any) and refresh on rotation.
       final token = await FirebaseMessaging.instance.getToken();
@@ -73,8 +72,9 @@ class NotificationService {
       });
 
       // Open from background.
-      _openedSub ??=
-          FirebaseMessaging.onMessageOpenedApp.listen((message) async {
+      _openedSub ??= FirebaseMessaging.onMessageOpenedApp.listen((
+        message,
+      ) async {
         final deeplink = message.data['deeplink']?.toString() ?? '';
         final ctx = appNavigatorKey.currentContext;
         if (ctx == null || !ctx.mounted) return;
@@ -122,13 +122,15 @@ class NotificationService {
 
     const androidChannel = AndroidNotificationChannel(
       _androidChannelId,
-      'ShopEase',
+      AppConfig.appName,
       description: 'ShopEase notifications',
       importance: Importance.high,
     );
 
-    final androidPlugin = _local.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin = _local
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     await androidPlugin?.createNotificationChannel(androidChannel);
   }
 
@@ -141,28 +143,32 @@ class NotificationService {
     );
 
     // Android 13+ runtime permission.
-    final androidPlugin = _local.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin = _local
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     await androidPlugin?.requestNotificationsPermission();
 
     // iOS local-notifications permission (best-effort).
-    final iosPlugin = _local.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
+    final iosPlugin = _local
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
     await iosPlugin?.requestPermissions(alert: true, badge: true, sound: true);
   }
 
   static Future<void> _showForegroundNotification(RemoteMessage message) async {
-    final title = message.notification?.title ??
+    final title =
+        message.notification?.title ??
         message.data['title']?.toString() ??
         'ShopEase';
-    final body = message.notification?.body ??
-        message.data['body']?.toString() ??
-        '';
+    final body =
+        message.notification?.body ?? message.data['body']?.toString() ?? '';
     final deeplink = message.data['deeplink']?.toString() ?? '';
 
     final androidDetails = AndroidNotificationDetails(
       _androidChannelId,
-      'ShopEase',
+      AppConfig.appName,
       channelDescription: 'ShopEase notifications',
       importance: Importance.high,
       priority: Priority.high,
@@ -187,7 +193,10 @@ class NotificationService {
     );
   }
 
-  static Future<void> _registerToken(NotificationRepository repo, String token) async {
+  static Future<void> _registerToken(
+    NotificationRepository repo,
+    String token,
+  ) async {
     final pkg = await PackageInfo.fromPlatform();
     final info = DeviceInfoPlugin();
 
@@ -215,7 +224,10 @@ class NotificationService {
     );
   }
 
-  static Future<void> openDeeplink(BuildContext context, String deeplink) async {
+  static Future<void> openDeeplink(
+    BuildContext context,
+    String deeplink,
+  ) async {
     if (deeplink.trim().isEmpty) return;
 
     Uri? uri;
@@ -259,9 +271,9 @@ class NotificationService {
       if (host == 'vendor') {
         if (seg.isNotEmpty && seg.first == 'wallet') {
           if (!context.mounted) return;
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const VendorWalletScreen()),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const VendorWalletScreen()));
           return;
         }
         if (seg.isNotEmpty && seg.first == 'orders') {

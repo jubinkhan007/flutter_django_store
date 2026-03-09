@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/core/config/app_config.dart';
 
 class AppColors {
   // ── Light Theme Semantic Colors ──
@@ -7,8 +8,8 @@ class AppColors {
   static const Color surfaceLight = lightSurface;
 
   // Indigo / Coral Identity
-  static const Color lightPrimary = Color(0xFF6366F1);
-  static const Color lightAccent = Color(0xFFF43F5E); // Electric Coral
+  static const Color lightPrimary = AppConfig.primaryColor;
+  static const Color lightAccent = AppConfig.accentColor; // Electric Coral
 
   static const Color lightTextPrimary = Color(0xFF0F172A); // Slate 900
   static const Color lightTextSecondary = Color(0xFF475569); // Slate 600
@@ -20,8 +21,8 @@ class AppColors {
   static const Color darkSurface = Color(0xFF1E293B); // Slate 800
 
   // Lighter, neon-tinted identity for dark mode
-  static const Color darkPrimary = Color(0xFF818CF8); // Indigo 400
-  static const Color darkAccent = Color(0xFFFB7185); // Rose 400
+  static const Color darkPrimary = AppConfig.primaryColor; // Indigo 400
+  static const Color darkAccent = AppConfig.accentColor; // Rose 400
 
   static const Color darkTextPrimary = Color(0xFFF8FAFC); // Slate 50
   static const Color darkTextSecondary = Color(0xFF94A3B8); // Slate 400

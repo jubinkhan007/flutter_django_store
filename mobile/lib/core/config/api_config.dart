@@ -1,13 +1,16 @@
 import 'dart:io' show Platform;
+import 'package:mobile/core/config/app_config.dart';
 
 class ApiConfig {
-  // Android emulator uses 10.0.2.2 to reach the host machine's localhost
-  // iOS simulator and web use localhost directly
   static String get baseUrl {
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000/api';
+    if (AppConfig.isProduction) {
+      return AppConfig.backendApiUrl;
     }
-    return 'http://localhost:8000/api';
+    // Local Development
+    if (Platform.isAndroid) {
+      return AppConfig.localAndroidApiUrl;
+    }
+    return AppConfig.localIosApiUrl;
   }
 
   /// Base origin (scheme + host + optional port), e.g. http://10.0.2.2:8000
@@ -142,12 +145,17 @@ class ApiConfig {
 
   // Cross-Border
   static String get cbProductsUrl => '$baseUrl/crossborder/products/';
-  static String cbProductDetailUrl(int id) => '$baseUrl/crossborder/products/$id/';
-  static String get cbShippingConfigUrl => '$baseUrl/crossborder/shipping-config/';
+  static String cbProductDetailUrl(int id) =>
+      '$baseUrl/crossborder/products/$id/';
+  static String get cbShippingConfigUrl =>
+      '$baseUrl/crossborder/shipping-config/';
   static String get cbRequestsUrl => '$baseUrl/crossborder/requests/';
   static String get cbRequestsListUrl => '$baseUrl/crossborder/requests/list/';
-  static String cbRequestDetailUrl(int id) => '$baseUrl/crossborder/requests/$id/';
-  static String cbCheckoutUrl(int id) => '$baseUrl/crossborder/requests/$id/checkout/';
-  static String cbMarkReceivedUrl(int id) => '$baseUrl/crossborder/requests/$id/mark-received/';
+  static String cbRequestDetailUrl(int id) =>
+      '$baseUrl/crossborder/requests/$id/';
+  static String cbCheckoutUrl(int id) =>
+      '$baseUrl/crossborder/requests/$id/checkout/';
+  static String cbMarkReceivedUrl(int id) =>
+      '$baseUrl/crossborder/requests/$id/mark-received/';
   static String get cbLinkPreviewUrl => '$baseUrl/crossborder/link-preview/';
 }
