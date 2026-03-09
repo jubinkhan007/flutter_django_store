@@ -6,7 +6,8 @@ import '../../data/repositories/crossborder_repository.dart';
 class CrossBorderProvider extends ChangeNotifier {
   final CrossBorderRepository _repo;
 
-  CrossBorderProvider({required CrossBorderRepository repository}) : _repo = repository;
+  CrossBorderProvider({required CrossBorderRepository repository})
+    : _repo = repository;
 
   // ── Catalog ──
   List<CrossBorderProduct> _products = [];
@@ -45,6 +46,39 @@ class CrossBorderProvider extends ChangeNotifier {
   void clearActionError() {
     _actionError = null;
     notifyListeners();
+  }
+
+  // ── Link Preview ──
+
+  CbLinkPreview? _linkPreview;
+  bool _previewLoading = false;
+  String? _previewError;
+
+  CbLinkPreview? get linkPreview => _linkPreview;
+  bool get previewLoading => _previewLoading;
+  String? get previewError => _previewError;
+
+  void clearLinkPreview() {
+    _linkPreview = null;
+    _previewError = null;
+    notifyListeners();
+  }
+
+  Future<CbLinkPreview?> fetchLinkPreview(String url) async {
+    _previewLoading = true;
+    _previewError = null;
+    _linkPreview = null;
+    notifyListeners();
+    try {
+      _linkPreview = await _repo.fetchLinkPreview(url);
+      return _linkPreview;
+    } catch (e) {
+      _previewError = e.toString().replaceFirst('Exception: ', '');
+      return null;
+    } finally {
+      _previewLoading = false;
+      notifyListeners();
+    }
   }
 
   // ── Catalog ──
@@ -106,6 +140,9 @@ class CrossBorderProvider extends ChangeNotifier {
     required String variantNotes,
     required int quantity,
     required String shippingMethod,
+    double? itemPriceForeign,
+    String? currency,
+    double? estimatedWeightKg,
   }) async {
     _actionLoading = true;
     _actionError = null;
@@ -118,6 +155,9 @@ class CrossBorderProvider extends ChangeNotifier {
         variantNotes: variantNotes,
         quantity: quantity,
         shippingMethod: shippingMethod,
+        itemPriceForeign: itemPriceForeign,
+        currency: currency,
+        estimatedWeightKg: estimatedWeightKg,
       );
       _activeRequest = req;
       return req;

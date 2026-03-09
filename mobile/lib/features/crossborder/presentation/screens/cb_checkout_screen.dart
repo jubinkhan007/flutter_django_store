@@ -30,7 +30,8 @@ class _CbCheckoutScreenState extends State<CbCheckoutScreen> {
       final addrProvider = context.read<AddressProvider>();
       if (addrProvider.addresses.isEmpty) {
         addrProvider.loadAddresses().then((_) {
-          if (mounted) setState(() => _selectedAddress = addrProvider.defaultAddress);
+          if (mounted)
+            setState(() => _selectedAddress = addrProvider.defaultAddress);
         });
       } else {
         setState(() => _selectedAddress = addrProvider.defaultAddress);
@@ -41,13 +42,19 @@ class _CbCheckoutScreenState extends State<CbCheckoutScreen> {
   Future<void> _confirm() async {
     if (_selectedAddress == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a delivery address'), backgroundColor: AppColors.error),
+        const SnackBar(
+          content: Text('Please select a delivery address'),
+          backgroundColor: AppColors.error,
+        ),
       );
       return;
     }
     if (!_customsAcknowledged || !_termsAcknowledged) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please acknowledge all required disclosures'), backgroundColor: AppColors.error),
+        const SnackBar(
+          content: Text('Please acknowledge all required disclosures'),
+          backgroundColor: AppColors.error,
+        ),
       );
       return;
     }
@@ -71,7 +78,9 @@ class _CbCheckoutScreenState extends State<CbCheckoutScreen> {
     // Replace the whole stack up to this screen with tracking
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => CbOrderTrackingScreen(requestId: confirmed.id)),
+      MaterialPageRoute(
+        builder: (_) => CbOrderTrackingScreen(requestId: confirmed.id),
+      ),
     );
   }
 
@@ -80,12 +89,36 @@ class _CbCheckoutScreenState extends State<CbCheckoutScreen> {
     final req = widget.request;
     final breakdown = req.costBreakdown;
     final isQuoteValid = req.isQuoteValid;
+    final missingLinkPrice =
+        req.requestType == 'LINK_PURCHASE' &&
+        (breakdown?.itemPriceForeign ?? 0) <= 0;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Review & Checkout')),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
+          if (missingLinkPrice)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withAlpha(20),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.warning.withAlpha(80)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: AppColors.warning),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Item price is missing for this Buy by Link request. Please go back and enter an estimated item price to get an accurate quote.',
+                    ),
+                  ),
+                ],
+              ),
+            ),
           // ── Quote validity warning ──
           if (!isQuoteValid)
             Container(
@@ -100,7 +133,11 @@ class _CbCheckoutScreenState extends State<CbCheckoutScreen> {
                 children: [
                   Icon(Icons.warning_amber_rounded, color: AppColors.error),
                   SizedBox(width: 8),
-                  Expanded(child: Text('This quote has expired. Please go back and request a new quote.')),
+                  Expanded(
+                    child: Text(
+                      'This quote has expired. Please go back and request a new quote.',
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -111,16 +148,37 @@ class _CbCheckoutScreenState extends State<CbCheckoutScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(req.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                Text(
+                  req.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text('Qty: ${req.quantity}  ·  ${req.shippingMethod} Shipping',
-                    style: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 13)),
-                Text('Marketplace: ${req.marketplace}',
-                    style: const TextStyle(color: AppColors.lightTextSecondary, fontSize: 13)),
+                Text(
+                  'Qty: ${req.quantity}  ·  ${req.shippingMethod} Shipping',
+                  style: const TextStyle(
+                    color: AppColors.lightTextSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  'Marketplace: ${req.marketplace}',
+                  style: const TextStyle(
+                    color: AppColors.lightTextSecondary,
+                    fontSize: 13,
+                  ),
+                ),
                 if (req.quoteExpiresAt != null) ...[
                   const SizedBox(height: 4),
-                  Text('Quote valid until: ${req.quoteExpiresAt}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary)),
+                  Text(
+                    'Quote valid until: ${req.quoteExpiresAt}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.lightTextSecondary,
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -133,10 +191,22 @@ class _CbCheckoutScreenState extends State<CbCheckoutScreen> {
               title: 'Cost Breakdown',
               child: Column(
                 children: [
-                  _CostRow('Item Price', '${breakdown.currency} ${breakdown.itemPriceForeign.toStringAsFixed(2)}'),
-                  _CostRow('Item Price (BDT)', '৳${breakdown.itemPriceBdt.toStringAsFixed(0)}'),
-                  _CostRow('International Shipping', '৳${breakdown.intlShippingBdt.toStringAsFixed(0)}'),
-                  _CostRow('Service Fee', '৳${breakdown.serviceFeeBdt.toStringAsFixed(0)}'),
+                  _CostRow(
+                    'Item Price',
+                    '${breakdown.currency} ${breakdown.itemPriceForeign.toStringAsFixed(2)}',
+                  ),
+                  _CostRow(
+                    'Item Price (BDT)',
+                    '৳${breakdown.itemPriceBdt.toStringAsFixed(0)}',
+                  ),
+                  _CostRow(
+                    'International Shipping',
+                    '৳${breakdown.intlShippingBdt.toStringAsFixed(0)}',
+                  ),
+                  _CostRow(
+                    'Service Fee',
+                    '৳${breakdown.serviceFeeBdt.toStringAsFixed(0)}',
+                  ),
                   _CostRow(
                     'Customs (estimate only)',
                     '৳${breakdown.customsEstBdt.toStringAsFixed(0)}',
@@ -165,7 +235,10 @@ class _CbCheckoutScreenState extends State<CbCheckoutScreen> {
                 }
                 final addresses = addrProvider.addresses;
                 if (addresses.isEmpty) {
-                  return const Text('No addresses found. Please add one in your profile.', style: TextStyle(color: AppColors.lightTextSecondary));
+                  return const Text(
+                    'No addresses found. Please add one in your profile.',
+                    style: TextStyle(color: AppColors.lightTextSecondary),
+                  );
                 }
                 return Column(
                   children: addresses.map((addr) {
@@ -176,7 +249,9 @@ class _CbCheckoutScreenState extends State<CbCheckoutScreen> {
                       onChanged: (_) => setState(() => _selectedAddress = addr),
                       dense: true,
                       title: Text('${addr.label} — ${addr.addressLine}'),
-                      subtitle: Text('${addr.area}, ${addr.city}  ${addr.phoneNumber}'),
+                      subtitle: Text(
+                        '${addr.area}, ${addr.city}  ${addr.phoneNumber}',
+                      ),
                       selected: selected,
                       contentPadding: EdgeInsets.zero,
                     );
@@ -192,7 +267,10 @@ class _CbCheckoutScreenState extends State<CbCheckoutScreen> {
             title: 'Delivery Estimate',
             child: Row(
               children: [
-                const Icon(Icons.local_shipping_outlined, color: AppColors.lightPrimary),
+                const Icon(
+                  Icons.local_shipping_outlined,
+                  color: AppColors.lightPrimary,
+                ),
                 const SizedBox(width: 10),
                 Text(
                   '${req.expectedDeliveryDaysMin}–${req.expectedDeliveryDaysMax} business days after order confirmation',
@@ -204,20 +282,25 @@ class _CbCheckoutScreenState extends State<CbCheckoutScreen> {
           const SizedBox(height: 20),
 
           // ── Disclosures ──
-          const Text('Disclosures', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          const Text(
+            'Disclosures',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          ),
           const SizedBox(height: 8),
 
           _DisclosureCheckbox(
             value: _customsAcknowledged,
             onChanged: (v) => setState(() => _customsAcknowledged = v ?? false),
-            text: 'I understand that customs/import duties are NOT included in the total above. '
+            text:
+                'I understand that customs/import duties are NOT included in the total above. '
                 'I agree to pay any applicable customs fees directly to the courier upon delivery.',
           ),
           const SizedBox(height: 8),
           _DisclosureCheckbox(
             value: _termsAcknowledged,
             onChanged: (v) => setState(() => _termsAcknowledged = v ?? false),
-            text: 'I understand that this is a purchase-on-behalf service. '
+            text:
+                'I understand that this is a purchase-on-behalf service. '
                 'Returns and refunds are subject to the original marketplace\'s policy and may not be guaranteed.',
           ),
 
@@ -229,16 +312,30 @@ class _CbCheckoutScreenState extends State<CbCheckoutScreen> {
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Consumer<CrossBorderProvider>(
             builder: (context, provider, _) => FilledButton.icon(
-              onPressed: (!isQuoteValid || provider.actionLoading) ? null : _confirm,
+              onPressed:
+                  (!isQuoteValid || missingLinkPrice || provider.actionLoading)
+                  ? null
+                  : _confirm,
               icon: provider.actionLoading
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Icon(Icons.check_circle_outline),
-              label: Text(provider.actionLoading
-                  ? 'Processing...'
-                  : breakdown != null
-                      ? 'Confirm & Pay  ৳${breakdown.totalBdt.toStringAsFixed(0)}'
-                      : 'Confirm Order'),
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+              label: Text(
+                provider.actionLoading
+                    ? 'Processing...'
+                    : breakdown != null
+                    ? 'Confirm & Pay  ৳${breakdown.totalBdt.toStringAsFixed(0)}'
+                    : 'Confirm Order',
+              ),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+              ),
             ),
           ),
         ),
@@ -266,7 +363,14 @@ class _SectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.lightTextSecondary)),
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              color: AppColors.lightTextSecondary,
+            ),
+          ),
           const SizedBox(height: 10),
           child,
         ],
@@ -282,7 +386,14 @@ class _CostRow extends StatelessWidget {
   final bool primary;
   final String? note;
   final Color? noteColor;
-  const _CostRow(this.label, this.value, {this.bold = false, this.primary = false, this.note, this.noteColor});
+  const _CostRow(
+    this.label,
+    this.value, {
+    this.bold = false,
+    this.primary = false,
+    this.note,
+    this.noteColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -294,7 +405,12 @@ class _CostRow extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label, style: TextStyle(fontWeight: bold ? FontWeight.w700 : FontWeight.normal)),
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
+                ),
+              ),
               Text(
                 value,
                 style: TextStyle(
@@ -306,7 +422,13 @@ class _CostRow extends StatelessWidget {
             ],
           ),
           if (note != null)
-            Text(note!, style: TextStyle(fontSize: 11, color: noteColor ?? AppColors.lightTextSecondary)),
+            Text(
+              note!,
+              style: TextStyle(
+                fontSize: 11,
+                color: noteColor ?? AppColors.lightTextSecondary,
+              ),
+            ),
         ],
       ),
     );
@@ -317,7 +439,11 @@ class _DisclosureCheckbox extends StatelessWidget {
   final bool value;
   final ValueChanged<bool?> onChanged;
   final String text;
-  const _DisclosureCheckbox({required this.value, required this.onChanged, required this.text});
+  const _DisclosureCheckbox({
+    required this.value,
+    required this.onChanged,
+    required this.text,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -327,7 +453,9 @@ class _DisclosureCheckbox extends StatelessWidget {
         color: AppColors.lightSurface,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: value ? AppColors.lightPrimary.withAlpha(80) : AppColors.lightTextSecondary.withAlpha(40),
+          color: value
+              ? AppColors.lightPrimary.withAlpha(80)
+              : AppColors.lightTextSecondary.withAlpha(40),
         ),
       ),
       child: Row(
@@ -339,7 +467,12 @@ class _DisclosureCheckbox extends StatelessWidget {
             child: Checkbox(value: value, onChanged: onChanged),
           ),
           const SizedBox(width: 8),
-          Expanded(child: Text(text, style: const TextStyle(fontSize: 13, height: 1.4))),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 13, height: 1.4),
+            ),
+          ),
         ],
       ),
     );

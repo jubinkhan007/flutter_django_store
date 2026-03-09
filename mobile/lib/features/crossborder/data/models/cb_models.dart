@@ -170,6 +170,38 @@ class CrossBorderOrderRequest {
   bool get hasTracking => trackingUrl.isNotEmpty || trackingNumber.isNotEmpty;
 }
 
+class CbLinkPreview {
+  final String title;
+  final String imageUrl;
+  final String description;
+  final String priceText;
+  final String currency;
+  final String marketplace;
+
+  const CbLinkPreview({
+    required this.title,
+    required this.imageUrl,
+    required this.description,
+    required this.priceText,
+    required this.currency,
+    required this.marketplace,
+  });
+
+  factory CbLinkPreview.fromJson(Map<String, dynamic> json) {
+    return CbLinkPreview(
+      title: json['title'] ?? '',
+      imageUrl: json['image_url'] ?? '',
+      description: json['description'] ?? '',
+      priceText: json['price_text'] ?? '',
+      currency: json['currency'] ?? 'USD',
+      marketplace: json['marketplace'] ?? 'OTHER',
+    );
+  }
+
+  bool get hasImage => imageUrl.isNotEmpty;
+  bool get hasPrice => priceText.isNotEmpty;
+}
+
 class CbShippingConfig {
   final String shippingMethod;
   final double ratePerKg;

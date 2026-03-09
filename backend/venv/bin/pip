@@ -1,4 +1,4 @@
-#!/Users/mac/.gemini/antigravity/scratch/ecommerce_app/backend/venv/bin/python3
+#!/Users/mac/.gemini/antigravity/scratch/ecommerce_app/backend/venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

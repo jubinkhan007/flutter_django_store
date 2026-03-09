@@ -86,6 +86,10 @@ class CrossBorderQuoteService:
         cls,
         request: CrossBorderOrderRequest,
         shipping_method: str = 'AIR',
+        *,
+        item_price_foreign: Decimal | None = None,
+        currency: str | None = None,
+        weight_kg: Decimal | None = None,
     ) -> CrossBorderOrderRequest:
         """Compute and stamp a quote onto an existing CB request."""
         cb_product = request.crossborder_product
@@ -95,14 +99,14 @@ class CrossBorderQuoteService:
             currency = cb_product.currency
             weight_kg = cb_product.estimated_weight_kg
         else:
-            # For LINK_PURCHASE we use a placeholder; ops will finalize cost later
-            item_price = _d(0)
-            currency = 'USD'
-            weight_kg = _d(0.5)
+            # For LINK_PURCHASE, use client-provided estimates (fallback to sensible defaults).
+            item_price = _d(item_price_foreign or 0)
+            currency = (currency or 'USD').upper()
+            weight_kg = _d(weight_kg or Decimal('0.5'))
 
         breakdown = cls.generate_quote(
             item_price_foreign=item_price,
-            currency=currency,
+            currency=currency or 'USD',
             weight_kg=weight_kg,
             shipping_method=shipping_method,
             quantity=request.quantity,

@@ -1,66 +1,120 @@
 from django.contrib import admin
 from django.utils import timezone
+from unfold.admin import ModelAdmin
+from unfold.decorators import display
 
-from .models import (
-    Vendor,
-    LedgerEntry,
-    SettlementRecord,
-    VendorPayoutMethod,
-    PayoutRequest,
-)
 from .financial_service import FinancialService
+from .models import (
+    LedgerEntry,
+    PayoutRequest,
+    SettlementRecord,
+    Vendor,
+    VendorPayoutMethod,
+)
+
 
 @admin.register(Vendor)
-class VendorAdmin(admin.ModelAdmin):
-    list_display = ('store_name', 'user', 'is_approved', 'balance', 'created_at')
-    list_filter = ('is_approved',)
-    search_fields = ('store_name',)
+class VendorAdmin(ModelAdmin):
+    list_display = ('store_name', 'user', 'show_approved', 'balance', 'created_at')
+    list_filter = ('is_approved', 'is_live')
+    list_select_related = ('user',)
+    search_fields = ('store_name', 'user__email')
+
+    fieldsets = (
+        ('Profile', {
+            'fields': ('user', 'store_name', 'is_approved', 'is_live', 'balance'),
+            'classes': ['tab'],
+        }),
+        ('Store Details', {
+            'fields': ('store_description', 'store_logo', 'location', 'contact_number'),
+            'classes': ['tab'],
+        }),
+    )
+
+    @display(description='Approved', label={True: 'success', False: 'danger'})
+    def show_approved(self, obj):
+        return obj.is_approved
 
 
 @admin.register(LedgerEntry)
-class LedgerEntryAdmin(admin.ModelAdmin):
+class LedgerEntryAdmin(ModelAdmin):
     list_display = (
-        'id',
-        'vendor',
-        'entry_type',
-        'bucket',
-        'direction',
-        'amount',
-        'status',
-        'created_at',
+        'id', 'vendor', 'show_entry_type', 'bucket', 'show_direction',
+        'amount', 'show_status', 'created_at',
     )
     list_filter = ('entry_type', 'bucket', 'direction', 'status')
+    list_select_related = ('vendor',)
     search_fields = ('vendor__store_name', 'reference_id', 'idempotency_key')
+    date_hierarchy = 'created_at'
+
+    @display(description='Type', label=True)
+    def show_entry_type(self, obj):
+        return obj.entry_type
+
+    @display(description='Direction', label={
+        LedgerEntry.Direction.CREDIT: 'success',
+        LedgerEntry.Direction.DEBIT: 'danger',
+    })
+    def show_direction(self, obj):
+        return obj.direction
+
+    @display(description='Status', label={
+        LedgerEntry.Status.PENDING: 'warning',
+        LedgerEntry.Status.POSTED: 'success',
+        LedgerEntry.Status.FAILED: 'danger',
+    })
+    def show_status(self, obj):
+        return obj.status
 
 
 @admin.register(SettlementRecord)
-class SettlementRecordAdmin(admin.ModelAdmin):
+class SettlementRecordAdmin(ModelAdmin):
     list_display = (
-        'id',
-        'vendor',
-        'sub_order',
-        'net_amount',
-        'status',
-        'settlement_date',
-        'created_at',
+        'id', 'vendor', 'sub_order', 'net_amount',
+        'show_status', 'settlement_date', 'created_at',
     )
     list_filter = ('status',)
+    list_select_related = ('vendor', 'sub_order')
     search_fields = ('vendor__store_name', 'sub_order__id')
+    date_hierarchy = 'settlement_date'
+
+    @display(description='Status', label={
+        'PENDING': 'warning',
+        'RELEASED': 'success',
+    })
+    def show_status(self, obj):
+        return obj.status
 
 
 @admin.register(VendorPayoutMethod)
-class VendorPayoutMethodAdmin(admin.ModelAdmin):
-    list_display = ('id', 'vendor', 'method', 'label', 'is_verified', 'updated_at')
+class VendorPayoutMethodAdmin(ModelAdmin):
+    list_display = ('id', 'vendor', 'method', 'label', 'show_verified', 'updated_at')
     list_filter = ('method', 'is_verified')
+    list_select_related = ('vendor',)
     search_fields = ('vendor__store_name', 'label')
+
+    @display(description='Verified', label={True: 'success', False: 'danger'})
+    def show_verified(self, obj):
+        return obj.is_verified
 
 
 @admin.register(PayoutRequest)
-class PayoutRequestAdmin(admin.ModelAdmin):
-    list_display = ('id', 'vendor', 'amount', 'status', 'requested_at', 'processed_at')
+class PayoutRequestAdmin(ModelAdmin):
+    list_display = ('id', 'vendor', 'amount', 'show_status', 'requested_at', 'processed_at')
     list_filter = ('status',)
+    list_select_related = ('vendor',)
     search_fields = ('vendor__store_name', 'id')
     actions = ['approve_payout', 'reject_and_release', 'mark_as_paid']
+
+    @display(description='Status', label={
+        PayoutRequest.Status.REQUESTED: 'warning',
+        PayoutRequest.Status.APPROVED: 'info',
+        PayoutRequest.Status.PROCESSING: 'info',
+        PayoutRequest.Status.PAID: 'success',
+        PayoutRequest.Status.REJECTED: 'danger',
+    })
+    def show_status(self, obj):
+        return obj.status
 
     @admin.action(description="Approve payout (notify vendor)")
     def approve_payout(self, request, queryset):
@@ -98,7 +152,6 @@ class PayoutRequestAdmin(admin.ModelAdmin):
             try:
                 FinancialService.reject_payout(payout)
             except Exception:
-                # Admin can retry; ledger operations are idempotent by key.
                 pass
 
     @admin.action(description="Mark payout as PAID (debit held)")

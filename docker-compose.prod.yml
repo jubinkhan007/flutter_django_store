@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-shopease}
+      POSTGRES_USER: ${POSTGRES_USER:-shopease}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      DJANGO_ENV: production
+      DJANGO_DEBUG: "false"
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-shopease.chickenkiller.com}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-shopease}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-shopease}
+    depends_on:
+      - db
+    volumes:
+      - staticfiles:/app/staticfiles
+      - media:/app/media
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - staticfiles:/srv/staticfiles:ro
+      - media:/srv/media:ro
+    depends_on:
+      - web
+
+volumes:
+  postgres_data:
+  staticfiles:
+  media:
+  caddy_data:
+  caddy_config:
+

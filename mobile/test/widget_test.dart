@@ -23,6 +23,7 @@ import 'package:mobile/features/logistics/data/repositories/logistics_repository
 import 'package:mobile/core/storage/session_storage.dart';
 import 'package:mobile/core/services/analytics_service.dart';
 import 'package:mobile/features/products/data/repositories/discovery_repository_impl.dart';
+import 'package:mobile/features/crossborder/data/repositories/crossborder_repository.dart';
 
 void main() {
   testWidgets('Boots to login when logged out', (WidgetTester tester) async {
@@ -48,6 +49,7 @@ void main() {
     final notificationRepo = NotificationRepository(apiClient: apiClient);
     final supportRepo = SupportRepository(apiClient: apiClient);
     final logisticsRepo = LogisticsRepository(apiClient: apiClient);
+    final crossBorderRepo = CrossBorderRepository(apiClient: apiClient);
     final sessionStorage = SessionStorage();
     final analyticsService = AnalyticsService(
       apiClient: apiClient,
@@ -76,6 +78,7 @@ void main() {
         notificationRepository: notificationRepo,
         supportRepository: supportRepo,
         logisticsRepository: logisticsRepo,
+        crossBorderRepository: crossBorderRepo,
       ),
     );
     await tester.pumpAndSettle();
@@ -111,6 +114,7 @@ void main() {
     final notificationRepo = NotificationRepository(apiClient: apiClient);
     final supportRepo = SupportRepository(apiClient: apiClient);
     final logisticsRepo = LogisticsRepository(apiClient: apiClient);
+    final crossBorderRepo = CrossBorderRepository(apiClient: apiClient);
     final sessionStorage = SessionStorage();
     final analyticsService = AnalyticsService(
       apiClient: apiClient,
@@ -139,6 +143,7 @@ void main() {
         notificationRepository: notificationRepo,
         supportRepository: supportRepo,
         logisticsRepository: logisticsRepo,
+        crossBorderRepository: crossBorderRepo,
       ),
     );
     await tester.pumpAndSettle();

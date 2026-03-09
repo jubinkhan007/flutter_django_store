@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 import os
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -46,20 +47,53 @@ _load_dotenv(BASE_DIR / '.env')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
+DJANGO_ENV = os.getenv('DJANGO_ENV', 'development').lower()
+
+def _env_bool(key: str, default: bool = False) -> bool:
+    raw = os.getenv(key)
+    if raw is None:
+        return default
+    return raw.strip().lower() in ('1', 'true', 'yes', 'y', 'on')
+
+def _env_list(key: str) -> list[str]:
+    raw = os.getenv(key, '')
+    return [part.strip() for part in raw.split(',') if part.strip()]
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-rktzfzviu=dz9(@@)x4_hvje#m*rjh2n+1dc28f*3mbw$5h=r5'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '') or 'django-insecure-rktzfzviu=dz9(@@)x4_hvje#m*rjh2n+1dc28f*3mbw$5h=r5'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = _env_bool('DJANGO_DEBUG', default=(DJANGO_ENV != 'production'))
+if DJANGO_ENV == 'production' and SECRET_KEY.startswith('django-insecure-'):
+    raise RuntimeError('DJANGO_SECRET_KEY must be set to a strong value in production.')
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver', '10.0.2.2', '*']
+ALLOWED_HOSTS = _env_list('DJANGO_ALLOWED_HOSTS')
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'testserver', '10.0.2.2'] if DEBUG else []
 
-CORS_ALLOW_ALL_ORIGINS = True  # For development only
+# CORS (dev defaults to permissive; lock down for production)
+CORS_ALLOW_ALL_ORIGINS = _env_bool('CORS_ALLOW_ALL_ORIGINS', default=DEBUG)
+CORS_ALLOWED_ORIGINS = _env_list('CORS_ALLOWED_ORIGINS')
+
+CSRF_TRUSTED_ORIGINS = _env_list('CSRF_TRUSTED_ORIGINS')
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = _env_bool('SECURE_SSL_REDIRECT', default=True)
+    SESSION_COOKIE_SECURE = _env_bool('SESSION_COOKIE_SECURE', default=True)
+    CSRF_COOKIE_SECURE = _env_bool('CSRF_COOKIE_SECURE', default=True)
+    SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '3600'))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=True)
+    SECURE_HSTS_PRELOAD = _env_bool('SECURE_HSTS_PRELOAD', default=False)
+
+    # If running behind a reverse proxy (e.g., Nginx), forward proto so Django knows the request is HTTPS.
+    if _env_bool('USE_X_FORWARDED_PROTO', default=True):
+        SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'unfold',                       # Must be before django.contrib.admin
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -103,7 +137,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -122,12 +156,46 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
+if DATABASE_URL:
+    parsed = urlparse(DATABASE_URL)
+    if parsed.scheme in ('postgres', 'postgresql'):
+        engine = 'django.db.backends.postgresql'
+    elif parsed.scheme in ('sqlite', 'sqlite3'):
+        engine = 'django.db.backends.sqlite3'
+    else:
+        raise RuntimeError(f'Unsupported DATABASE_URL scheme: {parsed.scheme}')
+
+    query = parse_qs(parsed.query)
+    DATABASES = {
+        'default': {
+            'ENGINE': engine,
+            'NAME': (parsed.path or '').lstrip('/') if engine != 'django.db.backends.sqlite3' else (parsed.path or ''),
+            'USER': parsed.username or '',
+            'PASSWORD': parsed.password or '',
+            'HOST': parsed.hostname or '',
+            'PORT': str(parsed.port or ''),
+            'OPTIONS': {k: v[0] for k, v in query.items()},
+        }
     }
-}
+    if engine == 'django.db.backends.sqlite3':
+        # Support sqlite:////absolute/path or sqlite:///relative/path
+        path = parsed.path or ''
+        if path.startswith('/'):
+            DATABASES['default']['NAME'] = path
+        else:
+            DATABASES['default']['NAME'] = str(BASE_DIR / (path or 'db.sqlite3'))
+        DATABASES['default'].pop('USER', None)
+        DATABASES['default'].pop('PASSWORD', None)
+        DATABASES['default'].pop('HOST', None)
+        DATABASES['default'].pop('PORT', None)
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -165,6 +233,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -276,5 +345,401 @@ CELERY_BEAT_SCHEDULE = {
     'discovery.compute_product_affinities': {
         'task': 'discovery.tasks.compute_product_affinities',
         'schedule': crontab(hour=1, minute=0),
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# Django Unfold – Admin UI Modernization
+# ---------------------------------------------------------------------------
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
+
+
+def _unfold_environment(request):
+    """Environment badge in the admin top-right corner."""
+    env = DJANGO_ENV
+    mapping = {
+        'production': ['Production', 'danger'],
+        'staging': ['Staging', 'warning'],
+    }
+    return mapping.get(env, ['Development', 'info'])
+
+
+def _unfold_badge_orders_today(request):
+    try:
+        from orders.models import Order
+        from django.utils import timezone
+        return Order.objects.filter(
+            created_at__date=timezone.now().date()
+        ).count() or None
+    except Exception:
+        return None
+
+
+def _unfold_badge_open_tickets(request):
+    try:
+        from support.models import Ticket
+        return Ticket.objects.filter(
+            status__in=['OPEN', 'IN_PROGRESS']
+        ).count() or None
+    except Exception:
+        return None
+
+
+def _unfold_badge_pending_payouts(request):
+    try:
+        from vendors.models import PayoutRequest
+        return PayoutRequest.objects.filter(
+            status='PENDING'
+        ).count() or None
+    except Exception:
+        return None
+
+
+def _unfold_badge_cb_in_transit(request):
+    try:
+        from crossborder.models import CrossBorderOrderRequest
+        return CrossBorderOrderRequest.objects.filter(
+            status__in=['ORDERED', 'SHIPPED_INTL']
+        ).count() or None
+    except Exception:
+        return None
+
+
+def _unfold_dashboard_callback(request, context):
+    """Inject metrics into the admin index (dashboard) template."""
+    from django.utils import timezone
+    from datetime import timedelta
+    from django.db.models import Sum, Count
+
+    today = timezone.now().date()
+    metrics = {}
+
+    # Basic Metric Cards
+    try:
+        from orders.models import Order
+        metrics['orders_today'] = Order.objects.filter(created_at__date=today).count()
+        today_sales = Order.objects.filter(
+            created_at__date=today,
+            status__in=[Order.Status.PAID, Order.Status.SHIPPED, Order.Status.DELIVERED]
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        metrics['sales_today'] = float(today_sales)
+    except Exception:
+        metrics['orders_today'] = 0
+        metrics['sales_today'] = 0
+
+    try:
+        from vendors.models import PayoutRequest
+        pending_payouts_agg = PayoutRequest.objects.filter(status='REQUESTED').aggregate(total=Sum('amount'))['total'] or 0
+        metrics['pending_payout_amount'] = float(pending_payouts_agg)
+    except Exception:
+        metrics['pending_payout_amount'] = 0
+
+    try:
+        from support.models import Ticket
+        metrics['open_tickets'] = Ticket.objects.filter(status__in=['OPEN', 'IN_PROGRESS']).count()
+    except Exception:
+        metrics['open_tickets'] = 0
+
+    try:
+        from crossborder.models import CrossBorderOrderRequest
+        metrics['cb_in_transit'] = CrossBorderOrderRequest.objects.filter(
+            status__in=['ORDERED', 'SHIPPED_INTL']
+        ).count()
+    except Exception:
+        metrics['cb_in_transit'] = 0
+
+    # Chart 1: Sales over the last 7 days (Line Chart)
+    chart_sales_7d = {'labels': [], 'datasets': [{'label': 'Daily Sales (BDT)', 'data': [], 'backgroundColor': '#0ea5e9', 'borderColor': '#0ea5e9'}]}
+    try:
+        for i in range(6, -1, -1):
+            d = today - timedelta(days=i)
+            chart_sales_7d['labels'].append(d.strftime('%b %d'))
+            day_total = Order.objects.filter(
+                created_at__date=d,
+                status__in=[Order.Status.PAID, Order.Status.SHIPPED, Order.Status.DELIVERED]
+            ).aggregate(total=Sum('total_amount'))['total'] or 0
+            chart_sales_7d['datasets'][0]['data'].append(float(day_total))
+    except Exception:
+        pass
+
+    # Chart 2: Recent Order Statuses (Doughnut Chart)
+    chart_order_status = {'labels': [], 'datasets': [{'data': [], 'backgroundColor': ['#eab308', '#3b82f6', '#22c55e', '#ef4444']}]}
+    try:
+        status_counts = Order.objects.filter(created_at__date__gte=today - timedelta(days=30)).values('status').annotate(count=Count('id'))
+        status_map = {item['status']: item['count'] for item in status_counts}
+        
+        for status_code, bg_color in [('PENDING', '#eab308'), ('PAID', '#3b82f6'), ('DELIVERED', '#22c55e'), ('CANCELED', '#ef4444')]:
+            chart_order_status['labels'].append(status_code)
+            chart_order_status['datasets'][0]['data'].append(status_map.get(status_code, 0))
+    except Exception:
+        pass
+    import json
+    from django.utils.safestring import mark_safe
+
+    # Formatted display values
+    metrics['sales_today_display'] = f"৳{metrics.get('sales_today', 0):,.0f}"
+    metrics['pending_payout_display'] = f"৳{metrics.get('pending_payout_amount', 0):,.0f}"
+
+    context.update({
+        'dashboard_metrics': metrics,
+        'chart_sales_7d_json': mark_safe(json.dumps(chart_sales_7d)),
+        'chart_order_status_json': mark_safe(json.dumps(chart_order_status)),
+    })
+    return context
+
+
+# Permission helpers for sidebar visibility
+def _perm_finance(request):
+    u = request.user
+    return u.is_superuser or u.groups.filter(name='Finance').exists()
+
+
+def _perm_support(request):
+    u = request.user
+    return u.is_superuser or u.groups.filter(name='Support').exists()
+
+
+def _perm_catalog(request):
+    u = request.user
+    return u.is_superuser or u.groups.filter(name='Catalog').exists()
+
+
+def _perm_logistics(request):
+    u = request.user
+    return u.is_superuser or u.groups.filter(name='Logistics').exists()
+
+
+UNFOLD = {
+    'SITE_TITLE': 'Admin Console',
+    'SITE_HEADER': 'Marketplace',
+    'SITE_SUBHEADER': 'Operations Console',
+    'SITE_URL': '/',
+    'SITE_SYMBOL': 'storefront',
+    'SHOW_HISTORY': True,
+    'SHOW_VIEW_ON_SITE': False,
+    'SHOW_BACK_BUTTON': True,
+    'ENVIRONMENT': 'config.settings._unfold_environment',
+    'DASHBOARD_CALLBACK': 'config.settings._unfold_dashboard_callback',
+    'BORDER_RADIUS': '6px',
+    'COLORS': {
+        'primary': {
+            '50': '240 249 255',
+            '100': '224 242 254',
+            '200': '186 230 253',
+            '300': '125 211 252',
+            '400': '56 189 248',
+            '500': '14 165 233',
+            '600': '2 132 199',
+            '700': '3 105 161',
+            '800': '7 89 133',
+            '900': '12 74 110',
+            '950': '8 47 73',
+        },
+    },
+    'SIDEBAR': {
+        'show_search': True,
+        'show_all_applications': True,
+        'navigation': [
+            {
+                'title': _('Dashboard'),
+                'separator': True,
+                'items': [
+                    {
+                        'title': _('Dashboard'),
+                        'icon': 'dashboard',
+                        'link': reverse_lazy('admin:index'),
+                    },
+                ],
+            },
+            {
+                'title': _('E-Commerce Core'),
+                'separator': True,
+                'collapsible': True,
+                'items': [
+                    {
+                        'title': _('Orders'),
+                        'icon': 'shopping_cart',
+                        'link': reverse_lazy('admin:orders_order_changelist'),
+                        'badge': 'config.settings._unfold_badge_orders_today',
+                        'badge_variant': 'info',
+                    },
+                    {
+                        'title': _('Sub-Orders'),
+                        'icon': 'local_shipping',
+                        'link': reverse_lazy('admin:orders_suborder_changelist'),
+                    },
+                    {
+                        'title': _('Products'),
+                        'icon': 'inventory_2',
+                        'link': reverse_lazy('admin:products_product_changelist'),
+                    },
+                    {
+                        'title': _('Categories'),
+                        'icon': 'category',
+                        'link': reverse_lazy('admin:products_category_changelist'),
+                    },
+                    {
+                        'title': _('Returns'),
+                        'icon': 'assignment_return',
+                        'link': reverse_lazy('admin:returns_returnrequest_changelist'),
+                    },
+                    {
+                        'title': _('Refunds'),
+                        'icon': 'payments',
+                        'link': reverse_lazy('admin:returns_refund_changelist'),
+                    },
+                ],
+            },
+            {
+                'title': _('Cross-Border Ops'),
+                'separator': True,
+                'collapsible': True,
+                'items': [
+                    {
+                        'title': _('CB Requests'),
+                        'icon': 'public',
+                        'link': reverse_lazy('admin:crossborder_crossborderorderrequest_changelist'),
+                        'badge': 'config.settings._unfold_badge_cb_in_transit',
+                        'badge_variant': 'warning',
+                    },
+                    {
+                        'title': _('CB Products'),
+                        'icon': 'flight',
+                        'link': reverse_lazy('admin:crossborder_crossborderproduct_changelist'),
+                    },
+                    {
+                        'title': _('CB Cost Config'),
+                        'icon': 'tune',
+                        'link': reverse_lazy('admin:crossborder_crossbordercostconfig_changelist'),
+                    },
+                ],
+            },
+            {
+                'title': _('Users & Stores'),
+                'separator': True,
+                'collapsible': True,
+                'items': [
+                    {
+                        'title': _('Customers'),
+                        'icon': 'people',
+                        'link': reverse_lazy('admin:users_user_changelist'),
+                    },
+                    {
+                        'title': _('Vendors'),
+                        'icon': 'store',
+                        'link': reverse_lazy('admin:vendors_vendor_changelist'),
+                    },
+                ],
+            },
+            {
+                'title': _('Finance'),
+                'separator': True,
+                'collapsible': True,
+                'items': [
+                    {
+                        'title': _('Payout Requests'),
+                        'icon': 'account_balance',
+                        'link': reverse_lazy('admin:vendors_payoutrequest_changelist'),
+                        'badge': 'config.settings._unfold_badge_pending_payouts',
+                        'badge_variant': 'danger',
+                    },
+                    {
+                        'title': _('Ledger'),
+                        'icon': 'receipt_long',
+                        'link': reverse_lazy('admin:vendors_ledgerentry_changelist'),
+                        'permission': _perm_finance,
+                    },
+                    {
+                        'title': _('Settlements'),
+                        'icon': 'price_check',
+                        'link': reverse_lazy('admin:vendors_settlementrecord_changelist'),
+                        'permission': _perm_finance,
+                    },
+                    {
+                        'title': _('Payout Methods'),
+                        'icon': 'credit_card',
+                        'link': reverse_lazy('admin:vendors_vendorpayoutmethod_changelist'),
+                    },
+                ],
+            },
+            {
+                'title': _('Support'),
+                'separator': True,
+                'collapsible': True,
+                'items': [
+                    {
+                        'title': _('Support Tickets'),
+                        'icon': 'support_agent',
+                        'link': reverse_lazy('admin:support_ticket_changelist'),
+                        'badge': 'config.settings._unfold_badge_open_tickets',
+                        'badge_variant': 'danger',
+                    },
+                    {
+                        'title': _('Ticket Messages'),
+                        'icon': 'chat',
+                        'link': reverse_lazy('admin:support_ticketmessage_changelist'),
+                    },
+                ],
+            },
+            {
+                'title': _('Growth & Marketing'),
+                'separator': True,
+                'collapsible': True,
+                'items': [
+                    {
+                        'title': _('Coupons'),
+                        'icon': 'confirmation_number',
+                        'link': reverse_lazy('admin:coupons_coupon_changelist'),
+                    },
+                    {
+                        'title': _('Banners'),
+                        'icon': 'view_carousel',
+                        'link': reverse_lazy('admin:promotions_banner_changelist'),
+                    },
+                    {
+                        'title': _('Flash Sales'),
+                        'icon': 'flash_on',
+                        'link': reverse_lazy('admin:promotions_flashsale_changelist'),
+                    },
+                    {
+                        'title': _('Collections'),
+                        'icon': 'collections_bookmark',
+                        'link': reverse_lazy('admin:discovery_collection_changelist'),
+                    },
+                    {
+                        'title': _('Notifications'),
+                        'icon': 'notifications',
+                        'link': reverse_lazy('admin:notifications_notification_changelist'),
+                    },
+                ],
+            },
+            {
+                'title': _('Logistics'),
+                'separator': True,
+                'collapsible': True,
+                'items': [
+                    {
+                        'title': _('Couriers'),
+                        'icon': 'bike_scooter',
+                        'link': reverse_lazy('admin:logistics_courierintegration_changelist'),
+                        'permission': _perm_logistics,
+                    },
+                    {
+                        'title': _('Areas'),
+                        'icon': 'map',
+                        'link': reverse_lazy('admin:logistics_logisticsarea_changelist'),
+                        'permission': _perm_logistics,
+                    },
+                    {
+                        'title': _('Pickup Stores'),
+                        'icon': 'warehouse',
+                        'link': reverse_lazy('admin:logistics_logisticsstore_changelist'),
+                        'permission': _perm_logistics,
+                    },
+                ],
+            },
+        ],
     },
 }

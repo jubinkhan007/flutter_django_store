@@ -1,0 +1,170 @@
+{% extends 'admin/base.html' %}
+
+{% load i18n unfold %}
+
+{% block title %}Dashboard | {{ site_title }}{% endblock %}
+
+{% block branding %}
+{% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-8">
+
+    <!-- ═════════ KPI Metric Cards ═════════ -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        <div
+            class="bg-white rounded-default shadow-xs border border-base-200 p-6 dark:bg-base-900 dark:border-base-800">
+            <div class="flex items-center gap-3 mb-2">
+                <span class="material-symbols-outlined text-3xl text-green-500">payments</span>
+                <p class="text-sm font-medium text-base-500 dark:text-base-400">Revenue Today</p>
+            </div>
+            <p class="text-3xl font-bold text-important">{{ dashboard_metrics.sales_today_display }}</p>
+        </div>
+
+        <div
+            class="bg-white rounded-default shadow-xs border border-base-200 p-6 dark:bg-base-900 dark:border-base-800">
+            <div class="flex items-center gap-3 mb-2">
+                <span class="material-symbols-outlined text-3xl text-blue-500">shopping_cart</span>
+                <p class="text-sm font-medium text-base-500 dark:text-base-400">Orders Today</p>
+            </div>
+            <p class="text-3xl font-bold text-important">{{ dashboard_metrics.orders_today }}</p>
+        </div>
+
+        <div
+            class="bg-white rounded-default shadow-xs border border-base-200 p-6 dark:bg-base-900 dark:border-base-800">
+            <div class="flex items-center gap-3 mb-2">
+                <span class="material-symbols-outlined text-3xl text-amber-500">support_agent</span>
+                <p class="text-sm font-medium text-base-500 dark:text-base-400">Open Tickets</p>
+            </div>
+            <p class="text-3xl font-bold text-important">{{ dashboard_metrics.open_tickets }}</p>
+        </div>
+
+        <div
+            class="bg-white rounded-default shadow-xs border border-base-200 p-6 dark:bg-base-900 dark:border-base-800">
+            <div class="flex items-center gap-3 mb-2">
+                <span class="material-symbols-outlined text-3xl text-purple-500">account_balance_wallet</span>
+                <p class="text-sm font-medium text-base-500 dark:text-base-400">Pending Payouts</p>
+            </div>
+            <p class="text-3xl font-bold text-important">{{ dashboard_metrics.pending_payout_display }}</p>
+        </div>
+
+    </div>
+
+    <!-- ═════════ Charts Row ═════════ -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        <!-- 7-Day Sales Line Chart -->
+        <div
+            class="lg:col-span-2 bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
+            <div class="border-b border-base-200 dark:border-base-800 py-4 px-6">
+                <h2 class="font-semibold text-[15px] text-important">Daily Sales — Last 7 Days</h2>
+            </div>
+            <div class="p-6">
+                <canvas class="chart" data-type="line" data-value='{{ chart_sales_7d_json }}' height="300"></canvas>
+            </div>
+        </div>
+
+        <!-- Order Status Bar Chart -->
+        <div
+            class="lg:col-span-1 bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
+            <div class="border-b border-base-200 dark:border-base-800 py-4 px-6">
+                <h2 class="font-semibold text-[15px] text-important">Order Statuses — 30 Days</h2>
+            </div>
+            <div class="p-6">
+                <canvas class="chart" data-type="bar" data-value='{{ chart_order_status_json }}' height="300"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═════════ Operational Alerts + Quick Reports ═════════ -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        <!-- Operational Bottlenecks -->
+        <div
+            class="bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
+            <div class="border-b border-base-200 dark:border-base-800 py-4 px-6 flex items-center gap-2">
+                <span class="material-symbols-outlined text-amber-500">warning</span>
+                <h2 class="font-semibold text-[15px] text-important">Operational Bottlenecks</h2>
+            </div>
+            <div class="p-6">
+                <p class="text-sm text-base-500 dark:text-base-400 mb-4">Items requiring administrative attention.</p>
+                <ul class="divide-y divide-base-100 dark:divide-base-800">
+                    {% if dashboard_metrics.cb_in_transit > 0 %}
+                    <li class="flex justify-between items-center py-3 text-sm">
+                        <span class="text-base-700 dark:text-base-300">Cross-Border packages in transit</span>
+                        <a href="{% url 'admin:crossborder_crossborderorderrequest_changelist' %}"
+                            class="font-medium text-primary-600 dark:text-primary-400 hover:underline">{{
+                            dashboard_metrics.cb_in_transit }} requests →</a>
+                    </li>
+                    {% endif %}
+                    {% if dashboard_metrics.open_tickets > 0 %}
+                    <li class="flex justify-between items-center py-3 text-sm">
+                        <span class="text-base-700 dark:text-base-300">Support tickets needing attention</span>
+                        <a href="{% url 'admin:support_ticket_changelist' %}"
+                            class="font-medium text-primary-600 dark:text-primary-400 hover:underline">{{
+                            dashboard_metrics.open_tickets }} open →</a>
+                    </li>
+                    {% endif %}
+                    <li class="flex justify-between items-center py-3 text-sm">
+                        <span class="text-base-700 dark:text-base-300">Unverified vendors awaiting approval</span>
+                        <a href="{% url 'admin:vendors_vendor_changelist' %}?is_approved__exact=0"
+                            class="font-medium text-primary-600 dark:text-primary-400 hover:underline">Review →</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Reports & Exports -->
+        <div
+            class="bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
+            <div class="border-b border-base-200 dark:border-base-800 py-4 px-6 flex items-center gap-2">
+                <span class="material-symbols-outlined text-blue-500">analytics</span>
+                <h2 class="font-semibold text-[15px] text-important">Reports & Exports</h2>
+            </div>
+            <div class="p-6">
+                <p class="text-sm text-base-500 dark:text-base-400 mb-4">Use the Action dropdown on any list view to
+                    export CSV data.</p>
+                <div class="flex flex-col gap-3">
+                    <a href="{% url 'admin:orders_order_changelist' %}"
+                        class="flex items-center gap-3 text-sm text-base-700 dark:text-base-300 bg-base-50 dark:bg-base-800 hover:bg-base-100 dark:hover:bg-base-700 transition-colors py-3 px-4 rounded-lg">
+                        <span class="material-symbols-outlined text-base text-green-500">receipt_long</span>
+                        <div>
+                            <p class="font-medium">Order & Revenue Report</p>
+                            <p class="text-xs text-base-400">Filter by date, status, vendor — export to CSV</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'admin:vendors_ledgerentry_changelist' %}"
+                        class="flex items-center gap-3 text-sm text-base-700 dark:text-base-300 bg-base-50 dark:bg-base-800 hover:bg-base-100 dark:hover:bg-base-700 transition-colors py-3 px-4 rounded-lg">
+                        <span class="material-symbols-outlined text-base text-purple-500">account_balance</span>
+                        <div>
+                            <p class="font-medium">Vendor Financial Ledger</p>
+                            <p class="text-xs text-base-400">Credits, debits, settlements — full audit trail</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'admin:vendors_payoutrequest_changelist' %}"
+                        class="flex items-center gap-3 text-sm text-base-700 dark:text-base-300 bg-base-50 dark:bg-base-800 hover:bg-base-100 dark:hover:bg-base-700 transition-colors py-3 px-4 rounded-lg">
+                        <span class="material-symbols-outlined text-base text-amber-500">payments</span>
+                        <div>
+                            <p class="font-medium">Payout Requests</p>
+                            <p class="text-xs text-base-400">Pending approvals, history, amounts</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'admin:crossborder_crossborderorderrequest_changelist' %}"
+                        class="flex items-center gap-3 text-sm text-base-700 dark:text-base-300 bg-base-50 dark:bg-base-800 hover:bg-base-100 dark:hover:bg-base-700 transition-colors py-3 px-4 rounded-lg">
+                        <span class="material-symbols-outlined text-base text-blue-500">public</span>
+                        <div>
+                            <p class="font-medium">Cross-Border Operations</p>
+                            <p class="text-xs text-base-400">International order status, costs, tracking</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

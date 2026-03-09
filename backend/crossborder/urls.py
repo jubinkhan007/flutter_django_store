@@ -5,6 +5,7 @@ from .views import (
     CBAdminListView,
     CBCheckoutView,
     CBFinalizeCostView,
+    CBLinkPreviewView,
     CBMarkCustomsHeldView,
     CBMarkDeliveredView,
     CBMarkOrderedView,
@@ -28,6 +29,7 @@ customer_urlpatterns = [
     path('requests/<int:pk>/', CBRequestDetailView.as_view(), name='cb-request-detail'),
     path('requests/<int:pk>/checkout/', CBCheckoutView.as_view(), name='cb-checkout'),
     path('requests/<int:pk>/mark-received/', CBMarkReceivedView.as_view(), name='cb-mark-received'),
+    path('link-preview/', CBLinkPreviewView.as_view(), name='cb-link-preview'),
 ]
 
 # Admin/Ops URLs

@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import re
+from urllib.parse import urlparse
+
+import requests as http_requests
+from bs4 import BeautifulSoup
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import generics, permissions, status
@@ -117,7 +122,11 @@ class CBRequestCreateView(APIView):
 
         # Generate immediate quote
         CrossBorderQuoteService.apply_quote_to_request(
-            cb_request, shipping_method=data['shipping_method']
+            cb_request,
+            shipping_method=data['shipping_method'],
+            item_price_foreign=data.get('item_price_foreign'),
+            currency=data.get('currency'),
+            weight_kg=data.get('estimated_weight_kg'),
         )
         cb_request.save()
 
@@ -221,6 +230,148 @@ class CBMarkReceivedView(APIView):
                 )
 
         return Response(CrossBorderOrderRequestSerializer(cb_request).data)
+
+
+# ---------------------------------------------------------------------------
+# Link preview scraper
+# ---------------------------------------------------------------------------
+
+_SCRAPE_HEADERS = {
+    'User-Agent': (
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Chrome/124.0.0.0 Safari/537.36'
+    ),
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+}
+
+def _detect_marketplace(url: str) -> str:
+    host = urlparse(url).hostname or ''
+    if 'amazon' in host:
+        return 'AMAZON'
+    if 'aliexpress' in host:
+        return 'ALIEXPRESS'
+    if 'alibaba' in host:
+        return 'ALIBABA'
+    if '1688' in host:
+        return '1688'
+    return 'OTHER'
+
+
+def _og(soup: BeautifulSoup, prop: str) -> str:
+    tag = soup.find('meta', property=prop) or soup.find('meta', attrs={'name': prop})
+    if tag:
+        return tag.get('content', '').strip()
+    return ''
+
+
+def _extract_amazon_price(soup: BeautifulSoup) -> tuple[str, str]:
+    """Returns (price_text, currency)."""
+    # Whole number part
+    whole = soup.select_one('.a-price-whole')
+    fraction = soup.select_one('.a-price-fraction')
+    symbol = soup.select_one('.a-price-symbol')
+    if whole:
+        price = whole.get_text(strip=True).rstrip('.')
+        if fraction:
+            price += f'.{fraction.get_text(strip=True)}'
+        currency_sym = symbol.get_text(strip=True) if symbol else '$'
+        return price, ('USD' if currency_sym == '$' else currency_sym)
+    return '', 'USD'
+
+
+def _extract_preview(url: str) -> dict:
+    """Fetch URL and extract product metadata. Returns dict with best-effort fields."""
+    try:
+        resp = http_requests.get(url, headers=_SCRAPE_HEADERS, timeout=8, allow_redirects=True)
+        resp.raise_for_status()
+    except Exception as exc:
+        return {'error': f'Could not fetch URL: {exc}'}
+
+    soup = BeautifulSoup(resp.content, 'lxml')
+    marketplace = _detect_marketplace(url)
+
+    title = (
+        _og(soup, 'og:title')
+        or (soup.find('title') or {}).get_text('', strip=True)  # type: ignore[union-attr]
+    )
+
+    # Amazon-specific title cleanup
+    if marketplace == 'AMAZON':
+        el = soup.select_one('#productTitle')
+        if el:
+            title = el.get_text(strip=True)
+
+    image = _og(soup, 'og:image')
+    if not image and marketplace == 'AMAZON':
+        img_el = soup.select_one('#landingImage, #imgBlkFront')
+        if img_el:
+            image = img_el.get('data-old-hires') or img_el.get('src', '')
+
+    description = _og(soup, 'og:description')
+
+    price_text = ''
+    currency = 'USD'
+
+    # Try OG price tags
+    og_price = _og(soup, 'product:price:amount') or _og(soup, 'og:price:amount')
+    og_currency = _og(soup, 'product:price:currency') or _og(soup, 'og:price:currency')
+    if og_price:
+        price_text = og_price
+        currency = og_currency or 'USD'
+
+    # Amazon-specific price
+    if marketplace == 'AMAZON' and not price_text:
+        price_text, currency = _extract_amazon_price(soup)
+
+    # AliExpress fallback — price in meta
+    if marketplace == 'ALIEXPRESS' and not price_text:
+        meta_price = soup.find('meta', attrs={'itemprop': 'price'})
+        if meta_price:
+            price_text = meta_price.get('content', '')
+            currency = 'USD'
+
+    # Attempt JSON-LD for any marketplace
+    if not price_text:
+        for script in soup.find_all('script', type='application/ld+json'):
+            text = script.string or ''
+            m = re.search(r'"price"\s*:\s*"?([0-9.,]+)"?', text)
+            cur = re.search(r'"priceCurrency"\s*:\s*"([A-Z]{3})"', text)
+            if m:
+                price_text = m.group(1)
+                currency = cur.group(1) if cur else 'USD'
+                break
+
+    # Truncate description
+    if len(description) > 300:
+        description = description[:297] + '...'
+
+    return {
+        'title': title[:200] if title else '',
+        'image_url': image,
+        'description': description,
+        'price_text': price_text,
+        'currency': currency,
+        'marketplace': marketplace,
+    }
+
+
+class CBLinkPreviewView(APIView):
+    """GET /api/crossborder/link-preview/?url=<encoded_url>"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        url = request.query_params.get('url', '').strip()
+        if not url:
+            return Response({'error': 'url parameter is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not url.startswith(('http://', 'https://')):
+            return Response({'error': 'Invalid URL.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        preview = _extract_preview(url)
+        if 'error' in preview:
+            return Response(preview, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return Response(preview)
 
 
 # ---------------------------------------------------------------------------

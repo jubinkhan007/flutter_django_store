@@ -149,4 +149,5 @@ class ApiConfig {
   static String cbRequestDetailUrl(int id) => '$baseUrl/crossborder/requests/$id/';
   static String cbCheckoutUrl(int id) => '$baseUrl/crossborder/requests/$id/checkout/';
   static String cbMarkReceivedUrl(int id) => '$baseUrl/crossborder/requests/$id/mark-received/';
+  static String get cbLinkPreviewUrl => '$baseUrl/crossborder/link-preview/';
 }
