@@ -14,20 +14,26 @@ echo "Updating system..."
 sudo apt update && sudo apt upgrade -y
 
 echo "Installing dependencies..."
-sudo apt install -y python3.12 python3.12-venv python3.12-dev postgresql postgresql-contrib redis-server nginx supervisor certbot python3-certbot-nginx libpq-dev curl git
+# Use python3 (default) instead of python3.12 to avoid requiring external PPAs on Ubuntu 22.04
+sudo apt update
+sudo apt install -y python3 python3-venv python3-dev postgresql postgresql-contrib redis-server nginx supervisor certbot python3-certbot-nginx libpq-dev curl git
 
 echo "Setting up Database..."
-# Note: This assumes the user will provide DB credentials or let us generate them
-# In a real scenario, we'd prompt or use a .env file.
-# For now, we plan for 'ecommerce_db' with user 'ecommerce_user'
+# Note: This assumes the user will provide DB credentials via .env
+# Ensure postgres is running
+sudo systemctl start postgresql
 
 echo "Creating App Directory..."
 mkdir -p $APP_DIR
-# (Here the user would git clone or we would transfer files)
 
 echo "Setting up Virtual Environment..."
 if [ ! -d "$VENV_DIR" ]; then
-    python3.12 -m venv $VENV_DIR
+    python3 -m venv $VENV_DIR || { echo "Failed to create virtual environment"; exit 1; }
+fi
+
+if [ ! -f "$VENV_DIR/bin/python" ]; then
+    echo "Error: Virtual environment python not found at $VENV_DIR/bin/python"
+    exit 1
 fi
 
 $VENV_DIR/bin/python -m pip install --upgrade pip
