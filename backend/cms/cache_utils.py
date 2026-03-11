@@ -9,8 +9,11 @@ def cms_page_cache_key(identifier: str) -> str:
 
 
 def invalidate_cms_cache() -> None:
-    cache.delete(CMS_BOOTSTRAP_CACHE_KEY)
-    delete_pattern = getattr(cache, 'delete_pattern', None)
-    if callable(delete_pattern):
-        delete_pattern(f'{CMS_PAGE_CACHE_KEY_PREFIX}*')
+    try:
+        cache.delete(CMS_BOOTSTRAP_CACHE_KEY)
+        delete_pattern = getattr(cache, 'delete_pattern', None)
+        if callable(delete_pattern):
+            delete_pattern(f'{CMS_PAGE_CACHE_KEY_PREFIX}*')
+    except Exception:
+        pass
 
