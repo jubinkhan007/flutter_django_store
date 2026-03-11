@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../../../../core/config/api_config.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/storage/token_storage.dart';
@@ -46,6 +47,57 @@ class AuthRepositoryImpl implements AuthRepository {
     return fallback;
   }
 
+  String _extractErrorMessage(
+    http.Response response, {
+    required String fallback,
+  }) {
+    final body = response.body.trim();
+    final statusCode = response.statusCode;
+
+    if (body.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(body);
+        if (decoded is Map<String, dynamic>) {
+          final detail = decoded['detail'];
+          if (detail is String && detail.isNotEmpty) {
+            return detail;
+          }
+          final error = decoded['error'];
+          if (error is String && error.isNotEmpty) {
+            return error;
+          }
+          final message = decoded['message'];
+          if (message is String && message.isNotEmpty) {
+            return message;
+          }
+          final nonFieldErrors = decoded['non_field_errors'];
+          if (nonFieldErrors is List && nonFieldErrors.isNotEmpty) {
+            return nonFieldErrors.first.toString();
+          }
+
+          for (final entry in decoded.entries) {
+            final value = entry.value;
+            if (value is List && value.isNotEmpty) {
+              return '${entry.key}: ${value.first}';
+            }
+            if (value is String && value.isNotEmpty) {
+              return '${entry.key}: $value';
+            }
+          }
+        }
+      } catch (_) {
+        if (body.startsWith('<')) {
+          if (statusCode >= 500) {
+            return 'Server unavailable ($statusCode). Please try again shortly.';
+          }
+          return '$fallback ($statusCode)';
+        }
+      }
+    }
+
+    return '$fallback ($statusCode)';
+  }
+
   @override
   Future<User> login(String email, String password) async {
     final response = await _apiClient.post(
@@ -55,7 +107,7 @@ class AuthRepositoryImpl implements AuthRepository {
     );
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
       final access = data['access'] as String?;
       final refresh = data['refresh'] as String?;
 
@@ -82,8 +134,9 @@ class AuthRepositoryImpl implements AuthRepository {
       await _tokenStorage.saveUserInfo(type: user.type, email: user.email);
       return user;
     } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['detail'] ?? error['error'] ?? 'Login failed');
+      throw Exception(
+        _extractErrorMessage(response, fallback: 'Login failed'),
+      );
     }
   }
 
@@ -96,7 +149,7 @@ class AuthRepositoryImpl implements AuthRepository {
     );
 
     if (response.statusCode == 201) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
       // Auto-login after registration.
       // Backend usually returns the created user only (no tokens), so we fall back to logging in.
       final access = data['access'] as String?;
@@ -111,9 +164,8 @@ class AuthRepositoryImpl implements AuthRepository {
 
       return login(email, password);
     } else {
-      final error = jsonDecode(response.body);
       throw Exception(
-        error['detail'] ?? error['error'] ?? 'Registration failed',
+        _extractErrorMessage(response, fallback: 'Registration failed'),
       );
     }
   }
