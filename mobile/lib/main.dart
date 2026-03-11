@@ -65,6 +65,8 @@ import 'features/coupons/presentation/providers/coupon_provider.dart';
 // Home Feed
 import 'features/home/data/repositories/home_repository.dart';
 import 'features/home/presentation/providers/home_provider.dart';
+import 'features/cms/data/repositories/cms_repository.dart';
+import 'features/cms/presentation/providers/cms_provider.dart';
 
 // Notifications
 import 'features/notifications/data/repositories/notification_repository.dart';
@@ -165,6 +167,7 @@ void main() async {
   final returnRepository = ReturnRepository(apiClient: apiClient);
   final couponRepository = CouponRepository(apiClient: apiClient);
   final homeRepository = HomeRepository(apiClient: apiClient);
+  final cmsRepository = CmsRepository(apiClient: apiClient);
   final notificationRepository = NotificationRepository(apiClient: apiClient);
   final supportRepository = SupportRepository(apiClient: apiClient);
   final logisticsRepository = LogisticsRepository(apiClient: apiClient);
@@ -185,6 +188,7 @@ void main() async {
       returnRepository: returnRepository,
       couponRepository: couponRepository,
       homeRepository: homeRepository,
+      cmsRepository: cmsRepository,
       notificationRepository: notificationRepository,
       supportRepository: supportRepository,
       logisticsRepository: logisticsRepository,
@@ -207,6 +211,7 @@ class MyApp extends StatelessWidget {
   final ReturnRepository returnRepository;
   final CouponRepository couponRepository;
   final HomeRepository homeRepository;
+  final CmsRepository cmsRepository;
   final NotificationRepository notificationRepository;
   final SupportRepository supportRepository;
   final LogisticsRepository logisticsRepository;
@@ -227,6 +232,7 @@ class MyApp extends StatelessWidget {
     required this.returnRepository,
     required this.couponRepository,
     required this.homeRepository,
+    required this.cmsRepository,
     required this.notificationRepository,
     required this.supportRepository,
     required this.logisticsRepository,
@@ -273,6 +279,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) =>
               HomeProvider(homeRepository: homeRepository)..loadFeed(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => CmsProvider(repository: cmsRepository)..loadBootstrap(),
         ),
         ChangeNotifierProvider(
           create: (_) =>

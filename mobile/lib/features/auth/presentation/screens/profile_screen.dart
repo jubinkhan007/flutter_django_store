@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/providers/theme_provider.dart';
+import '../../../cms/data/models/cms_models.dart';
+import '../../../cms/presentation/providers/cms_provider.dart';
+import '../../../cms/presentation/screens/cms_page_screen.dart';
 import '../providers/auth_provider.dart';
 import '../../../addresses/presentation/screens/address_management_screen.dart';
 import 'package:mobile/features/wishlist/presentation/screens/wishlist_screen.dart';
@@ -18,6 +22,10 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cmsProvider = context.watch<CmsProvider>();
+    final supportLinks = _buildCmsSupportLinks(context, cmsProvider);
+    final legalLinks = _buildCmsPageLinks(cmsProvider.bootstrap);
+
     return SafeArea(
       child: Consumer<AuthProvider>(
         builder: (context, auth, _) {
@@ -101,7 +109,7 @@ class ProfileScreen extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: Theme.of(context).primaryColor.withAlpha(
                                 (0.1 * 255).round(),
-                              ), // Changed withOpacity to withAlpha
+                              ),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -212,6 +220,7 @@ class ProfileScreen extends StatelessWidget {
                       },
                     ),
                     const Divider(color: AppColors.lightSurface),
+                    ...supportLinks,
                     _MenuListItem(
                       icon: Icons.location_on_outlined,
                       title: 'My Addresses',
@@ -226,6 +235,7 @@ class ProfileScreen extends StatelessWidget {
                       },
                     ),
                     const Divider(color: AppColors.lightSurface),
+                    ...legalLinks,
                     Consumer<ThemeProvider>(
                       builder: (context, themeProvider, _) {
                         return _MenuListItem(
@@ -234,7 +244,7 @@ class ProfileScreen extends StatelessWidget {
                           subtitle: 'Toggle app theme',
                           trailing: Switch(
                             value: themeProvider.isDarkMode,
-                            activeColor: Theme.of(context).primaryColor,
+                            activeThumbColor: Theme.of(context).primaryColor,
                             onChanged: (value) {
                               themeProvider.setThemeMode(
                                 value ? ThemeMode.dark : ThemeMode.light,
@@ -263,6 +273,136 @@ class ProfileScreen extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+List<Widget> _buildCmsSupportLinks(BuildContext context, CmsProvider cmsProvider) {
+  final items = <Widget>[];
+  final email = cmsProvider.stringSetting('support_email');
+  final phone = cmsProvider.stringSetting('support_phone');
+  final whatsapp = cmsProvider.stringSetting('support_whatsapp');
+  final whatsappUrl = cmsProvider.stringSetting('support_whatsapp_url');
+
+  void addItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required String rawUrl,
+  }) {
+    items.add(
+      _MenuListItem(
+        icon: icon,
+        title: title,
+        subtitle: subtitle,
+        onTap: () => _openExternalLink(context, rawUrl),
+      ),
+    );
+    items.add(const Divider(color: AppColors.lightSurface));
+  }
+
+  if (email != null) {
+    addItem(
+      icon: Icons.email_outlined,
+      title: 'Email Support',
+      subtitle: email,
+      rawUrl: 'mailto:$email',
+    );
+  }
+  if (phone != null) {
+    addItem(
+      icon: Icons.phone_outlined,
+      title: 'Call Support',
+      subtitle: phone,
+      rawUrl: 'tel:$phone',
+    );
+  }
+  final whatsappDigits = whatsapp?.replaceAll(RegExp(r'[^0-9]'), '');
+  final whatsappTarget = whatsappUrl ??
+      ((whatsappDigits == null || whatsappDigits.isEmpty)
+          ? null
+          : 'https://wa.me/$whatsappDigits');
+  if (whatsappTarget != null) {
+    addItem(
+      icon: Icons.chat_bubble_outline,
+      title: 'WhatsApp Support',
+      subtitle: whatsapp ?? 'Chat with support',
+      rawUrl: whatsappTarget,
+    );
+  }
+
+  return items;
+}
+
+List<Widget> _buildCmsPageLinks(CmsBootstrap? bootstrap) {
+  if (bootstrap == null) return const [];
+
+  const orderedTypes = [
+    'ABOUT',
+    'PRIVACY',
+    'TERMS',
+    'REFUND_POLICY',
+  ];
+
+  final items = <Widget>[];
+  for (final pageType in orderedTypes) {
+    final page = bootstrap.pageByType(pageType);
+    if (page == null) {
+      continue;
+    }
+    items.add(
+      Builder(
+        builder: (context) => _MenuListItem(
+          icon: _pageIcon(page.pageType),
+          title: page.title,
+          subtitle: 'Read ${page.title}',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CmsPageScreen(
+                  slug: page.slug,
+                  titleOverride: page.title,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    items.add(const Divider(color: AppColors.lightSurface));
+  }
+  return items;
+}
+
+IconData _pageIcon(String pageType) {
+  switch (pageType) {
+    case 'ABOUT':
+      return Icons.info_outline;
+    case 'PRIVACY':
+      return Icons.lock_outline;
+    case 'TERMS':
+      return Icons.gavel_outlined;
+    case 'REFUND_POLICY':
+      return Icons.assignment_return_outlined;
+    default:
+      return Icons.description_outlined;
+  }
+}
+
+Future<void> _openExternalLink(BuildContext context, String rawUrl) async {
+  final uri = Uri.tryParse(rawUrl);
+  if (uri == null) {
+    return;
+  }
+
+  final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (!opened && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Could not open this link.'),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }

@@ -45,6 +45,7 @@ dependencies:
   uuid: ^4.5.3
   cached_network_image: ^3.4.1
   shimmer: ^3.0.0
+  flutter_html: ^3.0.0
   firebase_core: ^4.1.0
   firebase_messaging: ^16.0.0
   flutter_local_notifications: ^19.0.0

@@ -35,6 +35,7 @@ urlpatterns = [
     path('api/analytics/', include('analytics.urls')),  # User events / personalization analytics
     path('api/discovery/', include('discovery.urls')),  # Discovery / recommendations
     path('api/collections/', include('discovery.collection_urls')),  # Scheduled collections
+    path('api/cms/', include('cms.urls')),
     path('api/crossborder/', include('crossborder.urls')),           # Cross-border sourcing (customer)
     path(
         'api/admin/crossborder/',

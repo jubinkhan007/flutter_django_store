@@ -84,6 +84,26 @@ class ProductProvider extends ChangeNotifier {
     loadProducts();
   }
 
+  void applyCategoryShortcut(int? categoryId) {
+    _selectedCategoryId = categoryId;
+    _searchQuery = null;
+    _minPrice = null;
+    _maxPrice = null;
+    _sortBy = null;
+    _suggestions = [];
+    loadProducts();
+  }
+
+  void applySearchShortcut(String? query) {
+    _searchQuery = query;
+    _selectedCategoryId = null;
+    _minPrice = null;
+    _maxPrice = null;
+    _sortBy = null;
+    _suggestions = [];
+    loadProducts();
+  }
+
   Future<void> fetchSuggestions(String query) async {
     if (query.trim().length < 2) {
       _suggestions = [];

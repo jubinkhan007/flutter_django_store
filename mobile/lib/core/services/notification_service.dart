@@ -17,6 +17,7 @@ import '../../features/notifications/presentation/providers/notification_provide
 import '../../features/vendor/presentation/screens/vendor_dashboard_screen.dart';
 import '../../features/vendor/presentation/screens/vendor_wallet_screen.dart';
 import '../../features/support/presentation/screens/ticket_chat_screen.dart';
+import '../config/app_config.dart';
 import '../navigation/app_navigator.dart';
 
 class NotificationService {

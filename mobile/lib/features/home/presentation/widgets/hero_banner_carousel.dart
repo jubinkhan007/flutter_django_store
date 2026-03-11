@@ -1,8 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:mobile/core/theme/app_colors.dart';
-import 'package:mobile/core/theme/app_theme.dart';
+import 'package:mobile/features/cms/presentation/screens/cms_page_screen.dart';
 import 'package:mobile/features/home/data/models/home_feed_model.dart';
+import 'package:mobile/features/products/presentation/providers/product_provider.dart';
+import 'package:mobile/features/products/presentation/screens/product_detail_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class HeroBannerCarousel extends StatefulWidget {
@@ -61,25 +65,96 @@ class _HeroBannerCarouselState extends State<HeroBannerCarousel> {
     _startTimer();
   }
 
-  void _handleBannerTap(BannerModel banner) {
-    // Robust navigation based on link_type
-    switch (banner.linkType) {
+  Future<void> _handleBannerTap(BannerModel banner) async {
+    final productProvider = context.read<ProductProvider>();
+    final targetValue = banner.linkValue.trim();
+
+    switch (banner.linkType.toUpperCase()) {
       case 'PRODUCT':
-        // Navigate to product detail
-        break;
+        final productId = int.tryParse(targetValue);
+        if (productId == null) {
+          _showMessage('This product link is invalid.');
+          return;
+        }
+        try {
+          final product = await productProvider.getProductDetail(productId);
+          if (!mounted) return;
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ProductDetailScreen(product: product),
+            ),
+          );
+        } catch (_) {
+          if (!mounted) return;
+          _showMessage('Could not load this product.');
+        }
+        return;
       case 'CATEGORY':
-        // Navigate to category filter
-        break;
-      case 'URL':
-        // Open URL
-        break;
+        if (targetValue.isEmpty) {
+          _showMessage('This category link is invalid.');
+          return;
+        }
+        final categories = productProvider.categories;
+        final targetCategory = categories.where((category) {
+          final idMatches = category.id.toString() == targetValue;
+          final slugMatches = category.slug.toLowerCase() ==
+              targetValue.toLowerCase();
+          return idMatches || slugMatches;
+        }).toList();
+        if (targetCategory.length != 1) {
+          _showMessage('This category is not available right now.');
+          return;
+        }
+        productProvider.applyCategoryShortcut(targetCategory.first.id);
+        _showMessage('Showing ${targetCategory.first.name}.');
+        return;
       case 'SEARCH':
-        // Perform search
-        break;
+        if (targetValue.isEmpty) {
+          _showMessage('This search banner is empty.');
+          return;
+        }
+        productProvider.applySearchShortcut(targetValue);
+        _showMessage('Showing results for "$targetValue".');
+        return;
+      case 'PAGE':
+        if (targetValue.isEmpty) {
+          _showMessage('This page is unavailable.');
+          return;
+        }
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => CmsPageScreen(
+              slug: targetValue,
+              titleOverride: banner.title.isNotEmpty ? banner.title : null,
+            ),
+          ),
+        );
+        return;
+      case 'URL':
+      case 'EXTERNAL_URL':
+        final uri = Uri.tryParse(targetValue);
+        if (uri == null) {
+          _showMessage('This link is invalid.');
+          return;
+        }
+        final launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!launched && mounted) {
+          _showMessage('Could not open this link.');
+        }
+        return;
       default:
-        // Ignore
-        break;
+        return;
     }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
   }
 
   @override
@@ -122,7 +197,7 @@ class _HeroBannerCarouselState extends State<HeroBannerCarousel> {
           decoration: BoxDecoration(
             color: _currentPage == index
                 ? AppColors.lightPrimary
-                : AppColors.lightPrimary.withOpacity(0.2),
+                : AppColors.lightPrimary.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(4),
           ),
         ),
@@ -147,7 +222,7 @@ class _BannerItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -175,7 +250,10 @@ class _BannerItem extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
-                  colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+                  colors: [
+                    Colors.black.withValues(alpha: 0.7),
+                    Colors.transparent,
+                  ],
                 ),
               ),
             ),
@@ -201,7 +279,7 @@ class _BannerItem extends StatelessWidget {
                     Text(
                       banner.subtitle,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 14,
                       ),
                       maxLines: 2,

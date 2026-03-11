@@ -17,6 +17,7 @@ import 'package:mobile/features/coupons/data/repositories/coupon_repository.dart
 import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
 import 'package:mobile/core/providers/theme_provider.dart';
 import 'package:mobile/features/home/data/repositories/home_repository.dart';
+import 'package:mobile/features/cms/data/repositories/cms_repository.dart';
 import 'package:mobile/features/notifications/data/repositories/notification_repository.dart';
 import 'package:mobile/features/support/data/repositories/support_repository.dart';
 import 'package:mobile/features/logistics/data/repositories/logistics_repository.dart';
@@ -46,6 +47,7 @@ void main() {
     final returnRepo = ReturnRepository(apiClient: apiClient);
     final couponRepo = CouponRepository(apiClient: apiClient);
     final homeRepo = HomeRepository(apiClient: apiClient);
+    final cmsRepo = CmsRepository(apiClient: apiClient);
     final notificationRepo = NotificationRepository(apiClient: apiClient);
     final supportRepo = SupportRepository(apiClient: apiClient);
     final logisticsRepo = LogisticsRepository(apiClient: apiClient);
@@ -75,6 +77,7 @@ void main() {
         returnRepository: returnRepo,
         couponRepository: couponRepo,
         homeRepository: homeRepo,
+        cmsRepository: cmsRepo,
         notificationRepository: notificationRepo,
         supportRepository: supportRepo,
         logisticsRepository: logisticsRepo,
@@ -111,6 +114,7 @@ void main() {
     final returnRepo = ReturnRepository(apiClient: apiClient);
     final couponRepo = CouponRepository(apiClient: apiClient);
     final homeRepo = HomeRepository(apiClient: apiClient);
+    final cmsRepo = CmsRepository(apiClient: apiClient);
     final notificationRepo = NotificationRepository(apiClient: apiClient);
     final supportRepo = SupportRepository(apiClient: apiClient);
     final logisticsRepo = LogisticsRepository(apiClient: apiClient);
@@ -140,6 +144,7 @@ void main() {
         returnRepository: returnRepo,
         couponRepository: couponRepo,
         homeRepository: homeRepo,
+        cmsRepository: cmsRepo,
         notificationRepository: notificationRepo,
         supportRepository: supportRepo,
         logisticsRepository: logisticsRepo,

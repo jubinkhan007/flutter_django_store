@@ -14,6 +14,8 @@ import 'package:mobile/features/cart/presentation/screens/cart_screen.dart';
 import 'package:mobile/features/orders/presentation/screens/order_history_screen.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
 import 'package:mobile/features/auth/presentation/screens/profile_screen.dart';
+import 'package:mobile/features/cms/data/models/cms_models.dart';
+import 'package:mobile/features/cms/presentation/providers/cms_provider.dart';
 import 'package:mobile/features/home/presentation/providers/home_provider.dart';
 import 'package:mobile/features/home/presentation/widgets/hero_banner_carousel.dart';
 import 'package:mobile/features/home/presentation/widgets/flash_sale_row.dart';
@@ -45,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context.read<ProductProvider>().loadProducts();
       context.read<ProductProvider>().loadCategories();
       context.read<NotificationProvider>().refreshUnreadCount();
+      context.read<CmsProvider>().loadBootstrap();
     });
   }
 
@@ -180,7 +183,7 @@ class _NavBarItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? Theme.of(context).primaryColor.withOpacity(0.1)
+              ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
@@ -212,6 +215,17 @@ class _ShopPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final productProvider = context.watch<ProductProvider>();
+    final cmsProvider = context.watch<CmsProvider>();
+    final cmsTopBanners = _mapCmsBanners(
+      cmsProvider.bannersForPosition('HOME_TOP'),
+    );
+    final cmsMidBanners = _mapCmsBanners(
+      cmsProvider.bannersForPosition('HOME_MID'),
+    );
+    final announcementEnabled = cmsProvider.boolSetting(
+      'home_announcement_enabled',
+    );
+    final announcementText = cmsProvider.stringSetting('home_announcement_text');
 
     final hasQuery =
         (productProvider.searchQuery != null &&
@@ -245,6 +259,7 @@ class _ShopPage extends StatelessWidget {
           await Future.wait([
             context.read<HomeProvider>().refresh(),
             context.read<ProductProvider>().loadProducts(),
+            context.read<CmsProvider>().loadBootstrap(forceRefresh: true),
           ]);
         },
         child: CustomScrollView(
@@ -400,14 +415,36 @@ class _ShopPage extends StatelessWidget {
                       ),
                     ),
             ),
+            if (!isShowingResults &&
+                announcementEnabled &&
+                announcementText != null)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    0,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                  ),
+                  child: _AnnouncementBanner(message: announcementText),
+                ),
+              ),
+            if (!isShowingResults && cmsTopBanners.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                  child: HeroBannerCarousel(banners: cmsTopBanners),
+                ),
+              ),
             if (!isShowingResults)
               Consumer<HomeProvider>(
                 builder: (context, provider, _) {
                   if (provider.isLoading && provider.feed == null) {
                     return const SliverToBoxAdapter(child: HomeSkeleton());
                   }
-                  if (provider.feed == null)
+                  if (provider.feed == null) {
                     return const SliverToBoxAdapter(child: SizedBox.shrink());
+                  }
 
                   return SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
@@ -446,6 +483,13 @@ class _ShopPage extends StatelessWidget {
                     }, childCount: provider.feed!.sections.length),
                   );
                 },
+              ),
+            if (!isShowingResults && cmsMidBanners.isNotEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: HeroBannerCarousel(banners: cmsMidBanners),
+                ),
               ),
             SliverToBoxAdapter(
               child: Padding(
@@ -571,6 +615,54 @@ class _ShopPage extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+List<BannerModel> _mapCmsBanners(List<CmsBanner> banners) {
+  return banners
+      .map(
+        (banner) => BannerModel(
+          id: banner.id,
+          title: banner.title,
+          subtitle: banner.subtitle,
+          imageUrl: banner.imageUrl,
+          linkType: banner.targetType,
+          linkValue: banner.targetValue,
+        ),
+      )
+      .toList();
+}
+
+class _AnnouncementBanner extends StatelessWidget {
+  final String message;
+
+  const _AnnouncementBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        gradient: AppGradients.lightPrimary,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.campaign_outlined, color: Colors.white),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

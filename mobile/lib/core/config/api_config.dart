@@ -143,6 +143,10 @@ class ApiConfig {
   static String collectionDetailUrl(String slug) =>
       '$baseUrl/collections/$slug/';
 
+  // CMS
+  static String get cmsBootstrapUrl => '$baseUrl/cms/bootstrap/';
+  static String get cmsPageResolveUrl => '$baseUrl/cms/pages/resolve/';
+
   // Cross-Border
   static String get cbProductsUrl => '$baseUrl/crossborder/products/';
   static String cbProductDetailUrl(int id) =>

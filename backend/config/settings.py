@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import importlib.util
 import os
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -116,15 +117,17 @@ INSTALLED_APPS = [
     'analytics',
     'discovery',
     'ads',
+    'cms',
     'crossborder',
 ]
 
 AUTH_USER_MODEL = 'users.User'
 
+HAS_WHITENOISE = importlib.util.find_spec('whitenoise') is not None
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -132,6 +135,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+if HAS_WHITENOISE:
+    MIDDLEWARE.insert(2, 'whitenoise.middleware.WhiteNoiseMiddleware')
 
 ROOT_URLCONF = 'config.urls'
 
@@ -235,7 +241,8 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+if HAS_WHITENOISE:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -244,16 +251,25 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # --- CACHE ---
 REDIS_URL = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1')
+try:
+    import django_redis  # noqa: F401
 
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_URL,
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            }
         }
     }
-}
+except ImportError:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "marketplace-dev-cache",
+        }
+    }
 
 # Rest Framework Configuration
 REST_FRAMEWORK = {
@@ -727,6 +743,33 @@ UNFOLD = {
                         'title': _('Notifications'),
                         'icon': 'notifications',
                         'link': reverse_lazy('admin:notifications_notification_changelist'),
+                    },
+                ],
+            },
+            {
+                'title': _('CMS'),
+                'separator': True,
+                'collapsible': True,
+                'items': [
+                    {
+                        'title': _('Site Settings'),
+                        'icon': 'tune',
+                        'link': reverse_lazy('admin:cms_sitesetting_changelist'),
+                    },
+                    {
+                        'title': _('Pages'),
+                        'icon': 'article',
+                        'link': reverse_lazy('admin:cms_page_changelist'),
+                    },
+                    {
+                        'title': _('CMS Banners'),
+                        'icon': 'view_carousel',
+                        'link': reverse_lazy('admin:cms_banner_changelist'),
+                    },
+                    {
+                        'title': _('FAQs'),
+                        'icon': 'quiz',
+                        'link': reverse_lazy('admin:cms_faq_changelist'),
                     },
                 ],
             },
