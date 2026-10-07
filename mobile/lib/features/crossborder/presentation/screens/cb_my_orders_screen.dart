@@ -118,18 +118,37 @@ class _CbOrderTile extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              // ── Type icon ──
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: color.withAlpha(20),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  request.requestType == 'LINK_PURCHASE' ? Icons.link : Icons.shopping_bag_outlined,
-                  color: color,
-                ),
+              // ── Product image or type icon ──
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: request.itemImageUrl.isNotEmpty
+                    ? Image.network(
+                        request.itemImageUrl,
+                        width: 44,
+                        height: 44,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 44,
+                          height: 44,
+                          color: color.withAlpha(20),
+                          child: Icon(
+                            request.requestType == 'LINK_PURCHASE' ? Icons.link : Icons.shopping_bag_outlined,
+                            color: color,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: color.withAlpha(20),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          request.requestType == 'LINK_PURCHASE' ? Icons.link : Icons.shopping_bag_outlined,
+                          color: color,
+                        ),
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -137,7 +156,7 @@ class _CbOrderTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      request.title,
+                      request.displayTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),

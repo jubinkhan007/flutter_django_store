@@ -69,11 +69,63 @@ class _CbOrderTrackingScreenState extends State<CbOrderTrackingScreen> {
                 _StatusBanner(status: req.status),
                 const SizedBox(height: 16),
 
+                // ── Product summary ──
+                if (req.itemImageUrl.isNotEmpty || req.itemTitle.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.lightTextSecondary.withAlpha(30)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (req.itemImageUrl.isNotEmpty) ...[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              req.itemImageUrl,
+                              width: 68,
+                              height: 68,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                req.displayTitle,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                              ),
+                              if (req.itemDescription.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  req.itemDescription,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 12, color: AppColors.lightTextSecondary),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 // ── Order info ──
                 _InfoCard(
                   title: 'Order Details',
                   rows: [
-                    _Row('Item', req.title),
+                    _Row('Item', req.displayTitle),
                     _Row('Marketplace', req.marketplace),
                     _Row('Quantity', '${req.quantity}'),
                     _Row('Shipping', req.shippingMethod),

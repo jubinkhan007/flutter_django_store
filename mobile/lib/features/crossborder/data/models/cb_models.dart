@@ -89,6 +89,9 @@ class CrossBorderOrderRequest {
   final String quoteId;
   final String requestType;
   final String title;
+  final String itemTitle;
+  final String itemImageUrl;
+  final String itemDescription;
   final String status;
   final String sourceUrl;
   final String marketplace;
@@ -113,6 +116,9 @@ class CrossBorderOrderRequest {
     required this.quoteId,
     required this.requestType,
     required this.title,
+    this.itemTitle = '',
+    this.itemImageUrl = '',
+    this.itemDescription = '',
     required this.status,
     required this.sourceUrl,
     required this.marketplace,
@@ -140,6 +146,9 @@ class CrossBorderOrderRequest {
       quoteId: json['quote_id'] ?? '',
       requestType: json['request_type'] ?? '',
       title: json['title'] ?? '',
+      itemTitle: json['item_title'] ?? '',
+      itemImageUrl: json['item_image_url'] ?? '',
+      itemDescription: json['item_description'] ?? '',
       status: json['status'] ?? '',
       sourceUrl: json['source_url'] ?? '',
       marketplace: json['marketplace'] ?? '',
@@ -168,38 +177,60 @@ class CrossBorderOrderRequest {
   ].contains(status);
 
   bool get hasTracking => trackingUrl.isNotEmpty || trackingNumber.isNotEmpty;
+
+  String get displayTitle {
+    if (itemTitle.isNotEmpty) return itemTitle;
+    if (title.isNotEmpty) return title;
+    if (sourceUrl.isNotEmpty) return sourceUrl;
+    return 'Cross-Border Order';
+  }
 }
 
 class CbLinkPreview {
   final String title;
   final String imageUrl;
+  final List<String> images;
   final String description;
   final String priceText;
   final String currency;
   final String marketplace;
+  final double? estimatedWeightKg;
 
   const CbLinkPreview({
     required this.title,
     required this.imageUrl,
+    this.images = const [],
     required this.description,
     required this.priceText,
     required this.currency,
     required this.marketplace,
+    this.estimatedWeightKg,
   });
 
   factory CbLinkPreview.fromJson(Map<String, dynamic> json) {
+    final imgs = (json['images'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    final imgUrl = json['image_url'] ?? '';
+    if (imgUrl.toString().isNotEmpty && !imgs.contains(imgUrl.toString())) {
+      imgs.insert(0, imgUrl.toString());
+    }
+
     return CbLinkPreview(
       title: json['title'] ?? '',
-      imageUrl: json['image_url'] ?? '',
+      imageUrl: imgUrl,
+      images: imgs,
       description: json['description'] ?? '',
       priceText: json['price_text'] ?? '',
       currency: json['currency'] ?? 'USD',
       marketplace: json['marketplace'] ?? 'OTHER',
+      estimatedWeightKg: json['estimated_weight_kg'] != null
+          ? double.tryParse(json['estimated_weight_kg'].toString())
+          : null,
     );
   }
 
   bool get hasImage => imageUrl.isNotEmpty;
   bool get hasPrice => priceText.isNotEmpty;
+  bool get hasWeight => estimatedWeightKg != null && estimatedWeightKg! > 0;
 }
 
 class CbShippingConfig {

@@ -34,7 +34,8 @@ class CrossBorderOrderRequestSerializer(serializers.ModelSerializer):
         model = CrossBorderOrderRequest
         fields = [
             'id', 'quote_id', 'request_type', 'title',
-            'crossborder_product', 'source_url', 'marketplace',
+            'crossborder_product', 'source_url', 'item_title', 'item_image_url', 'item_description',
+            'marketplace',
             'variant_notes', 'quantity', 'shipping_method',
             'estimated_cost_breakdown', 'customs_policy_acknowledged',
             'is_quote_valid', 'quote_expires_at',
@@ -47,6 +48,7 @@ class CrossBorderOrderRequestSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id', 'quote_id', 'title', 'is_quote_valid',
+            'item_title', 'item_image_url', 'item_description',
             'estimated_cost_breakdown', 'quote_expires_at',
             'status', 'delivery_mode',
             'created_at', 'quoted_at', 'ordered_at',
@@ -64,6 +66,9 @@ class CBRequestCreateSerializer(serializers.Serializer):
     # Backward-compatible alias (some clients send `crossborder_product`).
     crossborder_product = serializers.IntegerField(required=False, allow_null=True, write_only=True)
     source_url = serializers.URLField(required=False, allow_blank=True)
+    item_title = serializers.CharField(required=False, allow_blank=True, default='')
+    item_image_url = serializers.URLField(required=False, allow_blank=True, default='')
+    item_description = serializers.CharField(required=False, allow_blank=True, default='')
     marketplace = serializers.ChoiceField(
         choices=CrossBorderOrderRequest.Marketplace.choices,
         default=CrossBorderOrderRequest.Marketplace.OTHER,

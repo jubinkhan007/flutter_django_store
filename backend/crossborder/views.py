@@ -26,6 +26,7 @@ from .serializers import (
     CrossBorderProductSerializer,
 )
 from .services import CrossBorderCheckoutService, CrossBorderQuoteService
+from .scraper_service import ProductScraperService
 
 
 # ---------------------------------------------------------------------------
@@ -107,12 +108,44 @@ class CBRequestCreateView(APIView):
             except Exception:
                 pass
 
+        item_title = data.get('item_title', '').strip()
+        item_image_url = data.get('item_image_url', '').strip()
+        item_description = data.get('item_description', '').strip()
+        item_price_foreign = data.get('item_price_foreign')
+        currency = data.get('currency')
+        estimated_weight_kg = data.get('estimated_weight_kg')
+        marketplace = data.get('marketplace', CrossBorderOrderRequest.Marketplace.OTHER)
+        source_url = data.get('source_url', '').strip()
+
+        # If Buy by Link and missing title or price, auto-scrape on the fly
+        if data['request_type'] == CrossBorderOrderRequest.RequestType.LINK_PURCHASE and source_url:
+            if not item_title or item_price_foreign is None:
+                scraped = ProductScraperService.scrape(source_url)
+                if not scraped.get('error'):
+                    if not item_title and scraped.get('title'):
+                        item_title = scraped['title']
+                    if not item_image_url and scraped.get('image_url'):
+                        item_image_url = scraped['image_url']
+                    if not item_description and scraped.get('description'):
+                        item_description = scraped['description']
+                    if item_price_foreign is None and scraped.get('price') is not None:
+                        item_price_foreign = scraped['price']
+                    if not currency and scraped.get('currency'):
+                        currency = scraped['currency']
+                    if estimated_weight_kg is None and scraped.get('estimated_weight_kg') is not None:
+                        estimated_weight_kg = scraped['estimated_weight_kg']
+                    if marketplace == CrossBorderOrderRequest.Marketplace.OTHER and scraped.get('marketplace'):
+                        marketplace = scraped['marketplace']
+
         cb_request = CrossBorderOrderRequest(
             customer=request.user,
             request_type=data['request_type'],
             crossborder_product=cb_product,
-            source_url=data.get('source_url', ''),
-            marketplace=data.get('marketplace', CrossBorderOrderRequest.Marketplace.OTHER),
+            source_url=source_url,
+            item_title=item_title,
+            item_image_url=item_image_url,
+            item_description=item_description,
+            marketplace=marketplace,
             variant_notes=data.get('variant_notes', ''),
             quantity=data['quantity'],
             shipping_method=data['shipping_method'],
@@ -124,9 +157,9 @@ class CBRequestCreateView(APIView):
         CrossBorderQuoteService.apply_quote_to_request(
             cb_request,
             shipping_method=data['shipping_method'],
-            item_price_foreign=data.get('item_price_foreign'),
-            currency=data.get('currency'),
-            weight_kg=data.get('estimated_weight_kg'),
+            item_price_foreign=item_price_foreign,
+            currency=currency,
+            weight_kg=estimated_weight_kg,
         )
         cb_request.save()
 
@@ -366,9 +399,9 @@ class CBLinkPreviewView(APIView):
         if not url:
             return Response({'error': 'url parameter is required.'}, status=status.HTTP_400_BAD_REQUEST)
         if not url.startswith(('http://', 'https://')):
-            return Response({'error': 'Invalid URL.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Invalid URL. Protocol http:// or https:// is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        preview = _extract_preview(url)
+        preview = ProductScraperService.scrape(url)
         if 'error' in preview:
             return Response(preview, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         return Response(preview)

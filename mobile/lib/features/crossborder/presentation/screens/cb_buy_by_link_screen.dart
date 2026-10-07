@@ -63,6 +63,9 @@ class _CbBuyByLinkScreenState extends State<CbBuyByLinkScreen> {
 
     final req = await provider.createRequest(
       sourceUrl: _urlCtrl.text.trim(),
+      itemTitle: preview?.title,
+      itemImageUrl: preview?.imageUrl,
+      itemDescription: preview?.description,
       marketplace: _marketplace,
       variantNotes: _variantCtrl.text.trim(),
       quantity: _quantity,
@@ -71,6 +74,7 @@ class _CbBuyByLinkScreenState extends State<CbBuyByLinkScreen> {
           ? double.tryParse(preview.priceText.replaceAll(RegExp(r'[^\d.]'), ''))
           : null,
       currency: preview?.currency,
+      estimatedWeightKg: preview?.estimatedWeightKg,
     );
     if (!mounted) return;
     if (req == null) {
@@ -357,11 +361,13 @@ class _ProductPreviewCard extends StatelessWidget {
                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                         ),
                       const SizedBox(height: 4),
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           _Pill(preview.marketplace),
-                          if (preview.hasPrice) ...[
-                            const SizedBox(width: 8),
+                          if (preview.hasPrice)
                             Text(
                               '${preview.currency} ${preview.priceText}',
                               style: const TextStyle(
@@ -370,7 +376,22 @@ class _ProductPreviewCard extends StatelessWidget {
                                 fontSize: 14,
                               ),
                             ),
-                          ],
+                          if (preview.hasWeight)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withAlpha(20),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                'Weight: ${preview.estimatedWeightKg!.toStringAsFixed(2)} kg',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                       if (preview.description.isNotEmpty) ...[

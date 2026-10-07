@@ -137,6 +137,9 @@ class CrossBorderOrderRequest(models.Model):
         related_name='order_requests',
     )
     source_url = models.URLField(max_length=1000, blank=True)
+    item_title = models.CharField(max_length=512, blank=True, default='', help_text='Scraped/custom product title')
+    item_image_url = models.URLField(max_length=1000, blank=True, default='', help_text='Scraped product image')
+    item_description = models.TextField(blank=True, default='')
     marketplace = models.CharField(max_length=20, choices=Marketplace.choices, default=Marketplace.OTHER)
     variant_notes = models.TextField(blank=True, help_text='Color/size/spec the customer wants')
     quantity = models.PositiveIntegerField(default=1)
@@ -198,4 +201,4 @@ class CrossBorderOrderRequest(models.Model):
     def title(self):
         if self.crossborder_product:
             return self.crossborder_product.title
-        return self.source_url or 'Custom Link Request'
+        return self.item_title or self.source_url or 'Custom Link Request'

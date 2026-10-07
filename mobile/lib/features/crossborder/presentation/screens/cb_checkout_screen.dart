@@ -145,41 +145,61 @@ class _CbCheckoutScreenState extends State<CbCheckoutScreen> {
           // ── Order summary ──
           _SectionCard(
             title: 'Order Summary',
-            child: Column(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  req.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Qty: ${req.quantity}  ·  ${req.shippingMethod} Shipping',
-                  style: const TextStyle(
-                    color: AppColors.lightTextSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-                Text(
-                  'Marketplace: ${req.marketplace}',
-                  style: const TextStyle(
-                    color: AppColors.lightTextSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-                if (req.quoteExpiresAt != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Quote valid until: ${req.quoteExpiresAt}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.lightTextSecondary,
+                if (req.itemImageUrl.isNotEmpty) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      req.itemImageUrl,
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                     ),
                   ),
+                  const SizedBox(width: 12),
                 ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        req.displayTitle,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Qty: ${req.quantity}  ·  ${req.shippingMethod} Shipping',
+                        style: const TextStyle(
+                          color: AppColors.lightTextSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        'Marketplace: ${req.marketplace}',
+                        style: const TextStyle(
+                          color: AppColors.lightTextSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (req.quoteExpiresAt != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Quote valid until: ${req.quoteExpiresAt}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.lightTextSecondary,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

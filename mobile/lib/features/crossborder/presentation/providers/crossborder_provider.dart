@@ -136,6 +136,9 @@ class CrossBorderProvider extends ChangeNotifier {
   Future<CrossBorderOrderRequest?> createRequest({
     int? productId,
     String? sourceUrl,
+    String? itemTitle,
+    String? itemImageUrl,
+    String? itemDescription,
     required String marketplace,
     required String variantNotes,
     required int quantity,
@@ -151,6 +154,9 @@ class CrossBorderProvider extends ChangeNotifier {
       final req = await _repo.createRequest(
         productId: productId,
         sourceUrl: sourceUrl,
+        itemTitle: itemTitle,
+        itemImageUrl: itemImageUrl,
+        itemDescription: itemDescription,
         marketplace: marketplace,
         variantNotes: variantNotes,
         quantity: quantity,
