@@ -78,3 +78,17 @@ class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
                 other_address.is_default = True
                 other_address.save()
         instance.delete()
+
+
+from .serializers import CustomerWalletSerializer
+
+class CustomerWalletView(generics.RetrieveAPIView):
+    """
+    GET /api/auth/wallet/
+    Returns authenticated user's wallet_balance and recent transactions.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = CustomerWalletSerializer
+
+    def get_object(self):
+        return self.request.user

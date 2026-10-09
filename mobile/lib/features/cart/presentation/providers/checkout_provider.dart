@@ -35,6 +35,20 @@ class CheckoutProvider extends ChangeNotifier {
   String _paymentMethod = 'ONLINE';
   String get paymentMethod => _paymentMethod;
 
+  bool _useWallet = false;
+  bool get useWallet => _useWallet;
+
+  void toggleUseWallet(bool value) {
+    _useWallet = value;
+    if (_useWallet && _paymentMethod == 'WALLET') {
+      // keep WALLET
+    } else if (!_useWallet && _paymentMethod == 'WALLET') {
+      _paymentMethod = 'ONLINE';
+    }
+    _quote = null;
+    notifyListeners();
+  }
+
   // ── Quote (Step 2) ──
   CheckoutQuote? _quote;
   CheckoutQuote? get quote => _quote;
@@ -133,7 +147,11 @@ class CheckoutProvider extends ChangeNotifier {
         addressId: _selectedAddress!.id,
         couponCode: _cartProvider.couponCode,
         paymentMethod: _paymentMethod,
+        useWallet: _useWallet,
       );
+      if (_useWallet && _quote != null && _quote!.isFullyCoveredByWallet) {
+        _paymentMethod = 'WALLET';
+      }
       _error = null;
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
@@ -155,10 +173,15 @@ class CheckoutProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final method = (_useWallet && _quote != null && _quote!.isFullyCoveredByWallet)
+          ? 'WALLET'
+          : _paymentMethod;
+
       _placedOrder = await _orderRepository.placeOrder(
         _cartProvider.toOrderItems(),
         _selectedAddress!.id,
-        paymentMethod: _paymentMethod,
+        paymentMethod: method,
+        useWallet: _useWallet,
         couponCode: _cartProvider.couponCode,
         idempotencyKey: _idempotencyKey,
       );
@@ -216,6 +239,7 @@ class CheckoutProvider extends ChangeNotifier {
     _currentStep = 0;
     _selectedAddress = null;
     _paymentMethod = 'ONLINE';
+    _useWallet = false;
     _quote = null;
     _placedOrder = null;
     _isFetchingQuote = false;

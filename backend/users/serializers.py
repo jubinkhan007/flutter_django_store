@@ -28,6 +28,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'email': self.user.email,
             'username': self.user.username,
             'type': self.user.type,
+            'wallet_balance': str(self.user.wallet_balance),
             'personalization_enabled': self.user.personalization_enabled,
         }
         return data
@@ -49,7 +50,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         )
         return user
 
-from .models import User, Address
+from .models import User, Address, CustomerWalletTransaction
 
 class UserPreferenceSerializer(serializers.ModelSerializer):
     class Meta:
@@ -65,3 +66,15 @@ class AddressSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         # Additional validation if needed
         return attrs
+
+class CustomerWalletTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerWalletTransaction
+        fields = ['id', 'amount', 'transaction_type', 'description', 'created_at']
+
+class CustomerWalletSerializer(serializers.ModelSerializer):
+    transactions = CustomerWalletTransactionSerializer(source='wallet_transactions', many=True, read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['wallet_balance', 'transactions']

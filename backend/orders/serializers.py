@@ -89,6 +89,7 @@ class OrderSerializer(serializers.ModelSerializer):
     items = serializers.SerializerMethodField()
     customer_detail = serializers.SerializerMethodField()
     delivery_address = serializers.SerializerMethodField()
+    payable_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Order
@@ -101,6 +102,8 @@ class OrderSerializer(serializers.ModelSerializer):
             'subtotal_amount',
             'discount_amount',
             'total_amount',
+            'wallet_amount_applied',
+            'payable_amount',
             'status',
             'payment_method',
             'payment_status',
@@ -118,6 +121,8 @@ class OrderSerializer(serializers.ModelSerializer):
             'subtotal_amount',
             'discount_amount',
             'total_amount',
+            'wallet_amount_applied',
+            'payable_amount',
             'status',
             'payment_method',
             'payment_status',
@@ -188,6 +193,10 @@ class OrderCreateSerializer(serializers.Serializer):
         default=Order.PaymentMethod.ONLINE,
     )
     coupon_code = serializers.CharField(required=False, allow_blank=True)
+    use_wallet = serializers.BooleanField(required=False, default=False)
+    wallet_amount = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False, allow_null=True
+    )
 
     def validate_items(self, value):
         if not value:

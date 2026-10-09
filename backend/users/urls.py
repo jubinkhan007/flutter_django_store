@@ -5,7 +5,8 @@ from .views import (
     CustomTokenObtainPairView,
     UserPreferenceView,
     AddressListCreateView,
-    AddressDetailView
+    AddressDetailView,
+    CustomerWalletView,
 )
 
 urlpatterns = [
@@ -19,4 +20,5 @@ urlpatterns = [
     path('auth/addresses/<int:pk>/', AddressDetailView.as_view(), name='address_detail'),
     path('addresses/', AddressListCreateView.as_view(), name='address_list_create_legacy'),
     path('addresses/<int:pk>/', AddressDetailView.as_view(), name='address_detail_legacy'),
+    path('auth/wallet/', CustomerWalletView.as_view(), name='customer_wallet'),
 ]

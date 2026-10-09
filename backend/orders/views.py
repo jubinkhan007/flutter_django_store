@@ -120,11 +120,26 @@ class CheckoutQuoteView(generics.GenericAPIView):
             except Coupon.DoesNotExist:
                 pass
 
+        use_wallet = serializer.validated_data.get('use_wallet', False)
+        requested_wallet_amount = serializer.validated_data.get('wallet_amount')
+
         shipping = Decimal('0.00')
         tax = Decimal('0.00')
         total = (subtotal - discount_amount + shipping + tax).quantize(Decimal('0.01'))
         if total < 0:
             total = Decimal('0.00')
+
+        user_wallet_balance = (getattr(request.user, 'wallet_balance', None) or Decimal('0.00')).quantize(Decimal('0.01'))
+        wallet_amount_applied = Decimal('0.00')
+        if use_wallet and user_wallet_balance > 0 and total > 0:
+            if requested_wallet_amount is not None:
+                wallet_amount_applied = min(requested_wallet_amount, user_wallet_balance, total)
+            else:
+                wallet_amount_applied = min(user_wallet_balance, total)
+            wallet_amount_applied = wallet_amount_applied.quantize(Decimal('0.01'))
+
+        payable_amount = max(Decimal('0.00'), total - wallet_amount_applied).quantize(Decimal('0.01'))
+        is_fully_covered_by_wallet = bool(use_wallet and payable_amount == 0 and total > 0)
 
         return Response({
             'subtotal': str(subtotal.quantize(Decimal('0.01'))),
@@ -132,6 +147,10 @@ class CheckoutQuoteView(generics.GenericAPIView):
             'shipping': str(shipping.quantize(Decimal('0.01'))),
             'tax': str(tax.quantize(Decimal('0.01'))),
             'total': str(total),
+            'user_wallet_balance': str(user_wallet_balance),
+            'wallet_amount_applied': str(wallet_amount_applied),
+            'payable_amount': str(payable_amount),
+            'is_fully_covered_by_wallet': is_fully_covered_by_wallet,
             'coupon_label': coupon_label,
             'items': items_detail,
             'stock_warnings': stock_warnings,
@@ -161,6 +180,8 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
         address_id = serializer.validated_data['address_id']
         payment_method = serializer.validated_data.get('payment_method', Order.PaymentMethod.ONLINE)
         coupon_code = (serializer.validated_data.get('coupon_code') or '').strip().upper()
+        use_wallet = serializer.validated_data.get('use_wallet', False)
+        requested_wallet_amount = serializer.validated_data.get('wallet_amount')
 
         # ── Step 1: Validate address ──
         from users.models import Address
@@ -240,9 +261,6 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
         if coupon_code:
             try:
                 coupon = Coupon.objects.get(code=coupon_code, is_active=True)
-                # Note: You'll need to adapt `compute_coupon_discount` if it relies on old OrderItem dict
-                # It currently expects a dict with 'product', 'vendor', 'price', etc.
-                # For compatibility we inject 'price' = 'unit_price' temporarily.
                 for oi in order_items_payload:
                     oi['price'] = oi['unit_price']
                 
@@ -259,16 +277,52 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
 
         # ── Step 3: Create order + suborders + items in a single transaction ──
         with transaction.atomic():
+            user = request.user.__class__.objects.select_for_update().get(id=request.user.id)
+            wallet_bal = user.wallet_balance or Decimal('0.00')
+            wallet_to_apply = Decimal('0.00')
+
+            if use_wallet and wallet_bal > 0 and total > 0:
+                if requested_wallet_amount is not None:
+                    wallet_to_apply = min(requested_wallet_amount, wallet_bal, total)
+                else:
+                    wallet_to_apply = min(wallet_bal, total)
+                wallet_to_apply = wallet_to_apply.quantize(Decimal('0.01'))
+
+            # Determine final payment status and method
+            if wallet_to_apply >= total and total > 0:
+                final_payment_method = Order.PaymentMethod.WALLET
+                final_payment_status = Order.PaymentStatus.PAID
+                final_order_status = Order.Status.PAID
+            else:
+                final_payment_method = payment_method
+                final_payment_status = Order.PaymentStatus.UNPAID
+                final_order_status = Order.Status.PENDING
+
             order = Order.objects.create(
-                customer=request.user,
+                customer=user,
                 delivery_address=address,
                 coupon=coupon,
                 subtotal_amount=subtotal,
                 discount_amount=discount_amount,
                 total_amount=total,
-                payment_method=payment_method,
+                wallet_amount_applied=wallet_to_apply,
+                status=final_order_status,
+                payment_method=final_payment_method,
+                payment_status=final_payment_status,
                 idempotency_key=idempotency_key if idempotency_key else None,
             )
+
+            # Deduct wallet and write ledger transaction
+            if wallet_to_apply > 0:
+                user.wallet_balance = (wallet_bal - wallet_to_apply).quantize(Decimal('0.01'))
+                user.save(update_fields=['wallet_balance'])
+                from users.models import CustomerWalletTransaction
+                CustomerWalletTransaction.objects.create(
+                    user=user,
+                    amount=wallet_to_apply,
+                    transaction_type=CustomerWalletTransaction.TransactionType.DEBIT,
+                    description=f"Payment for Order #{order.id}",
+                )
 
             # Create SubOrders
             sub_orders = {}
@@ -306,7 +360,7 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
                     image_url=item_data['image_url']
                 )
 
-        # Notifications (Customer: Order placed; Vendor: notify immediately for COD orders)
+        # Notifications (Customer: Order placed; Vendor: notify immediately for COD/PAID/WALLET orders)
         try:
             from notifications.models import Notification
             from notifications.services import NotificationService
@@ -323,7 +377,7 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
                 push_enabled=True,
             )
 
-            if order.payment_method == Order.PaymentMethod.COD:
+            if order.payment_method in [Order.PaymentMethod.COD, Order.PaymentMethod.WALLET] or order.payment_status == Order.PaymentStatus.PAID:
                 for so in order.sub_orders.select_related('vendor__user').all():
                     NotificationService.create(
                         user=so.vendor.user,
@@ -377,8 +431,8 @@ class CustomerOrderCancelView(generics.GenericAPIView):
         except Order.DoesNotExist:
             return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if order.status != Order.Status.PENDING:
-            return Response({"error": "Only PENDING orders can be cancelled."}, status=status.HTTP_400_BAD_REQUEST)
+        if order.status not in [Order.Status.PENDING, Order.Status.PAID]:
+            return Response({"error": "Only PENDING or PAID orders can be cancelled."}, status=status.HTTP_400_BAD_REQUEST)
 
         process_refund_if_paid(order)
 
@@ -475,9 +529,32 @@ class VendorOrderCancelView(generics.GenericAPIView):
 
 
 def process_refund_if_paid(order):
+    refunded_wallet = False
+    if order.wallet_amount_applied > 0:
+        customer = order.customer
+        customer.wallet_balance = (customer.wallet_balance or Decimal('0.00')) + order.wallet_amount_applied
+        customer.save(update_fields=['wallet_balance'])
+        try:
+            from users.models import CustomerWalletTransaction
+            CustomerWalletTransaction.objects.create(
+                user=customer,
+                amount=order.wallet_amount_applied,
+                transaction_type=CustomerWalletTransaction.TransactionType.CREDIT,
+                description=f"Refund for cancelled Order #{order.id}",
+            )
+        except Exception:
+            pass
+        order.wallet_amount_applied = Decimal('0.00')
+        refunded_wallet = True
+
     if order.payment_status == Order.PaymentStatus.PAID and order.val_id:
         order.payment_status = Order.PaymentStatus.REFUNDED
         order.save()
+    elif order.payment_status == Order.PaymentStatus.PAID and order.payment_method == Order.PaymentMethod.WALLET:
+        order.payment_status = Order.PaymentStatus.REFUNDED
+        order.save()
+    elif refunded_wallet:
+        order.save(update_fields=['wallet_amount_applied'])
 
 
 def _recompute_master_order(order):
@@ -671,14 +748,18 @@ class SSLCommerzPaymentInitiateView(generics.GenericAPIView):
         except Order.DoesNotExist:
             return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if order.payment_method == Order.PaymentMethod.COD:
+        if order.payment_method in [Order.PaymentMethod.COD, Order.PaymentMethod.WALLET]:
             return Response(
-                {"error": "Cash on delivery orders cannot be paid online."},
+                {"error": f"{order.get_payment_method_display()} orders cannot be paid online."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         if order.payment_status == Order.PaymentStatus.PAID:
             return Response({"error": "Order is already paid."}, status=status.HTTP_400_BAD_REQUEST)
+
+        net_payable = order.payable_amount
+        if net_payable <= 0:
+            return Response({"error": "No remaining balance to pay online."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Initialize SSLCommerz
         settings_env = {
@@ -695,7 +776,7 @@ class SSLCommerzPaymentInitiateView(generics.GenericAPIView):
 
         # Build req dictionary
         post_body = {}
-        post_body['total_amount'] = str(order.total_amount)
+        post_body['total_amount'] = str(net_payable)
         post_body['currency'] = "BDT"
         post_body['tran_id'] = order.transaction_id
         post_body['success_url'] = request.build_absolute_uri('/api/orders/payment/success/')
@@ -829,6 +910,17 @@ class SSLCommerzFailView(generics.GenericAPIView):
 
     def post(self, request, *args, **kwargs):
         tran_id = request.data.get('tran_id')
+        if tran_id:
+            try:
+                order = Order.objects.get(transaction_id=tran_id)
+                if order.payment_status != Order.PaymentStatus.PAID:
+                    order.status = Order.Status.CANCELED
+                    order.save()
+                    order.sub_orders.update(status=Order.Status.CANCELED, canceled_at=timezone.now())
+                    process_refund_if_paid(order)
+            except Order.DoesNotExist:
+                pass
+
         suffix = f"?tran_id={tran_id}" if tran_id else ""
         return HttpResponse(_deep_link_redirect(
             scheme_url=f"shopease://payment/fail{suffix}",
@@ -845,6 +937,17 @@ class SSLCommerzCancelView(generics.GenericAPIView):
 
     def post(self, request, *args, **kwargs):
         tran_id = request.data.get('tran_id')
+        if tran_id:
+            try:
+                order = Order.objects.get(transaction_id=tran_id)
+                if order.payment_status != Order.PaymentStatus.PAID:
+                    order.status = Order.Status.CANCELED
+                    order.save()
+                    order.sub_orders.update(status=Order.Status.CANCELED, canceled_at=timezone.now())
+                    process_refund_if_paid(order)
+            except Order.DoesNotExist:
+                pass
+
         suffix = f"?tran_id={tran_id}" if tran_id else ""
         return HttpResponse(_deep_link_redirect(
             scheme_url=f"shopease://payment/cancel{suffix}",

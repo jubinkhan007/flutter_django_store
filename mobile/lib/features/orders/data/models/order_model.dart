@@ -124,7 +124,9 @@ class OrderModel {
   final double totalAmount;
   final String status;
   final String paymentStatus;
-  final String paymentMethod; // ONLINE, COD
+  final String paymentMethod; // ONLINE, COD, WALLET
+  final double walletAmountApplied;
+  final double payableAmount;
   final String? transactionId;
   final String? valId;
   // Present for vendor sub-orders (SubOrderSerializer)
@@ -146,6 +148,8 @@ class OrderModel {
     required this.status,
     required this.paymentStatus,
     required this.paymentMethod,
+    this.walletAmountApplied = 0.0,
+    this.payableAmount = 0.0,
     this.transactionId,
     this.valId,
     this.provisionStatus,
@@ -156,6 +160,8 @@ class OrderModel {
     required this.createdAt,
     this.deliveryAddress,
   });
+
+  bool get isWalletPayment => paymentMethod == 'WALLET';
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     final parsedItems =
@@ -180,6 +186,13 @@ class OrderModel {
       (sum, item) => sum + (item.price * item.quantity),
     );
 
+    final total = totalFromJson ?? computedTotal;
+    final walletApplied =
+        double.tryParse(json['wallet_amount_applied']?.toString() ?? '') ?? 0.0;
+    final payable =
+        double.tryParse(json['payable_amount']?.toString() ?? '') ??
+        (total - walletApplied > 0 ? total - walletApplied : 0.0);
+
     return OrderModel(
       id: json['id'],
       parentOrderId:
@@ -190,7 +203,7 @@ class OrderModel {
           double.tryParse(json['subtotal_amount']?.toString() ?? '') ?? 0.0,
       discountAmount:
           double.tryParse(json['discount_amount']?.toString() ?? '') ?? 0.0,
-      totalAmount: totalFromJson ?? computedTotal,
+      totalAmount: total,
       status: json['status'] ?? 'PENDING',
       paymentStatus:
           json['payment_status'] ??
@@ -202,6 +215,8 @@ class OrderModel {
           json['order_payment_method'] ??
           json['paymentMethod'] ??
           'ONLINE',
+      walletAmountApplied: walletApplied,
+      payableAmount: payable,
       transactionId: json['transaction_id'],
       valId: json['val_id'],
       provisionStatus: json['provision_status']?.toString(),

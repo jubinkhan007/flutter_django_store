@@ -110,19 +110,25 @@ class OrderSummaryCard extends StatelessWidget {
           if (quote.shipping > 0)
             _PricingRow(label: 'Shipping', value: quote.shipping),
           if (quote.tax > 0) _PricingRow(label: 'Tax', value: quote.tax),
+          if (quote.walletAmountApplied > 0)
+            _PricingRow(
+              label: 'Wallet Applied',
+              value: -quote.walletAmountApplied,
+              valueColor: AppColors.success,
+            ),
 
           const Divider(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Total',
+                quote.walletAmountApplied > 0 ? 'Payable Total' : 'Total',
                 style: AppTextStyles.titleMedium.copyWith(
                   color: AppColors.lightTextPrimary,
                 ),
               ),
               Text(
-                '\$${quote.total.toStringAsFixed(2)}',
+                '\$${(quote.walletAmountApplied > 0 ? quote.payableAmount : quote.total).toStringAsFixed(2)}',
                 style: AppTextStyles.titleMedium.copyWith(
                   color: primaryColor,
                   fontWeight: FontWeight.w700,
@@ -130,6 +136,27 @@ class OrderSummaryCard extends StatelessWidget {
               ),
             ],
           ),
+          if (quote.walletAmountApplied > 0) ...[
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Order Total',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.lightTextSecondary,
+                  ),
+                ),
+                Text(
+                  '\$${quote.total.toStringAsFixed(2)}',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.lightTextSecondary,
+                    decoration: TextDecoration.lineThrough,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

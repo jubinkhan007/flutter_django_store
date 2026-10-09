@@ -15,6 +15,7 @@ class Order(models.Model):
     class PaymentMethod(models.TextChoices):
         ONLINE = 'ONLINE', 'Online'
         COD = 'COD', 'Cash on Delivery'
+        WALLET = 'WALLET', 'Wallet'
 
     class PaymentStatus(models.TextChoices):
         UNPAID = 'UNPAID', 'Unpaid'
@@ -27,6 +28,10 @@ class Order(models.Model):
     subtotal_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    wallet_amount_applied = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0.00,
+        help_text="Amount deducted from customer wallet balance"
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.ONLINE)
     payment_status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.UNPAID)
@@ -42,6 +47,11 @@ class Order(models.Model):
     delivered_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def payable_amount(self):
+        from decimal import Decimal
+        return max(Decimal('0.00'), self.total_amount - (self.wallet_amount_applied or Decimal('0.00')))
 
     def __str__(self):
         return f"Order #{self.id} by {self.customer}"

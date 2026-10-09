@@ -4,12 +4,14 @@ class User {
   final String email;
   final String username;
   final String type; // CUSTOMER, VENDOR, ADMIN
+  final double walletBalance;
 
   const User({
     required this.id,
     required this.email,
     required this.username,
     required this.type,
+    this.walletBalance = 0.0,
   });
 
   bool get isVendor => type == 'VENDOR';

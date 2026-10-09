@@ -8,6 +8,7 @@ class UserModel extends User {
     required super.email,
     required super.username,
     required super.type,
+    super.walletBalance,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -16,10 +17,18 @@ class UserModel extends User {
       email: json['email'] ?? '',
       username: json['username'] ?? '',
       type: json['type'] ?? 'CUSTOMER',
+      walletBalance:
+          double.tryParse(json['wallet_balance']?.toString() ?? '') ?? 0.0,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'id': id, 'email': email, 'username': username, 'type': type};
+    return {
+      'id': id,
+      'email': email,
+      'username': username,
+      'type': type,
+      'wallet_balance': walletBalance,
+    };
   }
 }

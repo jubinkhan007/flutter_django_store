@@ -31,6 +31,7 @@ class OrderRepository {
     required int addressId,
     String? couponCode,
     String paymentMethod = 'ONLINE',
+    bool useWallet = false,
   }) async {
     final response = await _apiClient.post(
       ApiConfig.checkoutQuoteUrl,
@@ -38,6 +39,7 @@ class OrderRepository {
         'items': items,
         'address_id': addressId,
         'payment_method': paymentMethod,
+        'use_wallet': useWallet,
         if (couponCode != null && couponCode.trim().isNotEmpty)
           'coupon_code': couponCode.trim(),
       },
@@ -55,6 +57,7 @@ class OrderRepository {
     List<Map<String, dynamic>> items,
     int addressId, {
     String paymentMethod = 'ONLINE',
+    bool useWallet = false,
     String? couponCode,
     String? idempotencyKey,
   }) async {
@@ -64,6 +67,7 @@ class OrderRepository {
         'items': items,
         'address_id': addressId,
         'payment_method': paymentMethod,
+        'use_wallet': useWallet,
         if (couponCode != null && couponCode.trim().isNotEmpty)
           'coupon_code': couponCode.trim(),
       },

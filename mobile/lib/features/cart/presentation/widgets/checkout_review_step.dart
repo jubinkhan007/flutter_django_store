@@ -42,7 +42,7 @@ class CheckoutReviewStep extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 48, color: AppColors.error),
+            const Icon(Icons.error_outline, size: 48, color: AppColors.error),
             const SizedBox(height: AppSpacing.md),
             Text(
               checkout.error!,
@@ -126,19 +126,45 @@ class CheckoutReviewStep extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  checkout.paymentMethod == 'COD'
-                      ? Icons.local_shipping_outlined
-                      : Icons.credit_card_rounded,
+                  (quote.isFullyCoveredByWallet || checkout.paymentMethod == 'WALLET')
+                      ? Icons.account_balance_wallet_rounded
+                      : checkout.useWallet
+                          ? Icons.pie_chart_outline_rounded
+                          : checkout.paymentMethod == 'COD'
+                              ? Icons.local_shipping_outlined
+                              : Icons.credit_card_rounded,
                   color: primaryColor,
                   size: 20,
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                Text(
-                  checkout.paymentMethod == 'COD'
-                      ? 'Cash on Delivery'
-                      : 'Pay Online (SSLCommerz)',
-                  style: AppTextStyles.labelLarge.copyWith(
-                    color: AppColors.lightTextPrimary,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        (quote.isFullyCoveredByWallet || checkout.paymentMethod == 'WALLET')
+                            ? 'Wallet Payment'
+                            : checkout.useWallet && quote.walletAmountApplied > 0
+                                ? 'Split Payment'
+                                : checkout.paymentMethod == 'COD'
+                                    ? 'Cash on Delivery'
+                                    : 'Pay Online (SSLCommerz)',
+                        style: AppTextStyles.labelLarge.copyWith(
+                          color: AppColors.lightTextPrimary,
+                        ),
+                      ),
+                      if (checkout.useWallet && quote.walletAmountApplied > 0) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          quote.isFullyCoveredByWallet
+                              ? 'Fully paid with wallet balance'
+                              : 'Wallet: -\$${quote.walletAmountApplied.toStringAsFixed(2)} • Remaining: \$${quote.payableAmount.toStringAsFixed(2)} (${checkout.paymentMethod == 'COD' ? 'COD' : 'Online'})',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.lightTextSecondary,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],

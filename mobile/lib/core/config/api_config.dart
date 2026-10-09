@@ -36,6 +36,7 @@ class ApiConfig {
   static String get registerUrl => '$baseUrl/register/';
   static String get tokenRefreshUrl => '$baseUrl/auth/refresh/';
   static String get addressesUrl => '$baseUrl/auth/addresses/';
+  static String get customerWalletUrl => '$baseUrl/auth/wallet/';
 
   // Home / Promotions
   static String get homeFeedUrl => '$baseUrl/promotions/home-feed/';

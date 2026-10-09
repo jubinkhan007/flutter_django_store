@@ -1,8 +1,8 @@
+import '../../../../core/config/api_config.dart';
+
 /// Server-validated checkout pricing breakdown.
 /// Used as a single source of truth for pricing across
 /// checkout review step, order summary card, and confirmation screen.
-import '../../../../core/config/api_config.dart';
-
 class CheckoutQuote {
   final double subtotal;
   final double discount;
@@ -12,6 +12,10 @@ class CheckoutQuote {
   final String? couponLabel;
   final List<QuoteItem> items;
   final List<StockWarning> stockWarnings;
+  final double userWalletBalance;
+  final double walletAmountApplied;
+  final double payableAmount;
+  final bool isFullyCoveredByWallet;
 
   const CheckoutQuote({
     required this.subtotal,
@@ -22,17 +26,35 @@ class CheckoutQuote {
     this.couponLabel,
     required this.items,
     required this.stockWarnings,
+    this.userWalletBalance = 0.0,
+    this.walletAmountApplied = 0.0,
+    this.payableAmount = 0.0,
+    this.isFullyCoveredByWallet = false,
   });
 
   bool get hasStockWarnings => stockWarnings.isNotEmpty;
 
   factory CheckoutQuote.fromJson(Map<String, dynamic> json) {
+    final subtotal =
+        double.tryParse(json['subtotal']?.toString() ?? '') ?? 0.0;
+    final discount =
+        double.tryParse(json['discount']?.toString() ?? '') ?? 0.0;
+    final shipping =
+        double.tryParse(json['shipping']?.toString() ?? '') ?? 0.0;
+    final tax = double.tryParse(json['tax']?.toString() ?? '') ?? 0.0;
+    final total = double.tryParse(json['total']?.toString() ?? '') ?? 0.0;
+    final walletApplied =
+        double.tryParse(json['wallet_amount_applied']?.toString() ?? '') ?? 0.0;
+    final payable =
+        double.tryParse(json['payable_amount']?.toString() ?? '') ??
+        (total - walletApplied > 0 ? total - walletApplied : 0.0);
+
     return CheckoutQuote(
-      subtotal: double.tryParse(json['subtotal']?.toString() ?? '') ?? 0.0,
-      discount: double.tryParse(json['discount']?.toString() ?? '') ?? 0.0,
-      shipping: double.tryParse(json['shipping']?.toString() ?? '') ?? 0.0,
-      tax: double.tryParse(json['tax']?.toString() ?? '') ?? 0.0,
-      total: double.tryParse(json['total']?.toString() ?? '') ?? 0.0,
+      subtotal: subtotal,
+      discount: discount,
+      shipping: shipping,
+      tax: tax,
+      total: total,
       couponLabel: json['coupon_label'],
       items:
           (json['items'] as List?)
@@ -44,6 +66,11 @@ class CheckoutQuote {
               ?.map((e) => StockWarning.fromJson(e))
               .toList() ??
           [],
+      userWalletBalance:
+          double.tryParse(json['user_wallet_balance']?.toString() ?? '') ?? 0.0,
+      walletAmountApplied: walletApplied,
+      payableAmount: payable,
+      isFullyCoveredByWallet: json['is_fully_covered_by_wallet'] == true,
     );
   }
 }
