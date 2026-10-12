@@ -44,6 +44,8 @@ class ProductSerializer(serializers.ModelSerializer):
     options = ProductOptionSerializer(many=True, read_only=True)
     variants = ProductVariantSerializer(many=True, read_only=True)
     active_sale_price = serializers.SerializerMethodField()
+    is_sponsored = serializers.SerializerMethodField()
+    campaign_id = serializers.SerializerMethodField()
 
     def get_active_sale_price(self, obj):
         """Return the current active flash sale price for this product, or null."""
@@ -59,6 +61,12 @@ class ProductSerializer(serializers.ModelSerializer):
         if fsp:
             return str(fsp.effective_sale_price)
         return None
+
+    def get_is_sponsored(self, obj):
+        return bool(getattr(obj, 'is_sponsored', False))
+
+    def get_campaign_id(self, obj):
+        return getattr(obj, 'campaign_id', None)
 
     class Meta:
         model = Product
@@ -79,6 +87,8 @@ class ProductSerializer(serializers.ModelSerializer):
             'variants',
             'avg_rating',
             'review_count',
+            'is_sponsored',
+            'campaign_id',
             'created_at',
             'updated_at'
         ]

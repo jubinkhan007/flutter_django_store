@@ -19,8 +19,8 @@ class Product {
   final List<ProductOption> options;
   final List<ProductVariant> variants;
   final double avgRating;
-  final int reviewCount;
   final bool isSponsored;
+  final int? campaignId;
 
   const Product({
     required this.id,
@@ -40,6 +40,7 @@ class Product {
     this.avgRating = 0.0,
     this.reviewCount = 0,
     this.isSponsored = false,
+    this.campaignId,
   });
 
   /// The price the customer actually pays — sale price when active, base price otherwise.

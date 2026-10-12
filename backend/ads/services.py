@@ -25,7 +25,8 @@ class AdAuctionService:
             status=AdCampaign.Status.ACTIVE,
             starts_at__lte=now,
             budget_spent__lt=F('budget_total'),
-            product__is_active=True,
+            product__is_available=True,
+            product__vendor__is_approved=True,
             product__stock_quantity__gt=0  # Availability Gate: Never show sponsored OOS
         ).exclude(ends_at__lt=now)
 
@@ -74,6 +75,44 @@ class AdAuctionService:
         # Enforce density limits (handled by caller or simple top N here)
         return [c.product_id for score, c in scored_campaigns[:limit]]
 
+    @staticmethod
+    def get_boosted_campaign_map(limit: int = 5, category_id: Optional[int] = None, search_query: Optional[str] = None) -> dict:
+        """
+        Retrieves active sponsored products mapping: {product_id: campaign_id}.
+        """
+        now = timezone.now()
+        queryset = AdCampaign.objects.filter(
+            status=AdCampaign.Status.ACTIVE,
+            starts_at__lte=now,
+            budget_spent__lt=F('budget_total'),
+            product__is_available=True,
+            product__vendor__is_approved=True,
+            product__stock_quantity__gt=0
+        ).exclude(ends_at__lt=now)
+
+        if category_id:
+            queryset = queryset.filter(target_categories__id=category_id)
+
+        campaigns = list(queryset.select_related('product', 'vendor'))
+        scored_campaigns = []
+        for campaign in campaigns:
+            vendor = campaign.vendor
+            sla_penalty = (vendor.cancellation_rate + vendor.late_shipment_rate) / 100
+            sla_factor = max(0.1, 1.0 - float(sla_penalty))
+            rating_factor = float(vendor.avg_rating) / 5.0 if vendor.avg_rating > 0 else 0.5
+            keyword_match = 1.0
+            if search_query and campaign.keywords:
+                search_query_lower = search_query.lower()
+                if any(kw.lower() in search_query_lower for kw in campaign.keywords):
+                    keyword_match = 1.5
+
+            quality_score = float(sla_factor) * rating_factor * keyword_match
+            final_score = float(campaign.cost_per_click) * quality_score
+            scored_campaigns.append((final_score, campaign))
+
+        scored_campaigns.sort(key=lambda x: x[0], reverse=True)
+        return {c.product_id: c.id for score, c in scored_campaigns[:limit]}
+
 class AdBillingService:
     @staticmethod
     def record_click(campaign_id: int, user_id: Optional[int], session_id: str, click_id: str) -> bool:
@@ -95,9 +134,9 @@ class AdBillingService:
                     logger.warning(f"Self-click detected for campaign {campaign_id} by user {user_id}")
                     return False
                     
-                # Rate Limiting: No clicks from same session in last 5 seconds
+                # Rate Limiting: No clicks on same campaign from same session in last 5 seconds
                 five_secs_ago = timezone.now() - timedelta(seconds=5)
-                if AdClick.objects.filter(session_id=session_id, created_at__gte=five_secs_ago).exists():
+                if AdClick.objects.filter(campaign=campaign, session_id=session_id, created_at__gte=five_secs_ago).exists():
                     logger.warning(f"Rate limited click for campaign {campaign_id} session {session_id}")
                     return False
                     

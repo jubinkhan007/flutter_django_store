@@ -169,6 +169,49 @@ class PublicProductListView(generics.ListAPIView):
             
         return queryset
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        # Sponsored Ads Injection
+        category_param = request.query_params.get('category')
+        cat_id = None
+        if category_param:
+            first_cat = category_param.split(',')[0].strip()
+            if first_cat.isdigit():
+                cat_id = int(first_cat)
+        search_query = (request.query_params.get('search') or '').strip()
+
+        try:
+            from ads.services import AdAuctionService
+            boosted_map = AdAuctionService.get_boosted_campaign_map(
+                limit=2,
+                category_id=cat_id,
+                search_query=search_query if search_query else None
+            )
+        except Exception:
+            boosted_map = {}
+
+        sponsored_products = []
+        boosted_pids = list(boosted_map.keys())
+        if boosted_pids:
+            sponsored_qs = Product.objects.filter(id__in=boosted_pids, is_available=True)
+            for prod in sponsored_qs:
+                prod.is_sponsored = True
+                prod.campaign_id = boosted_map.get(prod.id)
+                sponsored_products.append(prod)
+            # Prevent duplicate cards in organic feed
+            queryset = queryset.exclude(id__in=boosted_pids)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            combined = sponsored_products + list(page)
+            serializer = self.get_serializer(combined, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        combined = sponsored_products + list(queryset)
+        serializer = self.get_serializer(combined, many=True)
+        return Response(serializer.data)
+
 
 class PublicProductDetailView(generics.RetrieveAPIView):
     """

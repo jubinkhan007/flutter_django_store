@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_gradients.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../products/domain/entities/product.dart';
 import 'package:mobile/features/wishlist/presentation/providers/wishlist_provider.dart';
+import '../../../../core/services/ad_tracking_service.dart';
 
 /// Reusable product card used in the home screen grid.
 class ProductCard extends StatelessWidget {
@@ -25,11 +24,22 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (product.isSponsored && product.campaignId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        AdTrackingService().recordImpression(product.campaignId!);
+      });
+    }
+
     final effectivePrice = salePrice ?? product.effectivePrice;
     final hasDiscount = effectivePrice < product.price;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        if (product.isSponsored && product.campaignId != null) {
+          AdTrackingService().recordClick(product.campaignId!);
+        }
+        onTap?.call();
+      },
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.lightSurface,
@@ -43,9 +53,9 @@ class ProductCard extends StatelessWidget {
             Expanded(
               flex: 3,
               child: Container(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.lightBg,
-                  borderRadius: const BorderRadius.vertical(
+                  borderRadius: BorderRadius.vertical(
                     top: Radius.circular(AppRadius.md),
                   ),
                 ),

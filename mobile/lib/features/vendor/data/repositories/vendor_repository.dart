@@ -8,6 +8,7 @@ import '../../data/models/vendor_customer_model.dart';
 import '../../data/models/vendor_coupon_model.dart';
 import '../models/vendor_wallet_model.dart';
 import '../models/vendor_profile_model.dart';
+import '../models/ad_campaign_model.dart';
 
 class VendorRepository {
   final ApiClient _apiClient;
@@ -334,5 +335,82 @@ class VendorRepository {
       final error = jsonDecode(response.body);
       throw Exception(error['error'] ?? error.toString());
     }
+  }
+
+  // ── Ads & PPC Campaigns ──
+  Future<AdStatsModel> getAdStats() async {
+    final response = await _apiClient.get(ApiConfig.vendorAdsStatsUrl);
+    if (response.statusCode == 200) {
+      return AdStatsModel.fromJson(jsonDecode(response.body));
+    }
+    throw Exception('Failed to load ad stats');
+  }
+
+  Future<List<AdCampaignModel>> getAdCampaigns() async {
+    final response = await _apiClient.get(ApiConfig.vendorAdsCampaignsUrl);
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data.map((json) => AdCampaignModel.fromJson(json)).toList();
+    }
+    throw Exception('Failed to load ad campaigns');
+  }
+
+  Future<AdCampaignModel> createAdCampaign({
+    required int productId,
+    required double budgetTotal,
+    double? dailyBudget,
+    required double costPerClick,
+    List<String> keywords = const [],
+    List<int> targetCategoryIds = const [],
+  }) async {
+    final body = <String, dynamic>{
+      'product_id': productId,
+      'budget_total': budgetTotal.toStringAsFixed(2),
+      'cost_per_click': costPerClick.toStringAsFixed(2),
+      'keywords': keywords,
+      'target_category_ids': targetCategoryIds,
+    };
+    if (dailyBudget != null) {
+      body['daily_budget'] = dailyBudget.toStringAsFixed(2);
+    }
+
+    final response = await _apiClient.post(
+      ApiConfig.vendorAdsCampaignsUrl,
+      body: body,
+    );
+    if (response.statusCode == 201) {
+      return AdCampaignModel.fromJson(jsonDecode(response.body));
+    }
+    final error = jsonDecode(response.body);
+    throw Exception(error['detail'] ?? error['error'] ?? error.toString());
+  }
+
+  Future<AdCampaignModel> updateAdCampaignStatus({
+    required int campaignId,
+    required String status,
+  }) async {
+    final response = await _apiClient.patch(
+      ApiConfig.vendorAdsCampaignDetailUrl(campaignId),
+      body: {'status': status},
+    );
+    if (response.statusCode == 200) {
+      return AdCampaignModel.fromJson(jsonDecode(response.body));
+    }
+    final error = jsonDecode(response.body);
+    throw Exception(error['detail'] ?? error['error'] ?? error.toString());
+  }
+
+  Future<Map<String, dynamic>> topUpAdCredits({
+    required double amount,
+  }) async {
+    final response = await _apiClient.post(
+      ApiConfig.vendorAdsTopupUrl,
+      body: {'amount': amount.toStringAsFixed(2)},
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    final error = jsonDecode(response.body);
+    throw Exception(error['detail'] ?? error['error'] ?? error.toString());
   }
 }

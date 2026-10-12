@@ -41,6 +41,7 @@ import 'features/vendor/presentation/screens/vendor_dashboard_screen.dart';
 import 'features/vendor/presentation/screens/vendor_onboarding_screen.dart';
 import 'features/vendor/presentation/screens/vendor_add_product_screen.dart';
 import 'features/vendor/presentation/screens/vendor_wallet_screen.dart';
+import 'features/vendor/presentation/providers/vendor_ads_provider.dart';
 
 // Addresses
 import 'features/addresses/data/repositories/address_repository.dart';
@@ -257,6 +258,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => VendorProvider(vendorRepository: vendorRepository),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => VendorAdsProvider(vendorRepository: vendorRepository),
         ),
         ChangeNotifierProvider(
           create: (_) => AddressProvider(addressRepository: addressRepository),

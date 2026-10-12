@@ -21,6 +21,7 @@ class ProductModel extends Product {
     super.avgRating,
     super.reviewCount,
     super.isSponsored,
+    super.campaignId,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -62,6 +63,7 @@ class ProductModel extends Product {
       avgRating: double.tryParse(json['avg_rating']?.toString() ?? '0') ?? 0.0,
       reviewCount: json['review_count'] ?? 0,
       isSponsored: json['is_sponsored'] ?? false,
+      campaignId: json['campaign_id'],
     );
   }
 

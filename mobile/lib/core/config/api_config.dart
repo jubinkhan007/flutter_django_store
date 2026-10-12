@@ -93,6 +93,17 @@ class ApiConfig {
   static String vendorSubOrderEventsUrl(int subOrderId) =>
       '$baseUrl/vendors/sub-orders/$subOrderId/events/';
 
+  // Vendor Ads
+  static String get vendorAdsCampaignsUrl => '$baseUrl/vendors/ads/campaigns/';
+  static String vendorAdsCampaignDetailUrl(int id) =>
+      '$baseUrl/vendors/ads/campaigns/$id/';
+  static String get vendorAdsStatsUrl => '$baseUrl/vendors/ads/stats/';
+  static String get vendorAdsTopupUrl => '$baseUrl/vendors/ads/topup/';
+
+  // Public Ads Tracking
+  static String get adImpressionsUrl => '$baseUrl/ads/impressions/';
+  static String get adClicksUrl => '$baseUrl/ads/clicks/';
+
   // Notifications
   static String get notificationsUrl => '$baseUrl/notifications/';
   static String get notificationUnreadCountUrl =>
