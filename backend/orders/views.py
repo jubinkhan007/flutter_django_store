@@ -973,3 +973,98 @@ def _deep_link_redirect(scheme_url: str, title: str, color: str, message: str) -
   <p><a href="{scheme_url}" style="color:{color};">Tap here if not redirected automatically</a></p>
 </body>
 </html>"""
+
+
+class OrderInvoicePDFView(generics.GenericAPIView):
+    """
+    GET /api/orders/<pk>/invoice/pdf/
+    Generates and returns an official branded PDF tax invoice.
+    Supports Bearer header OR ?token=<jwt> query parameter for direct download links.
+    Allowed for:
+      - The customer who placed the order
+      - A vendor whose store fulfills any sub-order in the order
+      - Platform staff / admin
+    """
+    permission_classes = []
+
+    def get(self, request, pk, *args, **kwargs):
+        from django.http import HttpResponse
+        from django.contrib.auth import get_user_model
+        from rest_framework_simplejwt.tokens import AccessToken
+        from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+        from .invoice_service import OrderInvoiceService
+
+        # 1. Resolve user from request.user OR query param 'token'
+        user = request.user if (request.user and request.user.is_authenticated) else None
+        
+        if not user:
+            token_str = request.query_params.get('token')
+            if token_str:
+                User = get_user_model()
+                try:
+                    validated_token = AccessToken(token_str)
+                    user_id = validated_token.get('user_id')
+                    user = User.objects.get(id=user_id)
+                except (InvalidToken, TokenError, User.DoesNotExist):
+                    return Response({"error": "Invalid or expired download token."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if not user:
+            return Response({"error": "Authentication required to download invoice."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # 2. Fetch order with deep relationships
+        try:
+            order = Order.objects.select_related('customer', 'delivery_address', 'coupon').prefetch_related(
+                'sub_orders', 'sub_orders__vendor', 'sub_orders__items',
+                'sub_orders__items__product', 'sub_orders__items__variant'
+            ).get(id=pk)
+        except Order.DoesNotExist:
+            return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 3. Check permissions
+        is_customer = (order.customer_id == user.id)
+        is_staff = user.is_staff or getattr(user, 'type', None) == 'ADMIN'
+        is_vendor = order.sub_orders.filter(vendor__user=user).exists()
+
+        if not (is_customer or is_staff or is_vendor):
+            return Response({"error": "You do not have permission to view this invoice."}, status=status.HTTP_403_FORBIDDEN)
+
+        # 4. Generate PDF
+        try:
+            pdf_bytes = OrderInvoiceService.generate_invoice_pdf(order)
+        except Exception as e:
+            return Response({"error": f"Failed to generate invoice PDF: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        filename = f"invoice_order_{order.id}.pdf"
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        response['X-Invoice-Number'] = f"INV-{order.id:06d}"
+        return response
+
+
+class OrderInvoiceVerifyView(generics.GenericAPIView):
+    """
+    GET /api/orders/<pk>/invoice/verify/
+    Public verification endpoint to authenticate scanned invoice QR codes.
+    """
+    permission_classes = []
+
+    def get(self, request, pk, *args, **kwargs):
+        try:
+            order = Order.objects.select_related('customer').get(id=pk)
+        except Order.DoesNotExist:
+            return Response({"valid": False, "error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            "valid": True,
+            "invoice_number": f"INV-{order.id:06d}-{order.created_at.strftime('%Y%m%d')}",
+            "order_id": order.id,
+            "order_date": order.created_at.isoformat(),
+            "customer_name": order.customer.get_full_name() or order.customer.username,
+            "total_amount": str(order.total_amount),
+            "payable_amount": str(order.payable_amount),
+            "payment_status": order.payment_status,
+            "order_status": order.status,
+            "sub_orders_count": order.sub_orders.count(),
+            "verification_timestamp": timezone.now().isoformat(),
+        }, status=status.HTTP_200_OK)
+

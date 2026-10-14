@@ -21,6 +21,9 @@ class ApiClient {
   }) : _tokenStorage = tokenStorage ?? TokenStorage(),
        _httpClient = httpClient ?? http.Client();
 
+  /// Exposes current access token for authenticated direct downloads
+  Future<String?> getAccessToken() => _tokenStorage.getAccessToken();
+
   /// Builds headers with optional JWT authentication.
   Future<Map<String, String>> _headers({bool auth = true}) async {
     final headers = <String, String>{'Content-Type': 'application/json'};
@@ -217,7 +220,7 @@ class ApiClient {
         }
       }
 
-      return await request.send();
+      return request.send();
     }, auth: auth);
   }
 
@@ -258,7 +261,7 @@ class ApiClient {
         }
       }
 
-      return await request.send();
+      return request.send();
     }, auth: auth);
   }
 }

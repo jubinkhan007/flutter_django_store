@@ -160,4 +160,24 @@ class OrderProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<String?> getInvoiceUrl(int orderId) async {
+    try {
+      return await _orderRepository.getInvoicePdfUrl(orderId);
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<List<int>?> downloadInvoiceBytes(int orderId) async {
+    try {
+      return await _orderRepository.downloadInvoicePdf(orderId);
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return null;
+    }
+  }
 }

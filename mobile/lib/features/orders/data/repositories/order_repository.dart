@@ -129,4 +129,21 @@ class OrderRepository {
       throw Exception(error['error'] ?? 'Failed to cancel order');
     }
   }
+
+  Future<List<int>> downloadInvoicePdf(int orderId) async {
+    final response = await _apiClient.get(
+      ApiConfig.orderInvoicePdfUrl(orderId),
+    );
+    if (response.statusCode == 200) {
+      return response.bodyBytes;
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to download invoice PDF');
+    }
+  }
+
+  Future<String> getInvoicePdfUrl(int orderId) async {
+    final token = await _apiClient.getAccessToken();
+    return ApiConfig.orderInvoicePdfUrl(orderId, token: token);
+  }
 }

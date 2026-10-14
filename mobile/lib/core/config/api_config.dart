@@ -64,6 +64,12 @@ class ApiConfig {
   static String get ordersUrl => '$baseUrl/orders/';
   static String get placeOrderUrl => '$baseUrl/orders/place/';
   static String get checkoutQuoteUrl => '$baseUrl/orders/quote/';
+  static String orderInvoicePdfUrl(int orderId, {String? token}) =>
+      token != null
+          ? '$ordersUrl$orderId/invoice/pdf/?token=$token'
+          : '$ordersUrl$orderId/invoice/pdf/';
+  static String orderInvoiceVerifyUrl(int orderId) =>
+      '$ordersUrl$orderId/invoice/verify/';
 
   // Vendor endpoints
   static String get vendorOnboardingUrl => '$baseUrl/vendors/onboarding/';
@@ -111,7 +117,7 @@ class ApiConfig {
   static String get notificationMarkAllReadUrl =>
       '${notificationsUrl}mark-all-read/';
   static String notificationMarkReadUrl(String id) =>
-      '${notificationsUrl}$id/read/';
+      '$notificationsUrl$id/read/';
   static String get notificationPreferencesUrl =>
       '${notificationsUrl}preferences/';
   static String get notificationDeviceRegisterUrl =>
@@ -134,7 +140,7 @@ class ApiConfig {
 
   // Returns
   static String returnEscalateUrl(int returnId) =>
-      '${returnsUrl}$returnId/escalate/';
+      '$returnsUrl$returnId/escalate/';
 
   // Logistics / Couriers
   static String get logisticsStoresUrl => '$baseUrl/logistics/stores/';

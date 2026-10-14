@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../data/models/order_model.dart';
+import '../providers/order_provider.dart';
 import '../widgets/shipment_timeline.dart';
 import '../../../support/presentation/screens/create_ticket_screen.dart';
 
@@ -42,6 +44,53 @@ class OrderDetailScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _downloadInvoice(BuildContext context) async {
+    final orderProvider = context.read<OrderProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Generating tax invoice PDF...'),
+          ],
+        ),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    final url = await orderProvider.getInvoiceUrl(order.id);
+    if (url != null) {
+      final uri = Uri.parse(url);
+      final launched =
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Could not open external PDF viewer.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(orderProvider.error ?? 'Failed to download invoice.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasSubOrders = order.subOrders.isNotEmpty;
@@ -53,6 +102,13 @@ class OrderDetailScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         foregroundColor: AppColors.lightTextPrimary,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            tooltip: 'Download Tax Invoice',
+            onPressed: () => _downloadInvoice(context),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Divider(height: 1, color: Colors.grey.shade200),
@@ -141,6 +197,25 @@ class OrderDetailScreen extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _downloadInvoice(context),
+                      icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                      label: const Text('Download Tax Invoice (PDF)'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Theme.of(context).primaryColor,
+                        side: BorderSide(
+                          color: Theme.of(context).primaryColor.withValues(alpha: 0.4),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),

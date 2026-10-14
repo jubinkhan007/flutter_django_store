@@ -8,6 +8,8 @@ urlpatterns = [
     path('quote/', views.CheckoutQuoteView.as_view(), name='checkout-quote'),
     path('<int:pk>/', views.CustomerOrderDetailView.as_view(), name='customer-order-detail'),
     path('<int:pk>/cancel/', views.CustomerOrderCancelView.as_view(), name='customer-order-cancel'),
+    path('<int:pk>/invoice/pdf/', views.OrderInvoicePDFView.as_view(), name='order-invoice-pdf'),
+    path('<int:pk>/invoice/verify/', views.OrderInvoiceVerifyView.as_view(), name='order-invoice-verify'),
 
     # SSLCommerz Payment endpoints
     path('<int:pk>/pay/', views.SSLCommerzPaymentInitiateView.as_view(), name='payment-initiate'),
