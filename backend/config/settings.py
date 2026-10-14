@@ -438,6 +438,22 @@ def _unfold_badge_cb_in_transit(request):
         return None
 
 
+def _unfold_badge_active_campaigns(request):
+    try:
+        from ads.models import AdCampaign
+        return AdCampaign.objects.filter(status='ACTIVE').count() or None
+    except Exception:
+        return None
+
+
+def _unfold_badge_pending_rmas(request):
+    try:
+        from returns.models import ReturnRequest
+        return ReturnRequest.objects.filter(status='SUBMITTED').count() or None
+    except Exception:
+        return None
+
+
 def _unfold_dashboard_callback(request, context):
     """Inject metrics into the admin index (dashboard) template."""
     from django.utils import timezone
@@ -481,6 +497,33 @@ def _unfold_dashboard_callback(request, context):
     except Exception:
         metrics['cb_in_transit'] = 0
 
+    # Ad Campaigns & Monetization
+    try:
+        from ads.models import AdCampaign
+        metrics['active_campaigns'] = AdCampaign.objects.filter(status='ACTIVE').count()
+        total_ad_spent = AdCampaign.objects.aggregate(total=Sum('budget_spent'))['total'] or 0
+        metrics['ad_revenue_total'] = float(total_ad_spent)
+        metrics['exhausted_campaigns'] = AdCampaign.objects.filter(status='EXHAUSTED').count()
+    except Exception:
+        metrics['active_campaigns'] = 0
+        metrics['ad_revenue_total'] = 0
+        metrics['exhausted_campaigns'] = 0
+
+    # Customer Wallets
+    try:
+        from users.models import User
+        wallet_liability = User.objects.aggregate(total=Sum('wallet_balance'))['total'] or 0
+        metrics['wallet_liability'] = float(wallet_liability)
+    except Exception:
+        metrics['wallet_liability'] = 0
+
+    # Returns / RMA
+    try:
+        from returns.models import ReturnRequest
+        metrics['pending_rmas'] = ReturnRequest.objects.filter(status='SUBMITTED').count()
+    except Exception:
+        metrics['pending_rmas'] = 0
+
     # Chart 1: Sales over the last 7 days (Line Chart)
     chart_sales_7d = {'labels': [], 'datasets': [{'label': 'Daily Sales (BDT)', 'data': [], 'backgroundColor': '#0ea5e9', 'borderColor': '#0ea5e9'}]}
     try:
@@ -512,6 +555,8 @@ def _unfold_dashboard_callback(request, context):
     # Formatted display values
     metrics['sales_today_display'] = f"৳{metrics.get('sales_today', 0):,.0f}"
     metrics['pending_payout_display'] = f"৳{metrics.get('pending_payout_amount', 0):,.0f}"
+    metrics['ad_revenue_display'] = f"৳{metrics.get('ad_revenue_total', 0):,.0f}"
+    metrics['wallet_liability_display'] = f"৳{metrics.get('wallet_liability', 0):,.0f}"
 
     context.update({
         'dashboard_metrics': metrics,
@@ -612,14 +657,45 @@ UNFOLD = {
                         'link': reverse_lazy('admin:products_category_changelist'),
                     },
                     {
+                        'title': _('Reviews'),
+                        'icon': 'rate_review',
+                        'link': reverse_lazy('admin:reviews_review_changelist'),
+                    },
+                    {
                         'title': _('Returns'),
                         'icon': 'assignment_return',
                         'link': reverse_lazy('admin:returns_returnrequest_changelist'),
+                        'badge': 'config.settings._unfold_badge_pending_rmas',
+                        'badge_variant': 'warning',
                     },
                     {
                         'title': _('Refunds'),
                         'icon': 'payments',
                         'link': reverse_lazy('admin:returns_refund_changelist'),
+                    },
+                ],
+            },
+            {
+                'title': _('Monetization & Ads'),
+                'separator': True,
+                'collapsible': True,
+                'items': [
+                    {
+                        'title': _('Ad Campaigns'),
+                        'icon': 'campaign',
+                        'link': reverse_lazy('admin:ads_adcampaign_changelist'),
+                        'badge': 'config.settings._unfold_badge_active_campaigns',
+                        'badge_variant': 'success',
+                    },
+                    {
+                        'title': _('Ad Impressions'),
+                        'icon': 'visibility',
+                        'link': reverse_lazy('admin:ads_adimpression_changelist'),
+                    },
+                    {
+                        'title': _('Ad Clicks'),
+                        'icon': 'ads_click',
+                        'link': reverse_lazy('admin:ads_adclick_changelist'),
                     },
                 ],
             },
@@ -656,6 +732,16 @@ UNFOLD = {
                         'title': _('Customers'),
                         'icon': 'people',
                         'link': reverse_lazy('admin:users_user_changelist'),
+                    },
+                    {
+                        'title': _('Customer Wallets'),
+                        'icon': 'account_balance_wallet',
+                        'link': reverse_lazy('admin:users_customerwallettransaction_changelist'),
+                    },
+                    {
+                        'title': _('Addresses'),
+                        'icon': 'home_pin',
+                        'link': reverse_lazy('admin:users_address_changelist'),
                     },
                     {
                         'title': _('Vendors'),

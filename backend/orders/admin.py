@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import display
 
@@ -62,24 +64,73 @@ class SubOrderAdmin(ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(ModelAdmin):
-    list_display = ('id', 'customer', 'total_amount', 'show_status', 'show_payment', 'created_at')
+    list_display = (
+        'id',
+        'customer',
+        'total_amount_display',
+        'wallet_applied_display',
+        'payable_amount_display',
+        'show_status',
+        'show_payment',
+        'invoice_link',
+        'created_at',
+    )
     list_filter = ('status', 'payment_status', 'payment_method')
-    list_select_related = ('customer',)
-    search_fields = ('id', 'customer__email', 'customer__username')
+    list_select_related = ('customer', 'delivery_address')
+    search_fields = ('id', 'customer__email', 'customer__username', 'transaction_id')
     date_hierarchy = 'created_at'
     inlines = [SubOrderInline]
-    readonly_fields = ('idempotency_key',)
+    readonly_fields = ('idempotency_key', 'invoice_link', 'payable_amount_display')
 
     fieldsets = (
-        ('Order Info', {
-            'fields': ('customer', 'status', 'idempotency_key'),
+        ('Order Information', {
+            'fields': ('customer', 'delivery_address', 'coupon', 'status', 'idempotency_key'),
             'classes': ['tab'],
         }),
-        ('Financials', {
-            'fields': ('subtotal_amount', 'total_amount', 'discount_amount', 'payment_method', 'payment_status'),
+        ('Financials & Payment', {
+            'fields': (
+                'subtotal_amount',
+                'discount_amount',
+                'wallet_amount_applied',
+                'total_amount',
+                'payable_amount_display',
+                'payment_method',
+                'payment_status',
+                'invoice_link',
+            ),
+            'classes': ['tab'],
+        }),
+        ('Payment Gateway References', {
+            'fields': ('transaction_id', 'val_id', 'bank_tran_id'),
+            'classes': ['tab'],
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'delivered_at', 'updated_at'),
             'classes': ['tab'],
         }),
     )
+
+    readonly_fields = (
+        'idempotency_key',
+        'invoice_link',
+        'payable_amount_display',
+        'created_at',
+        'updated_at',
+    )
+
+    @display(description='Total')
+    def total_amount_display(self, obj):
+        return f"৳{obj.total_amount:,.2f}"
+
+    @display(description='Wallet Used')
+    def wallet_applied_display(self, obj):
+        if not obj.wallet_amount_applied or obj.wallet_amount_applied <= 0:
+            return "—"
+        return f"-৳{obj.wallet_amount_applied:,.2f}"
+
+    @display(description='Net Payable')
+    def payable_amount_display(self, obj):
+        return f"৳{obj.payable_amount:,.2f}"
 
     @display(description='Status', label={
         Order.Status.PENDING: 'warning',
@@ -98,3 +149,12 @@ class OrderAdmin(ModelAdmin):
     })
     def show_payment(self, obj):
         return obj.payment_status
+
+    @display(description='Tax Invoice')
+    def invoice_link(self, obj):
+        url = reverse('order-invoice-pdf', kwargs={'pk': obj.pk})
+        return format_html(
+            '<a href="{}" target="_blank" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800">'
+            '<span class="material-symbols-outlined text-[14px]">picture_as_pdf</span> PDF</a>',
+            url,
+        )
