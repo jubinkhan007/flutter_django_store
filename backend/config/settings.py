@@ -119,6 +119,7 @@ INSTALLED_APPS = [
     'ads',
     'cms',
     'crossborder',
+    'chat',
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -797,6 +798,11 @@ UNFOLD = {
                         'title': _('Ticket Messages'),
                         'icon': 'chat',
                         'link': reverse_lazy('admin:support_ticketmessage_changelist'),
+                    },
+                    {
+                        'title': _('Customer-Vendor Chats'),
+                        'icon': 'forum',
+                        'link': reverse_lazy('admin:chat_conversation_changelist'),
                     },
                 ],
             },

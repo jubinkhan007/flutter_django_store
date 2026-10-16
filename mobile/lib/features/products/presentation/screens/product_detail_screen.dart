@@ -24,6 +24,7 @@ import 'package:mobile/core/services/analytics_service.dart';
 import 'package:mobile/features/products/presentation/widgets/discovery_widgets.dart';
 import '../providers/delivery_estimate_provider.dart';
 import '../widgets/delivery_estimate_card.dart';
+import '../../../chat/presentation/screens/chat_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
@@ -962,12 +963,51 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         ),
         child: SafeArea(
-          child: PrimaryButton(
-            text: inStock ? 'Add to Cart' : 'Out of Stock',
-            onPressed:
-                (inStock &&
-                    (widget.product.options.isEmpty || _currentVariant != null))
-                ? () {
+          child: Row(
+            children: [
+              if (widget.product.vendorId != null) ...[
+                Tooltip(
+                  message: 'Chat with Seller',
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChatScreen(
+                            vendorId: widget.product.vendorId!,
+                            productId: widget.product.id,
+                          ),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(
+                          color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.chat_outlined,
+                        color: Theme.of(context).primaryColor,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+              ],
+              Expanded(
+                child: PrimaryButton(
+                  text: inStock ? 'Add to Cart' : 'Out of Stock',
+                  onPressed:
+                      (inStock &&
+                          (widget.product.options.isEmpty || _currentVariant != null))
+                      ? () {
                     context.read<CartProvider>().addToCart(
                       widget.product,
                       variant: _currentVariant,
@@ -993,9 +1033,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     Navigator.pop(context);
                   }
                 : null,
+            ),
           ),
-        ),
+        ],
       ),
-    );
+    ),
+  ),
+);
   }
 }

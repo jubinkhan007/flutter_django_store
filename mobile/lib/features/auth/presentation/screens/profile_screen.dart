@@ -16,6 +16,8 @@ import '../../../returns/presentation/screens/return_list_screen.dart';
 import '../../../support/presentation/screens/support_center_screen.dart';
 import '../../../crossborder/presentation/screens/cb_catalog_screen.dart';
 import '../../../crossborder/presentation/screens/cb_my_orders_screen.dart';
+import '../../../chat/presentation/providers/chat_provider.dart';
+import '../../../chat/presentation/screens/conversations_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -162,6 +164,41 @@ class ProfileScreen extends StatelessWidget {
                           ),
                         );
                       },
+                    ),
+                    const Divider(color: AppColors.lightSurface),
+                    Consumer<ChatProvider>(
+                      builder: (context, chatProvider, _) => _MenuListItem(
+                        icon: Icons.chat_bubble_outline_rounded,
+                        title: 'Messages',
+                        subtitle: chatProvider.unreadTotal > 0
+                            ? '${chatProvider.unreadTotal} unread message${chatProvider.unreadTotal > 1 ? 's' : ''}'
+                            : 'Chat with store sellers',
+                        trailing: chatProvider.unreadTotal > 0
+                            ? Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).primaryColor,
+                                  borderRadius: BorderRadius.circular(AppRadius.full),
+                                ),
+                                child: Text(
+                                  '${chatProvider.unreadTotal}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              )
+                            : null,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ConversationsScreen(),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                     const Divider(color: AppColors.lightSurface),
                     _MenuListItem(

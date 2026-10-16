@@ -199,4 +199,18 @@ class ApiConfig {
   static String cbMarkReceivedUrl(int id) =>
       '$baseUrl/crossborder/requests/$id/mark-received/';
   static String get cbLinkPreviewUrl => '$baseUrl/crossborder/link-preview/';
+
+  // Chat endpoints
+  static String get chatConversationsUrl => '$baseUrl/chat/conversations/';
+  static String get chatStartConversationUrl =>
+      '$baseUrl/chat/conversations/start/';
+  static String chatConversationDetailUrl(int conversationId, {int? afterId}) =>
+      afterId != null
+          ? '$baseUrl/chat/conversations/$conversationId/?after_id=$afterId'
+          : '$baseUrl/chat/conversations/$conversationId/';
+  static String chatSendMessageUrl(int conversationId) =>
+      '$baseUrl/chat/conversations/$conversationId/messages/';
+  static String chatMarkReadUrl(int conversationId) =>
+      '$baseUrl/chat/conversations/$conversationId/read/';
+  static String get chatUnreadCountUrl => '$baseUrl/chat/unread-count/';
 }

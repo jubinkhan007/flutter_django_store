@@ -43,6 +43,7 @@ urlpatterns = [
         'api/admin/crossborder/',
         include(('crossborder.admin_urls', 'crossborder_admin'), namespace='cb-admin'),
     ),  # CB ops admin
+    path('api/chat/', include('chat.urls')),
 ]
 
 # Serve media files during development

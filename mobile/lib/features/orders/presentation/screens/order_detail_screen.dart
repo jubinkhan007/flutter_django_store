@@ -9,6 +9,7 @@ import '../../data/models/order_model.dart';
 import '../providers/order_provider.dart';
 import '../widgets/shipment_timeline.dart';
 import '../../../support/presentation/screens/create_ticket_screen.dart';
+import '../../../chat/presentation/screens/conversations_screen.dart';
 
 class OrderDetailScreen extends StatelessWidget {
   final OrderModel order;
@@ -256,6 +257,17 @@ class OrderDetailScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
+                            builder: (_) => const ConversationsScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text('Chat'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
                             builder: (_) => CreateTicketScreen(
                               prefillCategory: 'ORDER',
                               prefillSubject: 'Issue with Order #${order.id}',
@@ -264,7 +276,7 @@ class OrderDetailScreen extends StatelessWidget {
                           ),
                         );
                       },
-                      child: const Text('Contact support'),
+                      child: const Text('Support'),
                     ),
                   ],
                 ),

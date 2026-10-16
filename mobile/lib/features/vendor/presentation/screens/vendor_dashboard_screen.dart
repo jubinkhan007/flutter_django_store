@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
-import '../../../../core/theme/app_gradients.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../providers/vendor_provider.dart';
 import 'vendor_products_screen.dart';
 import 'vendor_orders_screen.dart';
@@ -15,6 +13,8 @@ import 'vendor_bulk_upload_screen.dart';
 import 'vendor_analytics_screen.dart';
 import 'vendor_ads_screen.dart';
 import '../../../notifications/presentation/providers/notification_provider.dart';
+import '../../../chat/presentation/providers/chat_provider.dart';
+import '../../../chat/presentation/screens/conversations_screen.dart';
 
 class VendorDashboardScreen extends StatefulWidget {
   final int initialIndex;
@@ -390,7 +390,22 @@ class _DashboardPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(child: SizedBox()),
+                Expanded(
+                  child: Consumer<ChatProvider>(
+                    builder: (context, chatProvider, _) => _QuickAction(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      label: chatProvider.unreadTotal > 0
+                          ? 'Messages (${chatProvider.unreadTotal})'
+                          : 'Messages',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ConversationsScreen(isVendorView: true),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ],
