@@ -100,7 +100,7 @@ class StartConversationView(APIView):
                     body=initial_message[:120],
                     event_type='CHAT_MESSAGE',
                     category='CHAT',
-                    deeplink=f"/chat/{conversation.id}",
+                    deeplink=f"app://chat/{conversation.id}",
                     data={'conversation_id': conversation.id, 'sender_id': customer.id},
                 )
             except Exception:
@@ -217,7 +217,7 @@ class SendMessageView(APIView):
                 body=preview,
                 event_type='CHAT_MESSAGE',
                 category='CHAT',
-                deeplink=f"/chat/{conversation.id}",
+                deeplink=f"app://chat/{conversation.id}",
                 data={'conversation_id': conversation.id, 'sender_id': user.id},
             )
         except Exception:

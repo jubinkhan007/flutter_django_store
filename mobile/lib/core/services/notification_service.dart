@@ -17,6 +17,13 @@ import '../../features/notifications/presentation/providers/notification_provide
 import '../../features/vendor/presentation/screens/vendor_dashboard_screen.dart';
 import '../../features/vendor/presentation/screens/vendor_wallet_screen.dart';
 import '../../features/support/presentation/screens/ticket_chat_screen.dart';
+import '../../features/chat/presentation/screens/chat_screen.dart';
+import '../../features/chat/presentation/screens/conversations_screen.dart';
+import '../../features/cart/presentation/screens/cart_screen.dart';
+import '../../features/coupons/presentation/screens/coupon_center_screen.dart';
+import '../../features/products/domain/repositories/product_repository.dart';
+import '../../features/products/presentation/screens/product_detail_screen.dart';
+import '../../features/crossborder/presentation/screens/cb_my_orders_screen.dart';
 import '../config/app_config.dart';
 import '../navigation/app_navigator.dart';
 
@@ -76,7 +83,7 @@ class NotificationService {
       _openedSub ??= FirebaseMessaging.onMessageOpenedApp.listen((
         message,
       ) async {
-        final deeplink = message.data['deeplink']?.toString() ?? '';
+        final deeplink = resolveDeeplinkFromData(message.data);
         final ctx = appNavigatorKey.currentContext;
         if (ctx == null || !ctx.mounted) return;
         await openDeeplink(ctx, deeplink);
@@ -85,7 +92,7 @@ class NotificationService {
       // Open from terminated.
       final initial = await FirebaseMessaging.instance.getInitialMessage();
       if (initial != null) {
-        final deeplink = initial.data['deeplink']?.toString() ?? '';
+        final deeplink = resolveDeeplinkFromData(initial.data);
         final ctx = appNavigatorKey.currentContext;
         if (ctx != null && ctx.mounted) {
           await openDeeplink(ctx, deeplink);
@@ -100,6 +107,45 @@ class NotificationService {
     } finally {
       _pushInitFuture = null;
     }
+  }
+
+  static String resolveDeeplinkFromData(Map<String, dynamic> data) {
+    if (data['deeplink'] != null && data['deeplink'].toString().trim().isNotEmpty) {
+      return data['deeplink'].toString().trim();
+    }
+    final type = data['type']?.toString().toUpperCase() ?? '';
+    final id = data['id'] ??
+        data['order_id'] ??
+        data['conversation_id'] ??
+        data['ticket_id'] ??
+        data['product_id'] ??
+        data['return_id'];
+
+    if (type.contains('CHAT') || type == 'MESSAGE') {
+      return id != null ? 'app://chat/$id' : 'app://chat';
+    }
+    if (type.contains('ORDER') || type == 'NEW_SUBORDER') {
+      return id != null ? 'app://orders/$id' : 'app://orders';
+    }
+    if (type.contains('RETURN') || type.contains('REFUND') || type == 'RMA') {
+      return id != null ? 'app://returns/$id' : 'app://returns';
+    }
+    if (type.contains('TICKET') || type.contains('SUPPORT')) {
+      return id != null ? 'app://support/tickets/$id' : 'app://support';
+    }
+    if (type.contains('PROMO') || type.contains('FLASH_SALE')) {
+      return 'app://promos';
+    }
+    if (type.contains('CART')) {
+      return 'app://cart';
+    }
+    if (type.contains('PRODUCT')) {
+      return id != null ? 'app://products/$id' : '';
+    }
+    if (type.contains('PAYOUT')) {
+      return 'app://vendor/wallet';
+    }
+    return '';
   }
 
   static Future<void> _initLocalNotifications() async {
@@ -165,9 +211,9 @@ class NotificationService {
         'ShopEase';
     final body =
         message.notification?.body ?? message.data['body']?.toString() ?? '';
-    final deeplink = message.data['deeplink']?.toString() ?? '';
+    final deeplink = resolveDeeplinkFromData(message.data);
 
-    final androidDetails = AndroidNotificationDetails(
+    const androidDetails = AndroidNotificationDetails(
       _androidChannelId,
       AppConfig.appName,
       channelDescription: 'ShopEase notifications',
@@ -229,11 +275,22 @@ class NotificationService {
     BuildContext context,
     String deeplink,
   ) async {
-    if (deeplink.trim().isEmpty) return;
+    String raw = deeplink.trim();
+    if (raw.isEmpty) return;
+
+    if (!raw.startsWith('app://') &&
+        !raw.startsWith('http://') &&
+        !raw.startsWith('https://')) {
+      if (raw.startsWith('/')) {
+        raw = 'app:/$raw';
+      } else {
+        raw = 'app://$raw';
+      }
+    }
 
     Uri? uri;
     try {
-      uri = Uri.parse(deeplink.trim());
+      uri = Uri.parse(raw);
     } catch (_) {
       return;
     }
@@ -243,6 +300,28 @@ class NotificationService {
       final host = uri.host;
       final seg = uri.pathSegments;
 
+      // 1. Direct In-App Chat
+      if (host == 'chat') {
+        if (seg.isNotEmpty) {
+          final convId = int.tryParse(seg.first);
+          if (convId != null) {
+            if (!context.mounted) return;
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ChatScreen(conversationId: convId),
+              ),
+            );
+            return;
+          }
+        }
+        if (!context.mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const ConversationsScreen()),
+        );
+        return;
+      }
+
+      // 2. Orders & Order Tracking
       if (host == 'orders' && seg.isNotEmpty) {
         final orderId = int.tryParse(seg.first);
         if (orderId == null) return;
@@ -255,6 +334,7 @@ class NotificationService {
         return;
       }
 
+      // 3. Returns & RMA
       if (host == 'returns' && seg.isNotEmpty) {
         final returnId = int.tryParse(seg.first);
         if (returnId == null) return;
@@ -269,25 +349,51 @@ class NotificationService {
         return;
       }
 
+      // 4. Products / Flash sales
+      if (host == 'products' && seg.isNotEmpty) {
+        final productId = int.tryParse(seg.first);
+        if (productId == null) return;
+        final repo = context.read<ProductRepository>();
+        final product = await repo.getProductDetail(productId);
+        if (!context.mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProductDetailScreen(product: product),
+          ),
+        );
+        return;
+      }
+
+      // 5. Vendor Console & Messages
       if (host == 'vendor') {
+        if (seg.isNotEmpty && (seg.first == 'chat' || seg.first == 'messages')) {
+          if (!context.mounted) return;
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const ConversationsScreen(isVendorView: true),
+            ),
+          );
+          return;
+        }
         if (seg.isNotEmpty && seg.first == 'wallet') {
           if (!context.mounted) return;
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const VendorWalletScreen()));
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const VendorWalletScreen()),
+          );
           return;
         }
         if (seg.isNotEmpty && seg.first == 'orders') {
           if (!context.mounted) return;
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => VendorDashboardScreen(initialIndex: 2),
+              builder: (_) => const VendorDashboardScreen(initialIndex: 2),
             ),
           );
           return;
         }
       }
 
+      // 6. Support Tickets
       if (host == 'support') {
         if (seg.length >= 2 && seg.first == 'tickets') {
           final ticketId = int.tryParse(seg[1]);
@@ -301,10 +407,37 @@ class NotificationService {
           return;
         }
       }
+
+      // 7. Cart
+      if (host == 'cart') {
+        if (!context.mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const CartScreen()),
+        );
+        return;
+      }
+
+      // 8. Coupons
+      if (host == 'coupons') {
+        if (!context.mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const CouponCenterScreen()),
+        );
+        return;
+      }
+
+      // 9. Cross-border orders
+      if (host == 'crossborder') {
+        if (!context.mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const CbMyOrdersScreen()),
+        );
+        return;
+      }
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to open notification: $e')),
+        SnackBar(content: Text('Failed to open destination: $e')),
       );
     }
   }
