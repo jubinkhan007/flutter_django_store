@@ -18,4 +18,7 @@ urlpatterns = [
 
     # Webhooks
     path('webhooks/<str:courier>/', views.LogisticsWebhookView.as_view(), name='logistics-webhook'),
+
+    # Delivery Estimate
+    path('estimate/', views.DeliveryEstimateView.as_view(), name='logistics-estimate'),
 ]

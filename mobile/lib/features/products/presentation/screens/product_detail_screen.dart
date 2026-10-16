@@ -22,6 +22,8 @@ import '../../domain/entities/variant.dart';
 import 'package:mobile/features/wishlist/presentation/providers/wishlist_provider.dart';
 import 'package:mobile/core/services/analytics_service.dart';
 import 'package:mobile/features/products/presentation/widgets/discovery_widgets.dart';
+import '../providers/delivery_estimate_provider.dart';
+import '../widgets/delivery_estimate_card.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
@@ -42,6 +44,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ReviewProvider>().loadReviews(widget.product.id);
+      context.read<DeliveryEstimateProvider>().loadEstimate(
+        widget.product.id,
+        variantId: _currentVariant?.id,
+      );
       _viewTimer?.cancel();
       _viewTimer = Timer(const Duration(seconds: 3), () {
         if (!mounted) return;
@@ -80,6 +86,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       _currentVariant = null; // No matching variant found
     }
     setState(() {});
+    if (mounted) {
+      context.read<DeliveryEstimateProvider>().loadEstimate(
+        widget.product.id,
+        variantId: _currentVariant?.id,
+      );
+    }
   }
 
   @override
@@ -701,6 +713,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     const Divider(color: AppColors.lightSurface),
                     const SizedBox(height: 16),
                   ],
+
+                  // Delivery & Shipping Fee Estimator
+                  DeliveryEstimateCard(
+                    product: widget.product,
+                    selectedVariant: _currentVariant,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
 
                   // Description
                   const Text(

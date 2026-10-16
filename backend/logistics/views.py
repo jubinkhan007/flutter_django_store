@@ -234,3 +234,70 @@ class LogisticsWebhookView(generics.GenericAPIView):
             return Response({'ok': True, 'created': created})
         except IntegrityError:
             return Response({'ok': True, 'created': False})
+
+
+class DeliveryEstimateView(generics.GenericAPIView):
+    """
+    GET /api/logistics/estimate/?product_id=<id>&city=<city>&area=<area>&variant_id=<id>&quantity=<int>
+    Calculates estimated delivery fees and date windows on the PDP.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        product_id = request.query_params.get('product_id')
+        if not product_id:
+            return Response(
+                {'error': 'product_id query parameter is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from products.models import Product
+        try:
+            product = (
+                Product.objects.select_related('vendor', 'category')
+                .prefetch_related('vendor__logistics_stores')
+                .get(pk=product_id)
+            )
+        except Product.DoesNotExist:
+            return Response({'error': 'Product not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        city = request.query_params.get('city')
+        area = request.query_params.get('area')
+
+        # Fallback to logged-in customer's default saved address if location omitted
+        if not city and request.user.is_authenticated:
+            from users.models import Address
+            user_addr = (
+                Address.objects.filter(user=request.user, is_default=True).first()
+                or Address.objects.filter(user=request.user).first()
+            )
+            if user_addr:
+                city = user_addr.city
+                if not area:
+                    area = user_addr.area
+
+        # Fallback defaults to Dhaka
+        if not city:
+            city = 'Dhaka'
+
+        variant_id = request.query_params.get('variant_id')
+        variant = None
+        if variant_id:
+            variant = product.variants.filter(pk=variant_id).first()
+
+        try:
+            quantity = int(request.query_params.get('quantity', 1))
+        except (ValueError, TypeError):
+            quantity = 1
+
+        from .estimate_service import DeliveryEstimateService
+        estimate = DeliveryEstimateService.calculate_estimate(
+            product=product,
+            destination_city=city,
+            destination_area=area,
+            quantity=quantity,
+            variant=variant,
+        )
+
+        return Response(estimate)
+

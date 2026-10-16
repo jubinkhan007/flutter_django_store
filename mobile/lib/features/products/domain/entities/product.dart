@@ -19,6 +19,7 @@ class Product {
   final List<ProductOption> options;
   final List<ProductVariant> variants;
   final double avgRating;
+  final int reviewCount;
   final bool isSponsored;
   final int? campaignId;
 

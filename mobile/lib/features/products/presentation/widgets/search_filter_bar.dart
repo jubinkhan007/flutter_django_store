@@ -4,8 +4,6 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_radius.dart';
-import '../../../../core/theme/app_gradients.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../providers/product_provider.dart';
 import 'filter_bottom_sheet.dart';
 

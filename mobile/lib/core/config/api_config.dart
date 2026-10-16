@@ -152,6 +152,25 @@ class ApiConfig {
       '$baseUrl/logistics/areas/$courier/search/';
   static String logisticsRetryProvisionUrl(int subOrderId) =>
       '$baseUrl/logistics/sub-orders/$subOrderId/retry/';
+  static String deliveryEstimateUrl({
+    required int productId,
+    String? city,
+    String? area,
+    int? variantId,
+    int? quantity,
+  }) {
+    final params = <String, String>{
+      'product_id': productId.toString(),
+      if (city != null && city.isNotEmpty) 'city': city,
+      if (area != null && area.isNotEmpty) 'area': area,
+      if (variantId != null) 'variant_id': variantId.toString(),
+      if (quantity != null) 'quantity': quantity.toString(),
+    };
+    final uri = Uri.parse('$baseUrl/logistics/estimate/').replace(
+      queryParameters: params,
+    );
+    return uri.toString();
+  }
 
   // Analytics / Discovery
   static String get analyticsEventsUrl => '$baseUrl/analytics/events/';

@@ -26,6 +26,8 @@ import 'features/products/domain/repositories/product_repository.dart';
 import 'features/products/domain/repositories/discovery_repository.dart';
 import 'features/products/presentation/providers/product_provider.dart';
 import 'features/products/presentation/screens/home_screen.dart';
+import 'features/products/data/repositories/delivery_estimate_repository.dart';
+import 'features/products/presentation/providers/delivery_estimate_provider.dart';
 
 // Cart
 import 'features/cart/presentation/providers/cart_provider.dart';
@@ -173,6 +175,7 @@ void main() async {
   final supportRepository = SupportRepository(apiClient: apiClient);
   final logisticsRepository = LogisticsRepository(apiClient: apiClient);
   final crossBorderRepository = CrossBorderRepository(apiClient: apiClient);
+  final deliveryEstimateRepository = DeliveryEstimateRepository(apiClient: apiClient);
 
   runApp(
     MyApp(
@@ -194,6 +197,7 @@ void main() async {
       supportRepository: supportRepository,
       logisticsRepository: logisticsRepository,
       crossBorderRepository: crossBorderRepository,
+      deliveryEstimateRepository: deliveryEstimateRepository,
     ),
   );
 }
@@ -217,6 +221,7 @@ class MyApp extends StatelessWidget {
   final SupportRepository supportRepository;
   final LogisticsRepository logisticsRepository;
   final CrossBorderRepository crossBorderRepository;
+  final DeliveryEstimateRepository deliveryEstimateRepository;
 
   const MyApp({
     super.key,
@@ -238,6 +243,7 @@ class MyApp extends StatelessWidget {
     required this.supportRepository,
     required this.logisticsRepository,
     required this.crossBorderRepository,
+    required this.deliveryEstimateRepository,
   });
 
   @override
@@ -249,6 +255,11 @@ class MyApp extends StatelessWidget {
         Provider<AnalyticsService>.value(value: analyticsService),
         ChangeNotifierProvider(
           create: (_) => ProductProvider(productRepository: productRepository),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => DeliveryEstimateProvider(
+            repository: deliveryEstimateRepository,
+          ),
         ),
         Provider<DiscoveryRepository>.value(value: discoveryRepository),
         ChangeNotifierProvider(create: (_) => CartProvider()),
