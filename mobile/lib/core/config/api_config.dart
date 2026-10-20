@@ -213,4 +213,10 @@ class ApiConfig {
   static String chatMarkReadUrl(int conversationId) =>
       '$baseUrl/chat/conversations/$conversationId/read/';
   static String get chatUnreadCountUrl => '$baseUrl/chat/unread-count/';
+
+  // Loyalty Program endpoints
+  static String get loyaltySummaryUrl => '$baseUrl/loyalty/summary/';
+  static String get loyaltyTransactionsUrl => '$baseUrl/loyalty/transactions/';
+  static String get loyaltyQuoteRedemptionUrl =>
+      '$baseUrl/loyalty/quote-redemption/';
 }

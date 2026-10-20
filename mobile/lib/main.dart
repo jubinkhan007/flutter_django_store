@@ -94,6 +94,11 @@ import 'features/crossborder/presentation/screens/cb_my_orders_screen.dart';
 import 'features/chat/data/repositories/chat_repository.dart';
 import 'features/chat/presentation/providers/chat_provider.dart';
 
+// Loyalty
+import 'features/loyalty/repositories/loyalty_repository.dart';
+import 'features/loyalty/providers/loyalty_provider.dart';
+import 'features/loyalty/screens/loyalty_dashboard_screen.dart';
+
 // Firebase
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -181,6 +186,7 @@ void main() async {
   final crossBorderRepository = CrossBorderRepository(apiClient: apiClient);
   final deliveryEstimateRepository = DeliveryEstimateRepository(apiClient: apiClient);
   final chatRepository = ChatRepository(apiClient: apiClient);
+  final loyaltyRepository = LoyaltyRepository(apiClient: apiClient);
 
   runApp(
     MyApp(
@@ -204,6 +210,7 @@ void main() async {
       crossBorderRepository: crossBorderRepository,
       deliveryEstimateRepository: deliveryEstimateRepository,
       chatRepository: chatRepository,
+      loyaltyRepository: loyaltyRepository,
     ),
   );
 }
@@ -229,6 +236,7 @@ class MyApp extends StatelessWidget {
   final CrossBorderRepository crossBorderRepository;
   final DeliveryEstimateRepository deliveryEstimateRepository;
   final ChatRepository chatRepository;
+  final LoyaltyRepository loyaltyRepository;
 
   const MyApp({
     super.key,
@@ -252,6 +260,7 @@ class MyApp extends StatelessWidget {
     required this.crossBorderRepository,
     required this.deliveryEstimateRepository,
     required this.chatRepository,
+    required this.loyaltyRepository,
   });
 
   @override
@@ -325,6 +334,11 @@ class MyApp extends StatelessWidget {
             ..refreshUnreadCount(),
         ),
         Provider<ChatRepository>.value(value: chatRepository),
+        ChangeNotifierProvider(
+          create: (_) => LoyaltyProvider(repository: loyaltyRepository)
+            ..fetchSummary(),
+        ),
+        Provider<LoyaltyRepository>.value(value: loyaltyRepository),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, theme, _) {
@@ -357,6 +371,7 @@ class MyApp extends StatelessWidget {
                 '/support': (context) => const SupportCenterScreen(),
                 '/crossborder': (context) => const CbCatalogScreen(),
                 '/crossborder/orders': (context) => const CbMyOrdersScreen(),
+                '/loyalty': (context) => const LoyaltyDashboardScreen(),
               },
             ),
           );

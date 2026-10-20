@@ -25,6 +25,9 @@ import 'package:mobile/core/storage/session_storage.dart';
 import 'package:mobile/core/services/analytics_service.dart';
 import 'package:mobile/features/products/data/repositories/discovery_repository_impl.dart';
 import 'package:mobile/features/crossborder/data/repositories/crossborder_repository.dart';
+import 'package:mobile/features/products/data/repositories/delivery_estimate_repository.dart';
+import 'package:mobile/features/chat/data/repositories/chat_repository.dart';
+import 'package:mobile/features/loyalty/repositories/loyalty_repository.dart';
 
 void main() {
   testWidgets('Boots to login when logged out', (WidgetTester tester) async {
@@ -52,6 +55,10 @@ void main() {
     final supportRepo = SupportRepository(apiClient: apiClient);
     final logisticsRepo = LogisticsRepository(apiClient: apiClient);
     final crossBorderRepo = CrossBorderRepository(apiClient: apiClient);
+    final deliveryEstimateRepo =
+        DeliveryEstimateRepository(apiClient: apiClient);
+    final chatRepo = ChatRepository(apiClient: apiClient);
+    final loyaltyRepo = LoyaltyRepository(apiClient: apiClient);
     final sessionStorage = SessionStorage();
     final analyticsService = AnalyticsService(
       apiClient: apiClient,
@@ -82,6 +89,9 @@ void main() {
         supportRepository: supportRepo,
         logisticsRepository: logisticsRepo,
         crossBorderRepository: crossBorderRepo,
+        deliveryEstimateRepository: deliveryEstimateRepo,
+        chatRepository: chatRepo,
+        loyaltyRepository: loyaltyRepo,
       ),
     );
     await tester.pumpAndSettle();
@@ -119,6 +129,10 @@ void main() {
     final supportRepo = SupportRepository(apiClient: apiClient);
     final logisticsRepo = LogisticsRepository(apiClient: apiClient);
     final crossBorderRepo = CrossBorderRepository(apiClient: apiClient);
+    final deliveryEstimateRepo =
+        DeliveryEstimateRepository(apiClient: apiClient);
+    final chatRepo = ChatRepository(apiClient: apiClient);
+    final loyaltyRepo = LoyaltyRepository(apiClient: apiClient);
     final sessionStorage = SessionStorage();
     final analyticsService = AnalyticsService(
       apiClient: apiClient,
@@ -149,6 +163,9 @@ void main() {
         supportRepository: supportRepo,
         logisticsRepository: logisticsRepo,
         crossBorderRepository: crossBorderRepo,
+        deliveryEstimateRepository: deliveryEstimateRepo,
+        chatRepository: chatRepo,
+        loyaltyRepository: loyaltyRepo,
       ),
     );
     await tester.pumpAndSettle();

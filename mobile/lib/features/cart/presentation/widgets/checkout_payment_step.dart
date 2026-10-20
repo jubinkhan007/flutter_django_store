@@ -6,9 +6,10 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../loyalty/providers/loyalty_provider.dart';
 import '../providers/checkout_provider.dart';
 
-/// Step 2: Payment method selection with radio tiles and wallet payment toggle.
+/// Step 2: Payment method selection with radio tiles, wallet payment toggle, and loyalty rewards redemption.
 class CheckoutPaymentStep extends StatelessWidget {
   const CheckoutPaymentStep({super.key});
 
@@ -16,12 +17,18 @@ class CheckoutPaymentStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final checkout = context.watch<CheckoutProvider>();
     final auth = context.watch<AuthProvider>();
+    final loyalty = context.watch<LoyaltyProvider>();
     final primaryColor = Theme.of(context).primaryColor;
 
     final walletBalance = (checkout.quote?.userWalletBalance != null &&
             (checkout.quote?.userWalletBalance ?? 0.0) > 0)
         ? checkout.quote!.userWalletBalance
         : (auth.user?.walletBalance ?? 0.0);
+
+    final loyaltyPoints = (checkout.quote?.loyaltyPointsBalance != null &&
+            (checkout.quote?.loyaltyPointsBalance ?? 0) > 0)
+        ? checkout.quote!.loyaltyPointsBalance
+        : loyalty.pointsBalance;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -98,6 +105,91 @@ class CheckoutPaymentStep extends StatelessWidget {
                         Expanded(
                           child: Text(
                             'Wallet funds will be applied up to the order total. Any remaining balance will be split with your chosen payment method below.',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.lightTextSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+
+          // ── Loyalty Reward Points Option ──
+          if (auth.isLoggedIn && loyaltyPoints > 0) ...[
+            Text(
+              'Reward Points',
+              style: AppTextStyles.titleMedium.copyWith(
+                color: AppColors.lightTextPrimary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEAB308).withAlpha(25),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.stars_rounded,
+                          color: Color(0xFFD97706),
+                          size: 26,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Redeem Reward Points',
+                              style: AppTextStyles.labelLarge.copyWith(
+                                color: AppColors.lightTextPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Available: $loyaltyPoints pts (৳${(loyaltyPoints / 10).toStringAsFixed(2)})',
+                              style: AppTextStyles.caption.copyWith(
+                                color: const Color(0xFFD97706),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch.adaptive(
+                        value: checkout.redeemPoints,
+                        activeTrackColor: primaryColor,
+                        onChanged: (val) =>
+                            checkout.toggleRedeemPoints(val, points: loyaltyPoints),
+                      ),
+                    ],
+                  ),
+                  if (checkout.redeemPoints) ...[
+                    const Divider(height: 20),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.loyalty_outlined,
+                          size: 16,
+                          color: AppColors.lightTextSecondary,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Expanded(
+                          child: Text(
+                            '10 points = ৳1.00 instant store discount. Applied automatically to your order subtotal.',
                             style: AppTextStyles.caption.copyWith(
                               color: AppColors.lightTextSecondary,
                             ),

@@ -120,6 +120,7 @@ INSTALLED_APPS = [
     'cms',
     'crossborder',
     'chat',
+    'loyalty',
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -835,6 +836,16 @@ UNFOLD = {
                         'title': _('Notifications'),
                         'icon': 'notifications',
                         'link': reverse_lazy('admin:notifications_notification_changelist'),
+                    },
+                    {
+                        'title': _('Loyalty Accounts'),
+                        'icon': 'stars',
+                        'link': reverse_lazy('admin:loyalty_loyaltyaccount_changelist'),
+                    },
+                    {
+                        'title': _('Loyalty Ledger'),
+                        'icon': 'loyalty',
+                        'link': reverse_lazy('admin:loyalty_loyaltytransaction_changelist'),
                     },
                 ],
             },

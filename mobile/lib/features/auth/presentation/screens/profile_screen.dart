@@ -18,6 +18,8 @@ import '../../../crossborder/presentation/screens/cb_catalog_screen.dart';
 import '../../../crossborder/presentation/screens/cb_my_orders_screen.dart';
 import '../../../chat/presentation/providers/chat_provider.dart';
 import '../../../chat/presentation/screens/conversations_screen.dart';
+import '../../../loyalty/providers/loyalty_provider.dart';
+import '../../../loyalty/screens/loyalty_dashboard_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -129,7 +131,117 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.sm),
+
+              // ── Loyalty Status Banner ──
+              Consumer<LoyaltyProvider>(
+                builder: (context, loyalty, _) {
+                  final account = loyalty.account;
+                  final pts = account?.pointsBalance ?? 0;
+                  final tier = account?.tier ?? 'BRONZE';
+                  return Container(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(20),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LoyaltyDashboardScreen(),
+                          ),
+                        );
+                      },
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEAB308).withAlpha(35),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.stars_rounded,
+                              color: Color(0xFFFBBF24),
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      '$tier Member',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withAlpha(30),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '${account?.tierMultiplier ?? 1.0}x',
+                                        style: const TextStyle(
+                                          color: Color(0xFFFBBF24),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '$pts Points (৳${(pts / 10).toStringAsFixed(2)} value)',
+                                  style: TextStyle(
+                                    color: Colors.white.withAlpha(180),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            color: Colors.white70,
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: AppSpacing.sm),
 
               // ── Menu Options ──
               Expanded(
@@ -138,6 +250,20 @@ class ProfileScreen extends StatelessWidget {
                     horizontal: AppSpacing.md,
                   ),
                   children: [
+                    _MenuListItem(
+                      icon: Icons.stars_rounded,
+                      title: 'Rewards & Loyalty',
+                      subtitle: 'Points balance, tiers, and exclusive perks',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LoyaltyDashboardScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(color: AppColors.lightSurface),
                     _MenuListItem(
                       icon: Icons.favorite_border,
                       title: 'Saved Items',

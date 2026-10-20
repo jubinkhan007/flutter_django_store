@@ -49,6 +49,32 @@ class CheckoutProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Loyalty Points ──
+  bool _redeemPoints = false;
+  bool get redeemPoints => _redeemPoints;
+
+  int _pointsToRedeem = 0;
+  int get pointsToRedeem => _pointsToRedeem;
+
+  void toggleRedeemPoints(bool value, {int? points}) {
+    _redeemPoints = value;
+    if (_redeemPoints) {
+      _pointsToRedeem = points ?? (_quote?.loyaltyPointsBalance ?? 0);
+    } else {
+      _pointsToRedeem = 0;
+    }
+    _quote = null;
+    notifyListeners();
+    fetchQuote();
+  }
+
+  void setPointsToRedeem(int points) {
+    _pointsToRedeem = points;
+    _quote = null;
+    notifyListeners();
+    fetchQuote();
+  }
+
   // ── Quote (Step 2) ──
   CheckoutQuote? _quote;
   CheckoutQuote? get quote => _quote;
@@ -148,6 +174,7 @@ class CheckoutProvider extends ChangeNotifier {
         couponCode: _cartProvider.couponCode,
         paymentMethod: _paymentMethod,
         useWallet: _useWallet,
+        redeemPoints: _redeemPoints ? _pointsToRedeem : 0,
       );
       if (_useWallet && _quote != null && _quote!.isFullyCoveredByWallet) {
         _paymentMethod = 'WALLET';
@@ -182,6 +209,7 @@ class CheckoutProvider extends ChangeNotifier {
         _selectedAddress!.id,
         paymentMethod: method,
         useWallet: _useWallet,
+        redeemPoints: _redeemPoints ? _pointsToRedeem : 0,
         couponCode: _cartProvider.couponCode,
         idempotencyKey: _idempotencyKey,
       );
@@ -240,6 +268,8 @@ class CheckoutProvider extends ChangeNotifier {
     _selectedAddress = null;
     _paymentMethod = 'ONLINE';
     _useWallet = false;
+    _redeemPoints = false;
+    _pointsToRedeem = 0;
     _quote = null;
     _placedOrder = null;
     _isFetchingQuote = false;

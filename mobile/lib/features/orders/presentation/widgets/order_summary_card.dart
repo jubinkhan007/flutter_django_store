@@ -107,6 +107,13 @@ class OrderSummaryCard extends StatelessWidget {
               valueColor: AppColors.success,
             ),
           ],
+          if (quote.loyaltyDiscount > 0) ...[
+            _PricingRow(
+              label: 'Reward Points (${quote.loyaltyPointsRedeemed} pts)',
+              value: -quote.loyaltyDiscount,
+              valueColor: AppColors.success,
+            ),
+          ],
           if (quote.shipping > 0)
             _PricingRow(label: 'Shipping', value: quote.shipping),
           if (quote.tax > 0) _PricingRow(label: 'Tax', value: quote.tax),

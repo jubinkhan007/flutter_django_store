@@ -16,6 +16,10 @@ class CheckoutQuote {
   final double walletAmountApplied;
   final double payableAmount;
   final bool isFullyCoveredByWallet;
+  final int loyaltyPointsRedeemed;
+  final double loyaltyDiscount;
+  final int loyaltyPointsBalance;
+  final String? loyaltyTier;
 
   const CheckoutQuote({
     required this.subtotal,
@@ -30,6 +34,10 @@ class CheckoutQuote {
     this.walletAmountApplied = 0.0,
     this.payableAmount = 0.0,
     this.isFullyCoveredByWallet = false,
+    this.loyaltyPointsRedeemed = 0,
+    this.loyaltyDiscount = 0.0,
+    this.loyaltyPointsBalance = 0,
+    this.loyaltyTier,
   });
 
   bool get hasStockWarnings => stockWarnings.isNotEmpty;
@@ -71,6 +79,11 @@ class CheckoutQuote {
       walletAmountApplied: walletApplied,
       payableAmount: payable,
       isFullyCoveredByWallet: json['is_fully_covered_by_wallet'] == true,
+      loyaltyPointsRedeemed: json['loyalty_points_redeemed'] as int? ?? 0,
+      loyaltyDiscount:
+          double.tryParse(json['loyalty_discount']?.toString() ?? '') ?? 0.0,
+      loyaltyPointsBalance: json['loyalty_points_balance'] as int? ?? 0,
+      loyaltyTier: json['loyalty_tier']?.toString(),
     );
   }
 }

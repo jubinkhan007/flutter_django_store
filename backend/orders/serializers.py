@@ -101,6 +101,8 @@ class OrderSerializer(serializers.ModelSerializer):
             'coupon',
             'subtotal_amount',
             'discount_amount',
+            'loyalty_points_redeemed',
+            'loyalty_discount_amount',
             'total_amount',
             'wallet_amount_applied',
             'payable_amount',
@@ -120,6 +122,8 @@ class OrderSerializer(serializers.ModelSerializer):
             'coupon',
             'subtotal_amount',
             'discount_amount',
+            'loyalty_points_redeemed',
+            'loyalty_discount_amount',
             'total_amount',
             'wallet_amount_applied',
             'payable_amount',
@@ -197,6 +201,7 @@ class OrderCreateSerializer(serializers.Serializer):
     wallet_amount = serializers.DecimalField(
         max_digits=10, decimal_places=2, required=False, allow_null=True
     )
+    redeem_points = serializers.IntegerField(required=False, default=0, min_value=0)
 
     def validate_items(self, value):
         if not value:

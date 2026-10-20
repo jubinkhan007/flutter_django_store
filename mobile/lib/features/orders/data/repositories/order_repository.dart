@@ -32,6 +32,7 @@ class OrderRepository {
     String? couponCode,
     String paymentMethod = 'ONLINE',
     bool useWallet = false,
+    int redeemPoints = 0,
   }) async {
     final response = await _apiClient.post(
       ApiConfig.checkoutQuoteUrl,
@@ -40,6 +41,7 @@ class OrderRepository {
         'address_id': addressId,
         'payment_method': paymentMethod,
         'use_wallet': useWallet,
+        'redeem_points': redeemPoints,
         if (couponCode != null && couponCode.trim().isNotEmpty)
           'coupon_code': couponCode.trim(),
       },
@@ -58,6 +60,7 @@ class OrderRepository {
     int addressId, {
     String paymentMethod = 'ONLINE',
     bool useWallet = false,
+    int redeemPoints = 0,
     String? couponCode,
     String? idempotencyKey,
   }) async {
@@ -68,6 +71,7 @@ class OrderRepository {
         'address_id': addressId,
         'payment_method': paymentMethod,
         'use_wallet': useWallet,
+        'redeem_points': redeemPoints,
         if (couponCode != null && couponCode.trim().isNotEmpty)
           'coupon_code': couponCode.trim(),
       },

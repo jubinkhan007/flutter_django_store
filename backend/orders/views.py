@@ -120,12 +120,26 @@ class CheckoutQuoteView(generics.GenericAPIView):
             except Coupon.DoesNotExist:
                 pass
 
+        # Loyalty redemption computation
+        redeem_points = int(serializer.validated_data.get('redeem_points') or 0)
+        from loyalty.models import LoyaltyAccount
+        loyalty_account, _ = LoyaltyAccount.objects.get_or_create(user=request.user)
+        loyalty_points_balance = loyalty_account.points_balance
+        loyalty_discount = Decimal('0.00')
+        loyalty_points_redeemed = 0
+
+        pre_loyalty_total = max(Decimal('0.00'), subtotal - discount_amount)
+        if redeem_points > 0 and pre_loyalty_total > 0 and loyalty_points_balance > 0:
+            max_points_needed = int(pre_loyalty_total * LoyaltyAccount.POINTS_PER_BDT)
+            loyalty_points_redeemed = min(redeem_points, loyalty_points_balance, max_points_needed)
+            loyalty_discount = (Decimal(loyalty_points_redeemed) / Decimal(LoyaltyAccount.POINTS_PER_BDT)).quantize(Decimal('0.01'))
+
         use_wallet = serializer.validated_data.get('use_wallet', False)
         requested_wallet_amount = serializer.validated_data.get('wallet_amount')
 
         shipping = Decimal('0.00')
         tax = Decimal('0.00')
-        total = (subtotal - discount_amount + shipping + tax).quantize(Decimal('0.01'))
+        total = (subtotal - discount_amount - loyalty_discount + shipping + tax).quantize(Decimal('0.01'))
         if total < 0:
             total = Decimal('0.00')
 
@@ -144,6 +158,10 @@ class CheckoutQuoteView(generics.GenericAPIView):
         return Response({
             'subtotal': str(subtotal.quantize(Decimal('0.01'))),
             'discount': str(discount_amount.quantize(Decimal('0.01'))),
+            'loyalty_points_redeemed': loyalty_points_redeemed,
+            'loyalty_discount': str(loyalty_discount),
+            'loyalty_points_balance': loyalty_points_balance,
+            'loyalty_tier': loyalty_account.tier,
             'shipping': str(shipping.quantize(Decimal('0.01'))),
             'tax': str(tax.quantize(Decimal('0.01'))),
             'total': str(total),
@@ -182,6 +200,7 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
         coupon_code = (serializer.validated_data.get('coupon_code') or '').strip().upper()
         use_wallet = serializer.validated_data.get('use_wallet', False)
         requested_wallet_amount = serializer.validated_data.get('wallet_amount')
+        redeem_points = int(serializer.validated_data.get('redeem_points') or 0)
 
         # ── Step 1: Validate address ──
         from users.models import Address
@@ -281,6 +300,20 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
             wallet_bal = user.wallet_balance or Decimal('0.00')
             wallet_to_apply = Decimal('0.00')
 
+            # Loyalty points redemption
+            from loyalty.models import LoyaltyAccount
+            loyalty_account, _ = LoyaltyAccount.objects.select_for_update().get_or_create(user=user)
+            loyalty_discount = Decimal('0.00')
+            loyalty_points_to_redeem = 0
+
+            pre_loyalty_total = max(Decimal('0.00'), subtotal - discount_amount)
+            if redeem_points > 0 and pre_loyalty_total > 0 and loyalty_account.points_balance > 0:
+                max_pts = int(pre_loyalty_total * LoyaltyAccount.POINTS_PER_BDT)
+                loyalty_points_to_redeem = min(redeem_points, loyalty_account.points_balance, max_pts)
+                loyalty_discount = (Decimal(loyalty_points_to_redeem) / Decimal(LoyaltyAccount.POINTS_PER_BDT)).quantize(Decimal('0.01'))
+
+            total = max(Decimal('0.00'), (subtotal - discount_amount - loyalty_discount).quantize(Decimal('0.01')))
+
             if use_wallet and wallet_bal > 0 and total > 0:
                 if requested_wallet_amount is not None:
                     wallet_to_apply = min(requested_wallet_amount, wallet_bal, total)
@@ -304,6 +337,8 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
                 coupon=coupon,
                 subtotal_amount=subtotal,
                 discount_amount=discount_amount,
+                loyalty_points_redeemed=loyalty_points_to_redeem,
+                loyalty_discount_amount=loyalty_discount,
                 total_amount=total,
                 wallet_amount_applied=wallet_to_apply,
                 status=final_order_status,
@@ -311,6 +346,10 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
                 payment_status=final_payment_status,
                 idempotency_key=idempotency_key if idempotency_key else None,
             )
+
+            # Deduct loyalty points and create ledger record
+            if loyalty_points_to_redeem > 0:
+                loyalty_account.redeem_points(loyalty_points_to_redeem, order=order)
 
             # Deduct wallet and write ledger transaction
             if wallet_to_apply > 0:
@@ -359,6 +398,14 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
                     unit_price=item_data['unit_price'],
                     image_url=item_data['image_url']
                 )
+
+            # Award loyalty reward points for the purchase
+            award_amount = order.total_amount
+            if award_amount > 0:
+                try:
+                    loyalty_account.earn_points_for_purchase(award_amount, order=order)
+                except Exception:
+                    pass
 
         # Notifications (Customer: Order placed; Vendor: notify immediately for COD/PAID/WALLET orders)
         try:
@@ -546,6 +593,28 @@ def process_refund_if_paid(order):
             pass
         order.wallet_amount_applied = Decimal('0.00')
         refunded_wallet = True
+
+    if getattr(order, 'loyalty_points_redeemed', 0) > 0:
+        try:
+            from loyalty.models import LoyaltyAccount, LoyaltyTransaction
+            account = LoyaltyAccount.objects.get(user=order.customer)
+            pts = order.loyalty_points_redeemed
+            account.points_balance += pts
+            account.lifetime_points_redeemed = max(0, account.lifetime_points_redeemed - pts)
+            account.save(update_fields=['points_balance', 'lifetime_points_redeemed', 'updated_at'])
+            LoyaltyTransaction.objects.create(
+                account=account,
+                transaction_type=LoyaltyTransaction.Type.REFUND,
+                points=pts,
+                balance_after=account.points_balance,
+                order=order,
+                description=f"Points refunded for cancelled Order #{order.id}",
+            )
+            order.loyalty_points_redeemed = 0
+            order.loyalty_discount_amount = Decimal('0.00')
+            order.save(update_fields=['loyalty_points_redeemed', 'loyalty_discount_amount'])
+        except Exception:
+            pass
 
     if order.payment_status == Order.PaymentStatus.PAID and order.val_id:
         order.payment_status = Order.PaymentStatus.REFUNDED

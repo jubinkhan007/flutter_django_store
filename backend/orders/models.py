@@ -27,6 +27,14 @@ class Order(models.Model):
     coupon = models.ForeignKey('coupons.Coupon', on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     subtotal_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    loyalty_points_redeemed = models.PositiveIntegerField(
+        default=0,
+        help_text="Loyalty reward points redeemed for this order"
+    )
+    loyalty_discount_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0.00,
+        help_text="Fiat discount applied from loyalty points redemption"
+    )
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     wallet_amount_applied = models.DecimalField(
         max_digits=10, decimal_places=2, default=0.00,
