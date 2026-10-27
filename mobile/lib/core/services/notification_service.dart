@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 
 import '../../features/orders/data/repositories/order_repository.dart';
 import '../../features/orders/presentation/screens/order_detail_screen.dart';
+import '../../features/orders/presentation/screens/order_live_tracking_screen.dart';
 import '../../features/returns/data/repositories/return_repository.dart';
 import '../../features/returns/presentation/screens/return_detail_screen.dart';
 import '../../features/notifications/data/repositories/notification_repository.dart';
@@ -323,6 +324,30 @@ class NotificationService {
 
       // 2. Orders & Order Tracking
       if (host == 'orders' && seg.isNotEmpty) {
+        if (seg.first == 'tracking' && seg.length >= 2) {
+          final subId = int.tryParse(seg[1]);
+          if (subId != null) {
+            if (!context.mounted) return;
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => OrderLiveTrackingScreen(subOrderId: subId),
+              ),
+            );
+            return;
+          }
+        }
+        if (seg.length >= 3 && seg[1] == 'tracking') {
+          final subId = int.tryParse(seg[2]);
+          if (subId != null) {
+            if (!context.mounted) return;
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => OrderLiveTrackingScreen(subOrderId: subId),
+              ),
+            );
+            return;
+          }
+        }
         final orderId = int.tryParse(seg.first);
         if (orderId == null) return;
         final repo = context.read<OrderRepository>();

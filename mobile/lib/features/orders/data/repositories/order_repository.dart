@@ -3,6 +3,7 @@ import '../../../../core/config/api_config.dart';
 import '../../../../core/network/api_client.dart';
 import '../models/order_model.dart';
 import '../models/checkout_quote_model.dart';
+import '../models/live_tracking_model.dart';
 
 class OrderRepository {
   final ApiClient _apiClient;
@@ -150,4 +151,22 @@ class OrderRepository {
     final token = await _apiClient.getAccessToken();
     return ApiConfig.orderInvoicePdfUrl(orderId, token: token);
   }
+
+  Future<LiveDeliveryTrackingModel> fetchLiveTracking(
+    int subOrderId, {
+    bool advance = false,
+  }) async {
+    final response = await _apiClient.get(
+      ApiConfig.subOrderLiveTrackingUrl(subOrderId, advance: advance),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return LiveDeliveryTrackingModel.fromJson(data);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to fetch live tracking');
+    }
+  }
 }
+

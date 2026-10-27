@@ -10,6 +10,7 @@ import '../providers/order_provider.dart';
 import '../widgets/shipment_timeline.dart';
 import '../../../support/presentation/screens/create_ticket_screen.dart';
 import '../../../chat/presentation/screens/conversations_screen.dart';
+import 'order_live_tracking_screen.dart';
 
 class OrderDetailScreen extends StatelessWidget {
   final OrderModel order;
@@ -765,6 +766,90 @@ class _SubOrderCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 10),
+                ],
+
+                // Live Courier Tracking & Map Action Button
+                if (subOrder.hasLiveTracking) ...[
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.cyan.shade800,
+                          AppColors.lightPrimary,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.cyan.withValues(alpha: 0.2),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => OrderLiveTrackingScreen(
+                                subOrderId: subOrder.id,
+                                subOrder: subOrder,
+                              ),
+                            ),
+                          );
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.navigation_outlined,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Live Courier Tracking & Map',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      'View real-time courier GPS and ETA',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                color: Colors.white70,
+                                size: 14,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                 ],
 
                 // Shipment timeline

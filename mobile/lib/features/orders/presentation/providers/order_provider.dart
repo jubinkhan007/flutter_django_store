@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/models/order_model.dart';
+import '../../data/models/live_tracking_model.dart';
 import '../../data/repositories/order_repository.dart';
 
 class OrderProvider extends ChangeNotifier {
@@ -13,11 +14,19 @@ class OrderProvider extends ChangeNotifier {
   String? _error;
   int? _pendingPaymentOrderId;
 
+  LiveDeliveryTrackingModel? _activeLiveTracking;
+  bool _trackingLoading = false;
+  String? _trackingError;
+
   List<OrderModel> get orders => _orders;
   bool get isLoading => _isLoading;
   String? get error => _error;
   int? get pendingPaymentOrderId => _pendingPaymentOrderId;
   bool get hasPendingPayment => _pendingPaymentOrderId != null;
+
+  LiveDeliveryTrackingModel? get activeLiveTracking => _activeLiveTracking;
+  bool get trackingLoading => _trackingLoading;
+  String? get trackingError => _trackingError;
 
   void setPendingPaymentOrder(int orderId) {
     _pendingPaymentOrderId = orderId;
@@ -180,4 +189,35 @@ class OrderProvider extends ChangeNotifier {
       return null;
     }
   }
+
+  Future<LiveDeliveryTrackingModel?> fetchLiveTracking(
+    int subOrderId, {
+    bool advance = false,
+    bool silent = false,
+  }) async {
+    if (!silent) {
+      _trackingLoading = true;
+      _trackingError = null;
+      notifyListeners();
+    }
+
+    try {
+      final tracking = await _orderRepository.fetchLiveTracking(
+        subOrderId,
+        advance: advance,
+      );
+      _activeLiveTracking = tracking;
+      _trackingError = null;
+      return tracking;
+    } catch (e) {
+      _trackingError = e.toString().replaceAll('Exception: ', '');
+      return null;
+    } finally {
+      if (!silent) {
+        _trackingLoading = false;
+      }
+      notifyListeners();
+    }
+  }
 }
+

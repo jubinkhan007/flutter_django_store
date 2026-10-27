@@ -55,6 +55,7 @@ class SubOrderModel {
   final String createdAt;
   final List<OrderItemModel> items;
   final List<ShipmentEventModel> events;
+  final bool hasLiveTracking;
 
   const SubOrderModel({
     required this.id,
@@ -79,6 +80,7 @@ class SubOrderModel {
     required this.createdAt,
     required this.items,
     required this.events,
+    this.hasLiveTracking = true,
   });
 
   factory SubOrderModel.fromJson(Map<String, dynamic> json) {
@@ -111,6 +113,7 @@ class SubOrderModel {
               ?.map((e) => ShipmentEventModel.fromJson(e))
               .toList() ??
           [],
+      hasLiveTracking: json['has_live_tracking'] ?? true,
     );
   }
 }

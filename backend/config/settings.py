@@ -899,6 +899,12 @@ UNFOLD = {
                         'link': reverse_lazy('admin:logistics_logisticsstore_changelist'),
                         'permission': _perm_logistics,
                     },
+                    {
+                        'title': _('Live Dispatch & Tracking'),
+                        'icon': 'navigation',
+                        'link': reverse_lazy('admin:logistics_livedeliverytracking_changelist'),
+                        'permission': _perm_logistics,
+                    },
                 ],
             },
         ],

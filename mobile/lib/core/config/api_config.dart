@@ -172,6 +172,11 @@ class ApiConfig {
     return uri.toString();
   }
 
+  static String subOrderLiveTrackingUrl(int subOrderId, {bool advance = false}) =>
+      '$baseUrl/logistics/sub-orders/$subOrderId/live-tracking/${advance ? '?advance=true' : ''}';
+  static String subOrderUpdateLocationUrl(int subOrderId) =>
+      '$baseUrl/logistics/sub-orders/$subOrderId/update-location/';
+
   // Analytics / Discovery
   static String get analyticsEventsUrl => '$baseUrl/analytics/events/';
   static String get discoveryHomeUrl => '$baseUrl/discovery/home/';

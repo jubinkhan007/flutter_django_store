@@ -301,3 +301,152 @@ class DeliveryEstimateView(generics.GenericAPIView):
 
         return Response(estimate)
 
+
+class LiveDeliveryTrackingDetailView(generics.GenericAPIView):
+    """
+    GET /api/logistics/sub-orders/<sub_order_id>/live-tracking/
+    Fetch or initialize live delivery tracking with rider GPS, ETA, and route waypoints.
+    Supports auto-advancing simulation when polled.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, sub_order_id, *args, **kwargs):
+        try:
+            sub_order = SubOrder.objects.select_related('order', 'order__customer', 'vendor', 'order__delivery_address').get(id=sub_order_id)
+        except SubOrder.DoesNotExist:
+            return Response({'error': 'Sub-order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Access check: customer of order, vendor owner/staff, or superuser
+        user = request.user
+        is_customer = (sub_order.order.customer_id == user.id)
+        is_vendor = (sub_order.vendor and sub_order.vendor.user_id == user.id)
+        is_staff = user.is_staff or user.is_superuser
+        if not (is_customer or is_vendor or is_staff):
+            return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+
+        from .models import LiveDeliveryTracking
+        from .serializers import LiveDeliveryTrackingSerializer
+
+        tracking = getattr(sub_order, 'live_tracking', None)
+        if not tracking:
+            # Auto-provision realistic coordinates based on customer delivery address
+            dest_name = 'Customer Delivery Address'
+            dest_lat = 23.8103
+            dest_lng = 90.4125
+            if sub_order.order.delivery_address:
+                addr = sub_order.order.delivery_address
+                dest_name = f"{addr.address_line}, {addr.area}, {addr.city}"
+                area_l = (addr.area or '').lower()
+                if 'dhanmondi' in area_l:
+                    dest_lat, dest_lng = 23.7465, 90.3760
+                elif 'uttara' in area_l:
+                    dest_lat, dest_lng = 23.8759, 90.3795
+                elif 'mirpur' in area_l:
+                    dest_lat, dest_lng = 23.8071, 90.3686
+                elif 'banani' in area_l:
+                    dest_lat, dest_lng = 23.7937, 90.4046
+                elif 'gulshan' in area_l:
+                    dest_lat, dest_lng = 23.7925, 90.4150
+                elif 'baridhara' in area_l:
+                    dest_lat, dest_lng = 23.8050, 90.4200
+                elif 'chattogram' in (addr.city or '').lower():
+                    dest_lat, dest_lng = 22.3569, 91.7832
+
+            origin_name = f"{sub_order.vendor.store_name} Fulfillment Hub" if sub_order.vendor else "Merchant Dispatch Hub"
+            origin_lat = 23.7749
+            origin_lng = 90.4043
+
+            courier_brand = sub_order.courier_name or 'Pathao Express'
+            tracking = LiveDeliveryTracking.objects.create(
+                sub_order=sub_order,
+                rider_name='Tanvir Ahmed',
+                rider_phone='+8801712345678',
+                rider_rating=4.9,
+                vehicle_type='Motorcycle',
+                vehicle_number='DHAKA METRO-HA-12-3456',
+                courier_brand=courier_brand,
+                status=LiveDeliveryTracking.DispatchStatus.OUT_FOR_DELIVERY,
+                origin_latitude=origin_lat,
+                origin_longitude=origin_lng,
+                origin_name=origin_name,
+                destination_latitude=dest_lat,
+                destination_longitude=dest_lng,
+                destination_name=dest_name,
+                current_latitude=origin_lat + 0.005,
+                current_longitude=origin_lng + 0.003,
+                eta_minutes=14,
+                distance_km=2.10,
+                heading_degrees=42.0,
+                speed_kmh=24.0,
+                current_waypoint_index=3,
+            )
+            tracking.ensure_route_waypoints()
+            tracking.save()
+
+        # Check simulation advance parameter or periodic progression
+        should_advance = request.query_params.get('advance') == 'true'
+        now = timezone.now()
+        if not should_advance and tracking.status != LiveDeliveryTracking.DispatchStatus.DELIVERED:
+            # Advance step if at least 8 seconds elapsed since last update
+            if (now - tracking.last_location_update).total_seconds() >= 8:
+                should_advance = True
+
+        if should_advance and tracking.status != LiveDeliveryTracking.DispatchStatus.DELIVERED:
+            tracking.advance_simulation(steps=1)
+
+        serializer = LiveDeliveryTrackingSerializer(tracking)
+        return Response(serializer.data)
+
+
+class LiveDeliveryLocationUpdateView(generics.GenericAPIView):
+    """
+    POST /api/logistics/sub-orders/<sub_order_id>/update-location/
+    Vendor, Rider, or Admin pushes real-time GPS coordinate updates.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, sub_order_id, *args, **kwargs):
+        try:
+            sub_order = SubOrder.objects.get(id=sub_order_id)
+        except SubOrder.DoesNotExist:
+            return Response({'error': 'Sub-order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+        is_vendor = (sub_order.vendor and sub_order.vendor.user_id == user.id)
+        is_staff = user.is_staff or user.is_superuser
+        if not (is_vendor or is_staff):
+            return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+
+        from .models import LiveDeliveryTracking
+        from .serializers import LiveDeliveryTrackingSerializer
+
+        tracking, _ = LiveDeliveryTracking.objects.get_or_create(sub_order=sub_order)
+
+        lat = request.data.get('latitude')
+        lng = request.data.get('longitude')
+        if lat is not None:
+            tracking.current_latitude = float(lat)
+        if lng is not None:
+            tracking.current_longitude = float(lng)
+
+        if 'status' in request.data:
+            st = request.data['status'].upper()
+            if st in LiveDeliveryTracking.DispatchStatus.values:
+                tracking.status = st
+        if 'speed_kmh' in request.data:
+            tracking.speed_kmh = float(request.data['speed_kmh'])
+        if 'heading_degrees' in request.data:
+            tracking.heading_degrees = float(request.data['heading_degrees'])
+        if 'eta_minutes' in request.data:
+            tracking.eta_minutes = int(request.data['eta_minutes'])
+        if 'distance_km' in request.data:
+            from decimal import Decimal
+            tracking.distance_km = Decimal(str(request.data['distance_km']))
+        if 'rider_name' in request.data:
+            tracking.rider_name = request.data['rider_name']
+        if 'rider_phone' in request.data:
+            tracking.rider_phone = request.data['rider_phone']
+
+        tracking.save()
+        return Response(LiveDeliveryTrackingSerializer(tracking).data)
+

@@ -38,6 +38,8 @@ class SubOrderSerializer(serializers.ModelSerializer):
     payment_status = serializers.CharField(source='order.payment_status', read_only=True)
     payment_method = serializers.CharField(source='order.payment_method', read_only=True)
     total_amount = serializers.SerializerMethodField()
+    has_live_tracking = serializers.SerializerMethodField()
+    live_tracking = serializers.SerializerMethodField()
 
     class Meta:
         model = SubOrder
@@ -47,9 +49,27 @@ class SubOrderSerializer(serializers.ModelSerializer):
             'provision_status', 'courier_reference_id', 'last_error',
             'payment_status', 'payment_method', 'total_amount',
             'accepted_at', 'packed_at', 'shipped_at', 'delivered_at', 'canceled_at',
-            'ship_by_date', 'created_at', 'updated_at', 'items', 'events'
+            'ship_by_date', 'created_at', 'updated_at', 'items', 'events',
+            'has_live_tracking', 'live_tracking'
         ]
         read_only_fields = ['vendor', 'vendor_store_name', 'order_id', 'created_at', 'updated_at']
+
+    def get_has_live_tracking(self, obj):
+        # Tracking is available once order is processed, shipped, or explicitly has tracking
+        return bool(
+            hasattr(obj, 'live_tracking') or
+            obj.status in ['PROCESSING', 'SHIPPED', 'DELIVERED'] or
+            obj.tracking_number
+        )
+
+    def get_live_tracking(self, obj):
+        try:
+            if hasattr(obj, 'live_tracking') and obj.live_tracking:
+                from logistics.serializers import LiveDeliveryTrackingSerializer
+                return LiveDeliveryTrackingSerializer(obj.live_tracking).data
+        except Exception:
+            pass
+        return None
 
     def get_package_label(self, obj):
         ids = list(obj.order.sub_orders.order_by('id').values_list('id', flat=True))

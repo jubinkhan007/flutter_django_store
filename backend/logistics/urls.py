@@ -21,4 +21,8 @@ urlpatterns = [
 
     # Delivery Estimate
     path('estimate/', views.DeliveryEstimateView.as_view(), name='logistics-estimate'),
+
+    # Live Courier & Rider Tracking
+    path('sub-orders/<int:sub_order_id>/live-tracking/', views.LiveDeliveryTrackingDetailView.as_view(), name='suborder-live-tracking'),
+    path('sub-orders/<int:sub_order_id>/update-location/', views.LiveDeliveryLocationUpdateView.as_view(), name='suborder-update-location'),
 ]
