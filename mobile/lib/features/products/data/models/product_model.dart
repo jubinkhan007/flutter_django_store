@@ -18,6 +18,8 @@ class ProductModel extends Product {
     super.createdAt,
     super.options,
     super.variants,
+    super.brand = '',
+    super.discountPercent = 0,
     super.avgRating,
     super.reviewCount,
     super.isSponsored,
@@ -43,6 +45,11 @@ class ProductModel extends Product {
         ? null
         : ApiConfig.resolveUrl(rawImage);
 
+    final rawDiscount = json['discount_percent'];
+    final parsedDiscount = rawDiscount != null
+        ? (int.tryParse(rawDiscount.toString()) ?? 0)
+        : 0;
+
     return ProductModel(
       id: json['id'],
       name: json['name'] ?? '',
@@ -60,6 +67,8 @@ class ProductModel extends Product {
       createdAt: json['created_at'],
       options: optionsList.map((o) => ProductOption.fromJson(o)).toList(),
       variants: variantsList.map((v) => ProductVariant.fromJson(v)).toList(),
+      brand: json['brand']?.toString() ?? '',
+      discountPercent: parsedDiscount,
       avgRating: double.tryParse(json['avg_rating']?.toString() ?? '0') ?? 0.0,
       reviewCount: json['review_count'] ?? 0,
       isSponsored: json['is_sponsored'] ?? false,

@@ -14,7 +14,7 @@ class SearchSuggestion {
   factory SearchSuggestion.fromJson(Map<String, dynamic> json) {
     return SearchSuggestion(
       type: json['type'] ?? 'PRODUCT',
-      id: json['id'] ?? 0,
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
       label: json['label'] ?? '',
       subtitle: json['subtitle'] ?? '',
     );

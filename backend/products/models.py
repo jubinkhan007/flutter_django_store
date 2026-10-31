@@ -44,6 +44,13 @@ class Product(models.Model):
     avg_rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
     review_count = models.PositiveIntegerField(default=0)
     
+    # Brand and Marketing Attributes
+    brand = models.CharField(max_length=100, blank=True, default='', db_index=True)
+    discount_percent = models.PositiveIntegerField(
+        default=0,
+        help_text="Direct discount percentage e.g. 15 for 15% off",
+    )
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -54,6 +61,40 @@ class Product(models.Model):
     @property
     def in_stock(self):
         return self.stock_quantity > 0
+
+    @property
+    def effective_discount_price(self):
+        if self.discount_percent > 0:
+            from decimal import Decimal
+            multiplier = Decimal(str(1 - (self.discount_percent / 100)))
+            return (self.price * multiplier).quantize(Decimal('0.01'))
+        return self.price
+
+
+class SearchQueryHistory(models.Model):
+    from django.conf import settings
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='search_history',
+    )
+    query = models.CharField(max_length=255, db_index=True)
+    count = models.PositiveIntegerField(default=1)
+    last_searched_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-last_searched_at']
+        indexes = [
+            models.Index(fields=['user', '-last_searched_at']),
+            models.Index(fields=['query']),
+        ]
+
+    def __str__(self):
+        return f"{self.query} ({self.count})"
+
 
 class ProductOption(models.Model):
     """e.g., Size, Color"""

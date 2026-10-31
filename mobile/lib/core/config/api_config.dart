@@ -52,6 +52,8 @@ class ApiConfig {
   // Product endpoints
   static String get productsUrl => '$baseUrl/products/';
   static String get searchSuggestionsUrl => '${productsUrl}search/suggestions/';
+  static String get productFacetsUrl => '$baseUrl/products/facets/';
+  static String get searchHistoryUrl => '$baseUrl/products/search/history/';
   static String get categoriesUrl => '$baseUrl/products/categories/';
   static String get wishlistUrl => '$baseUrl/products/wishlist/';
   static String wishlistToggleUrl(int productId) =>

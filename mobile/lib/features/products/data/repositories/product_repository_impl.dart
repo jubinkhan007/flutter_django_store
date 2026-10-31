@@ -7,6 +7,7 @@ import '../../domain/entities/search_suggestion.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../models/product_model.dart';
 import '../models/category_model.dart';
+import '../models/product_facets_model.dart';
 
 class ProductRepositoryImpl implements ProductRepository {
   final ApiClient _apiClient;
@@ -37,6 +38,10 @@ class ProductRepositoryImpl implements ProductRepository {
     double? minPrice,
     double? maxPrice,
     String? sortBy,
+    List<String>? brands,
+    double? minRating,
+    int? minDiscount,
+    bool? inStock,
   }) async {
     final params = <String, String>{};
 
@@ -45,6 +50,10 @@ class ProductRepositoryImpl implements ProductRepository {
     if (minPrice != null) params['min_price'] = '$minPrice';
     if (maxPrice != null) params['max_price'] = '$maxPrice';
     if (sortBy != null && sortBy.isNotEmpty) params['sort'] = sortBy;
+    if (brands != null && brands.isNotEmpty) params['brand'] = brands.join(',');
+    if (minRating != null) params['min_rating'] = '$minRating';
+    if (minDiscount != null) params['min_discount'] = '$minDiscount';
+    if (inStock == true) params['in_stock'] = 'true';
 
     final uri = Uri.parse(ApiConfig.productsUrl).replace(
       queryParameters: params.isEmpty ? null : params,
@@ -58,6 +67,63 @@ class ProductRepositoryImpl implements ProductRepository {
     } else {
       throw Exception('Failed to load products');
     }
+  }
+
+  @override
+  Future<ProductFacets> getFacets({
+    String? query,
+    int? categoryId,
+  }) async {
+    final params = <String, String>{};
+    if (query != null && query.trim().isNotEmpty) params['search'] = query;
+    if (categoryId != null) params['category'] = '$categoryId';
+
+    final uri = Uri.parse(ApiConfig.productFacetsUrl).replace(
+      queryParameters: params.isEmpty ? null : params,
+    );
+
+    final response = await _apiClient.get(uri.toString(), auth: false);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return ProductFacets.fromJson(data);
+    } else {
+      throw Exception('Failed to load product facets');
+    }
+  }
+
+  @override
+  Future<Map<String, List<String>>> getSearchHistory() async {
+    final response = await _apiClient.get(ApiConfig.searchHistoryUrl, auth: true);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final recentList = (data['recent'] as List?)?.map((e) => e.toString()).toList() ?? [];
+      final trendingList = (data['trending'] as List?)?.map((e) => e.toString()).toList() ?? [];
+      return {
+        'recent': recentList,
+        'trending': trendingList,
+      };
+    } else {
+      return {'recent': [], 'trending': []};
+    }
+  }
+
+  @override
+  Future<void> saveSearchQuery(String query) async {
+    if (query.trim().length < 2) return;
+    try {
+      await _apiClient.post(
+        ApiConfig.searchHistoryUrl,
+        body: {'query': query.trim()},
+        auth: true,
+      );
+    } catch (_) {}
+  }
+
+  @override
+  Future<void> clearSearchHistory() async {
+    try {
+      await _apiClient.delete(ApiConfig.searchHistoryUrl, auth: true);
+    } catch (_) {}
   }
 
   @override

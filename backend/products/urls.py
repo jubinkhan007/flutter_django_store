@@ -14,4 +14,6 @@ urlpatterns = [
     path('wishlist/<int:product_id>/toggle/', views.WishlistToggleView.as_view(), name='wishlist-toggle'),
 
     path('categories/', views.CategoryListView.as_view(), name='category-list'),
+    path('facets/', views.ProductFacetsView.as_view(), name='product-facets'),
+    path('search/history/', views.SearchHistoryView.as_view(), name='search-history'),
 ]

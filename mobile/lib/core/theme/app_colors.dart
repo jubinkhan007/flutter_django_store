@@ -9,6 +9,7 @@ class AppColors {
 
   // Indigo / Coral Identity
   static const Color lightPrimary = AppConfig.primaryColor;
+  static const Color primary = lightPrimary;
   static const Color lightAccent = AppConfig.accentColor; // Electric Coral
 
   static const Color lightTextPrimary = Color(0xFF0F172A); // Slate 900

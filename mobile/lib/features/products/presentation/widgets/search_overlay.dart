@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -26,15 +25,14 @@ class _SearchOverlayState extends State<SearchOverlay> {
   final FocusNode _focusNode = FocusNode();
   Timer? _debounce;
   bool _isOverlayOpen = false;
-  List<String> _recentSearches = [];
-
-  static const _historyKey = 'search_history';
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
-    final query = context.read<ProductProvider>().searchQuery;
+    final provider = context.read<ProductProvider>();
+    provider.loadSearchHistory();
+
+    final query = provider.searchQuery;
     if (query != null && query.isNotEmpty) {
       _searchController.text = query;
     }
@@ -46,40 +44,13 @@ class _SearchOverlayState extends State<SearchOverlay> {
     });
   }
 
-  Future<void> _loadHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _recentSearches = prefs.getStringList(_historyKey) ?? [];
-    });
-  }
-
-  Future<void> _saveToHistory(String query) async {
-    if (query.trim().isEmpty) return;
-    final prefs = await SharedPreferences.getInstance();
-    _recentSearches.remove(query);
-    _recentSearches.insert(0, query);
-    if (_recentSearches.length > 5) {
-      _recentSearches = _recentSearches.sublist(0, 5);
-    }
-    await prefs.setStringList(_historyKey, _recentSearches);
-    setState(() {});
-  }
-
-  Future<void> _clearHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_historyKey);
-    setState(() {
-      _recentSearches = [];
-    });
-  }
-
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () {
+    _debounce = Timer(const Duration(milliseconds: 250), () {
       if (query.isNotEmpty) {
         context.read<ProductProvider>().fetchSuggestions(query);
       } else {
-        setState(() {}); // trigger rebuild to show history
+        setState(() {});
       }
     });
   }
@@ -87,7 +58,6 @@ class _SearchOverlayState extends State<SearchOverlay> {
   void _executeSearch(String query) {
     _focusNode.unfocus();
     setState(() => _isOverlayOpen = false);
-    _saveToHistory(query);
     _searchController.text = query;
     context.read<ProductProvider>().setSearchQuery(query);
   }
@@ -115,9 +85,12 @@ class _SearchOverlayState extends State<SearchOverlay> {
       case 'VENDOR':
         return const Icon(
           Icons.storefront_outlined,
-          color: ThemeMode.system == ThemeMode.dark
-              ? Colors.purpleAccent
-              : Colors.purple,
+          color: Colors.purple,
+        );
+      case 'BRAND':
+        return const Icon(
+          Icons.verified_outlined,
+          color: Colors.teal,
         );
       default:
         return const Icon(Icons.search, color: AppColors.lightTextSecondary);
@@ -157,20 +130,22 @@ class _SearchOverlayState extends State<SearchOverlay> {
           builder: (_) => PublicVendorStoreScreen(vendorId: suggestion.id),
         ),
       );
+    } else if (suggestion.type == 'BRAND') {
+      _searchController.text = suggestion.label;
+      final provider = context.read<ProductProvider>();
+      provider.clearFilters();
+      provider.toggleBrand(suggestion.label);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProductProvider>();
-    final hasActiveFilters =
-        provider.minPrice != null ||
-        provider.maxPrice != null ||
-        (provider.sortBy != null && provider.sortBy != 'newest');
+    final activeCount = provider.activeFilterCount;
 
     return Column(
       children: [
-        // Search Bar
+        // Search Bar Row
         Container(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
@@ -207,7 +182,7 @@ class _SearchOverlayState extends State<SearchOverlay> {
                     onSubmitted: _executeSearch,
                     textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
-                      hintText: 'Search products, stores...',
+                      hintText: 'Search products, brands, stores...',
                       prefixIcon: !_isOverlayOpen
                           ? const Icon(
                               Icons.search,
@@ -235,34 +210,69 @@ class _SearchOverlayState extends State<SearchOverlay> {
               ),
               if (!_isOverlayOpen) ...[
                 const SizedBox(width: AppSpacing.sm),
-                Container(
-                  decoration: BoxDecoration(
-                    color: hasActiveFilters
-                        ? Theme.of(context).primaryColor
-                        : AppColors.lightSurface,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.tune,
-                      color: hasActiveFilters
-                          ? Colors.white
-                          : AppColors.lightTextPrimary,
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: activeCount > 0
+                            ? AppColors.primary
+                            : AppColors.lightSurface,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.tune,
+                          color: activeCount > 0
+                              ? Colors.white
+                              : AppColors.lightTextPrimary,
+                        ),
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (context) => const FilterBottomSheet(),
+                          );
+                        },
+                      ),
                     ),
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) => const FilterBottomSheet(),
-                      );
-                    },
-                  ),
+                    if (activeCount > 0)
+                      Positioned(
+                        right: -4,
+                        top: -4,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: AppColors.error,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$activeCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ],
           ),
         ),
+
+        // Quick Active Filter Badges Bar (when not in overlay and filters applied)
+        if (!_isOverlayOpen && (activeCount > 0 || provider.searchQuery != null))
+          _buildQuickFilterBar(provider),
 
         // Overlay Content
         if (_isOverlayOpen)
@@ -273,59 +283,174 @@ class _SearchOverlayState extends State<SearchOverlay> {
             color: Theme.of(context).scaffoldBackgroundColor,
             child: _searchController.text.trim().length >= 2
                 ? _buildSuggestions(provider)
-                : _buildHistory(),
+                : _buildHistoryAndTrending(provider),
           ),
       ],
     );
   }
 
-  Widget _buildHistory() {
-    if (_recentSearches.isEmpty) {
-      return const Center(
-        child: Text(
-          'Search for products, categories, or stores',
-          style: TextStyle(color: AppColors.lightTextSecondary),
-        ),
-      );
-    }
+  Widget _buildQuickFilterBar(ProductProvider provider) {
+    return Container(
+      height: 42,
+      margin: const EdgeInsets.only(bottom: 6),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        children: [
+          // Filter button chip
+          ActionChip(
+            avatar: Icon(Icons.filter_list, size: 16, color: AppColors.primary),
+            label: Text(
+              'Filters (${provider.activeFilterCount})',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+            side: BorderSide(color: AppColors.primary),
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => const FilterBottomSheet(),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+
+          // In-stock quick toggle
+          FilterChip(
+            label: const Text('In Stock Only', style: TextStyle(fontSize: 12)),
+            selected: provider.inStockOnly,
+            selectedColor: AppColors.primary.withValues(alpha: 0.15),
+            checkmarkColor: AppColors.primary,
+            onSelected: (val) {
+              provider.setInStockOnly(val);
+            },
+          ),
+          const SizedBox(width: 8),
+
+          // Selected brands chips
+          ...provider.selectedBrands.map((brand) => Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Chip(
+              label: Text(brand, style: const TextStyle(fontSize: 12)),
+              deleteIcon: const Icon(Icons.close, size: 14),
+              onDeleted: () => provider.toggleBrand(brand),
+              backgroundColor: Colors.teal.withValues(alpha: 0.12),
+              side: BorderSide(color: Colors.teal.shade200),
+            ),
+          )),
+
+          // Min rating chip
+          if (provider.minRating != null) ...[
+            Chip(
+              label: Text('⭐ ${provider.minRating?.toInt()}★ & up', style: const TextStyle(fontSize: 12)),
+              deleteIcon: const Icon(Icons.close, size: 14),
+              onDeleted: () => provider.setMinRating(null),
+              backgroundColor: Colors.amber.withValues(alpha: 0.15),
+            ),
+            const SizedBox(width: 8),
+          ],
+
+          // Min discount chip
+          if (provider.minDiscount != null) ...[
+            Chip(
+              label: Text('🏷️ ≥${provider.minDiscount}% Off', style: const TextStyle(fontSize: 12)),
+              deleteIcon: const Icon(Icons.close, size: 14),
+              onDeleted: () => provider.setMinDiscount(null),
+              backgroundColor: Colors.orange.withValues(alpha: 0.15),
+            ),
+            const SizedBox(width: 8),
+          ],
+
+          // Reset all chip
+          ActionChip(
+            label: const Text('Clear All', style: TextStyle(fontSize: 12, color: AppColors.error)),
+            onPressed: () => provider.clearFilters(),
+            backgroundColor: Colors.red.withValues(alpha: 0.08),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryAndTrending(ProductProvider provider) {
+    final recent = provider.recentSearches;
+    final trending = provider.trendingSearches;
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.md),
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Recent Searches',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            TextButton(
-              onPressed: _clearHistory,
-              child: const Text(
-                'Clear',
-                style: TextStyle(color: AppColors.error),
+        // Recent Searches Section
+        if (recent.isNotEmpty) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Recent Searches',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
-            ),
-          ],
-        ),
-        ..._recentSearches.map(
-          (query) => ListTile(
-            leading: const Icon(
-              Icons.history,
-              color: AppColors.lightTextSecondary,
-            ),
-            title: Text(query),
-            trailing: const Icon(
-              Icons.north_west,
-              size: 16,
-              color: AppColors.lightTextSecondary,
-            ),
-            onTap: () {
-              _searchController.text = query;
-              _executeSearch(query);
-            },
+              TextButton(
+                onPressed: () => provider.clearRecentSearches(),
+                child: const Text(
+                  'Clear All',
+                  style: TextStyle(color: AppColors.error, fontSize: 13),
+                ),
+              ),
+            ],
           ),
-        ),
+          ...recent.take(6).map(
+            (query) => ListTile(
+              dense: true,
+              leading: const Icon(
+                Icons.history,
+                color: AppColors.lightTextSecondary,
+                size: 20,
+              ),
+              title: Text(query, style: const TextStyle(fontSize: 14)),
+              trailing: const Icon(
+                Icons.north_west,
+                size: 16,
+                color: AppColors.lightTextSecondary,
+              ),
+              onTap: () {
+                _searchController.text = query;
+                _executeSearch(query);
+              },
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+
+        // Trending Searches Section
+        if (trending.isNotEmpty) ...[
+          Row(
+            children: [
+              Icon(Icons.trending_up, color: AppColors.primary, size: 18),
+              const SizedBox(width: 6),
+              const Text(
+                'Trending Searches',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: trending.map((item) {
+              return ActionChip(
+                label: Text(item, style: const TextStyle(fontSize: 13)),
+                backgroundColor: Colors.grey.shade100,
+                side: BorderSide(color: Colors.grey.shade300),
+                onPressed: () {
+                  _searchController.text = item;
+                  _executeSearch(item);
+                },
+              );
+            }).toList(),
+          ),
+        ],
       ],
     );
   }

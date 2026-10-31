@@ -76,8 +76,11 @@ class ProductSerializer(serializers.ModelSerializer):
             'category',
             'category_detail',
             'name',
+            'brand',
             'description',
             'price',
+            'discount_percent',
+            'effective_discount_price',
             'active_sale_price',
             'stock_quantity',
             'image',
@@ -92,9 +95,12 @@ class ProductSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at'
         ]
-        read_only_fields = ['vendor', 'created_at', 'updated_at', 'in_stock', 'avg_rating', 'review_count']
+        read_only_fields = [
+            'vendor', 'created_at', 'updated_at', 'in_stock',
+            'avg_rating', 'review_count', 'effective_discount_price'
+        ]
 
-from .models import Wishlist
+from .models import Wishlist, SearchQueryHistory
 
 class WishlistSerializer(serializers.ModelSerializer):
     product_detail = ProductSerializer(source='product', read_only=True)
@@ -103,3 +109,9 @@ class WishlistSerializer(serializers.ModelSerializer):
         model = Wishlist
         fields = ['id', 'user', 'product', 'product_detail', 'added_at']
         read_only_fields = ['user', 'added_at']
+
+
+class SearchQueryHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SearchQueryHistory
+        fields = ['id', 'query', 'count', 'last_searched_at']

@@ -93,13 +93,46 @@ class PublicProductListView(generics.ListAPIView):
             except ValueError:
                 pass
 
-        # 3. Search by name/description/vendor (with a fuzzy fallback)
+        # 3. Filter by Brand(s)
+        brand_param = self.request.query_params.get('brand')
+        if brand_param:
+            brands = [b.strip() for b in brand_param.split(',') if b.strip()]
+            if brands:
+                from django.db.models import Q as BrandQ
+                brand_q = BrandQ()
+                for b in brands:
+                    brand_q |= BrandQ(brand__iexact=b)
+                queryset = queryset.filter(brand_q)
+
+        # 4. Filter by Minimum Rating
+        min_rating = self.request.query_params.get('min_rating')
+        if min_rating:
+            try:
+                queryset = queryset.filter(avg_rating__gte=float(min_rating))
+            except ValueError:
+                pass
+
+        # 5. Filter by Minimum Discount %
+        min_discount = self.request.query_params.get('min_discount')
+        if min_discount:
+            try:
+                queryset = queryset.filter(discount_percent__gte=int(min_discount))
+            except ValueError:
+                pass
+
+        # 6. Filter by In-Stock availability
+        in_stock = self.request.query_params.get('in_stock')
+        if in_stock and in_stock.lower() in ('true', '1', 'yes'):
+            queryset = queryset.filter(stock_quantity__gt=0)
+
+        # 7. Search by name/description/brand/vendor (with fuzzy fallback)
         search_query = (self.request.query_params.get('search') or '').strip()
         used_similarity_order = False
         if search_query:
             direct = queryset.filter(
                 Q(name__icontains=search_query) |
                 Q(description__icontains=search_query) |
+                Q(brand__icontains=search_query) |
                 Q(vendor__store_name__icontains=search_query)
             )
 
@@ -115,6 +148,7 @@ class PublicProductListView(generics.ListAPIView):
                         similarity=Greatest(
                             TrigramSimilarity('name', search_query),
                             TrigramSimilarity('description', search_query),
+                            TrigramSimilarity('brand', search_query),
                             TrigramSimilarity('vendor__store_name', search_query),
                         )
                     ).filter(similarity__gt=0.2).order_by('-similarity')
@@ -128,6 +162,7 @@ class PublicProductListView(generics.ListAPIView):
                     def _score(p):
                         return max(
                             _best_token_similarity(search_query, p.name),
+                            _best_token_similarity(search_query, p.brand or ''),
                             _best_token_similarity(
                                 search_query,
                                 getattr(p.vendor, 'store_name', '') if p.vendor else ''
@@ -154,22 +189,44 @@ class PublicProductListView(generics.ListAPIView):
                         queryset = queryset.order_by(preserved)
                         used_similarity_order = True
 
-        # 4. Sorting
-        sort_by = self.request.query_params.get('sort')
+        # 8. Sorting
+        sort_by = (self.request.query_params.get('sort') or '').strip().lower()
         if not used_similarity_order:
-            if sort_by == 'price_asc':
+            if sort_by in ('popularity', 'sales'):
+                from django.db.models import Sum
+                from django.db.models.functions import Coalesce
+                queryset = queryset.annotate(
+                    sales_volume=Coalesce(Sum('order_items__quantity'), 0)
+                ).order_by('-sales_volume', '-review_count', '-avg_rating', '-created_at')
+            elif sort_by == 'rating':
+                queryset = queryset.order_by('-avg_rating', '-review_count', '-created_at')
+            elif sort_by == 'discount':
+                queryset = queryset.order_by('-discount_percent', '-price', '-created_at')
+            elif sort_by == 'price_asc':
                 queryset = queryset.order_by('price')
             elif sort_by == 'price_desc':
                 queryset = queryset.order_by('-price')
             elif sort_by == 'newest':
                 queryset = queryset.order_by('-created_at')
             else:
-                # Default sort (newest first or arbitrary)
                 queryset = queryset.order_by('-created_at')
             
         return queryset
 
     def list(self, request, *args, **kwargs):
+        # Record search query history if valid
+        search_query = (request.query_params.get('search') or '').strip()
+        if search_query and len(search_query) >= 2:
+            try:
+                from .models import SearchQueryHistory
+                u = request.user if request.user.is_authenticated else None
+                sqh, created = SearchQueryHistory.objects.get_or_create(user=u, query=search_query)
+                if not created:
+                    sqh.count += 1
+                    sqh.save(update_fields=['count', 'last_searched_at'])
+            except Exception:
+                pass
+
         queryset = self.filter_queryset(self.get_queryset())
 
         # Sponsored Ads Injection
@@ -179,7 +236,6 @@ class PublicProductListView(generics.ListAPIView):
             first_cat = category_param.split(',')[0].strip()
             if first_cat.isdigit():
                 cat_id = int(first_cat)
-        search_query = (request.query_params.get('search') or '').strip()
 
         try:
             from ads.services import AdAuctionService
@@ -328,6 +384,21 @@ class SearchSuggestionView(APIView):
                 "subtitle": f"{v.avg_rating}★ ({v.review_count})" if v.review_count > 0 else "New Store"
             })
 
+        # 4. Brand Matches (Limit 3)
+        brands = (
+            Product.objects.filter(is_available=True, brand__icontains=query)
+            .values_list('brand', flat=True)
+            .distinct()[:3]
+        )
+        for b in brands:
+            if b:
+                results.append({
+                    "type": "BRAND",
+                    "id": None,
+                    "label": b,
+                    "subtitle": "Brand"
+                })
+
         server_ms = int((time.time() - start_time) * 1000)
         
         return Response({
@@ -335,6 +406,150 @@ class SearchSuggestionView(APIView):
             "results": results,
             "server_ms": server_ms
         })
+
+
+class ProductFacetsView(APIView):
+    """
+    GET /api/products/facets/
+    Calculates dynamic faceted aggregations for brands, categories, price range, ratings, and discounts.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        queryset = Product.objects.filter(is_available=True)
+
+        category_param = request.query_params.get('category')
+        if category_param:
+            cids = [int(cid) for cid in category_param.split(',') if cid.isdigit()]
+            if cids:
+                queryset = queryset.filter(category_id__in=cids)
+
+        search_query = (request.query_params.get('search') or '').strip()
+        if search_query:
+            queryset = queryset.filter(
+                Q(name__icontains=search_query) |
+                Q(description__icontains=search_query) |
+                Q(brand__icontains=search_query) |
+                Q(vendor__store_name__icontains=search_query)
+            )
+
+        from django.db.models import Count, Min, Max
+
+        # Brands
+        brands_data = (
+            queryset.exclude(brand='')
+            .values('brand')
+            .annotate(count=Count('id'))
+            .order_by('-count')[:30]
+        )
+        brands = [{'name': b['brand'], 'count': b['count']} for b in brands_data]
+
+        # Categories
+        categories_data = (
+            queryset.filter(category__isnull=False)
+            .values('category__id', 'category__name')
+            .annotate(count=Count('id'))
+            .order_by('-count')[:20]
+        )
+        categories = [
+            {'id': c['category__id'], 'name': c['category__name'], 'count': c['count']}
+            for c in categories_data
+        ]
+
+        # Price range
+        price_stats = queryset.aggregate(min_price=Min('price'), max_price=Max('price'))
+        min_p = float(price_stats['min_price'] or 0.0)
+        max_p = float(price_stats['max_price'] or 10000.0)
+
+        # Ratings
+        r4 = queryset.filter(avg_rating__gte=4.0).count()
+        r3 = queryset.filter(avg_rating__gte=3.0).count()
+        r2 = queryset.filter(avg_rating__gte=2.0).count()
+
+        # Discounts
+        d50 = queryset.filter(discount_percent__gte=50).count()
+        d25 = queryset.filter(discount_percent__gte=25).count()
+        d10 = queryset.filter(discount_percent__gte=10).count()
+
+        in_stock_cnt = queryset.filter(stock_quantity__gt=0).count()
+        total_cnt = queryset.count()
+
+        return Response({
+            'total_count': total_cnt,
+            'in_stock_count': in_stock_cnt,
+            'price_range': {
+                'min': min_p,
+                'max': max_p,
+            },
+            'brands': brands,
+            'categories': categories,
+            'rating_counts': {
+                '4_plus': r4,
+                '3_plus': r3,
+                '2_plus': r2,
+            },
+            'discount_counts': {
+                '50_plus': d50,
+                '25_plus': d25,
+                '10_plus': d10,
+            },
+        })
+
+
+class SearchHistoryView(APIView):
+    """
+    GET /api/products/search/history/
+    POST /api/products/search/history/
+    DELETE /api/products/search/history/
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        from .models import SearchQueryHistory
+        from django.db.models import Sum
+
+        user_history = []
+        if request.user.is_authenticated:
+            user_history = list(
+                SearchQueryHistory.objects.filter(user=request.user)
+                .order_by('-last_searched_at')
+                .values_list('query', flat=True)[:10]
+            )
+
+        trending = list(
+            SearchQueryHistory.objects.values('query')
+            .annotate(total_searches=Sum('count'))
+            .order_by('-total_searches')
+            .values_list('query', flat=True)[:8]
+        )
+
+        if not trending:
+            trending = ["Wireless Earbuds", "Smart Watch", "T-Shirt", "Sneakers", "Backpack", "Bluetooth Speaker"]
+
+        return Response({
+            'recent': user_history,
+            'trending': trending,
+        })
+
+    def post(self, request, *args, **kwargs):
+        query = (request.data.get('query') or '').strip()
+        if not query or len(query) < 2:
+            return Response({'error': 'Query too short'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from .models import SearchQueryHistory
+        u = request.user if request.user.is_authenticated else None
+        sqh, created = SearchQueryHistory.objects.get_or_create(user=u, query=query)
+        if not created:
+            sqh.count += 1
+            sqh.save(update_fields=['count', 'last_searched_at'])
+
+        return Response({'status': 'ok', 'query': query})
+
+    def delete(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            from .models import SearchQueryHistory
+            SearchQueryHistory.objects.filter(user=request.user).delete()
+        return Response({'status': 'cleared'})
 
 
 # ═══════════════════════════════════════════════════════════════════
