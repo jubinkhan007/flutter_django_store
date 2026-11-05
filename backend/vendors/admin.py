@@ -3,6 +3,7 @@ from django.utils import timezone
 from unfold.admin import ModelAdmin
 from unfold.decorators import display
 
+from .disbursal_service import VendorDisbursalService
 from .financial_service import FinancialService
 from .models import (
     LedgerEntry,
@@ -15,8 +16,11 @@ from .models import (
 
 @admin.register(Vendor)
 class VendorAdmin(ModelAdmin):
-    list_display = ('store_name', 'user', 'show_approved', 'balance', 'created_at')
-    list_filter = ('is_approved', 'is_live')
+    list_display = (
+        'store_name', 'user', 'show_approved', 'balance',
+        'is_auto_payout_enabled', 'auto_payout_schedule', 'created_at',
+    )
+    list_filter = ('is_approved', 'is_live', 'is_auto_payout_enabled', 'auto_payout_schedule')
     list_select_related = ('user',)
     search_fields = ('store_name', 'user__email')
 
@@ -27,6 +31,13 @@ class VendorAdmin(ModelAdmin):
         }),
         ('Store Details', {
             'fields': ('store_description', 'store_logo', 'location', 'contact_number'),
+            'classes': ['tab'],
+        }),
+        ('Auto Payouts', {
+            'fields': (
+                'is_auto_payout_enabled', 'auto_payout_schedule',
+                'auto_payout_threshold', 'preferred_payout_method', 'last_payout_at',
+            ),
             'classes': ['tab'],
         }),
     )
@@ -88,23 +99,35 @@ class SettlementRecordAdmin(ModelAdmin):
 
 @admin.register(VendorPayoutMethod)
 class VendorPayoutMethodAdmin(ModelAdmin):
-    list_display = ('id', 'vendor', 'method', 'label', 'show_verified', 'updated_at')
+    list_display = ('id', 'vendor', 'method', 'label', 'show_verified', 'verified_at', 'updated_at')
     list_filter = ('method', 'is_verified')
     list_select_related = ('vendor',)
     search_fields = ('vendor__store_name', 'label')
+    actions = ['verify_payout_method']
 
     @display(description='Verified', label={True: 'success', False: 'danger'})
     def show_verified(self, obj):
         return obj.is_verified
 
+    @admin.action(description="Verify selected payout methods")
+    def verify_payout_method(self, request, queryset):
+        success_count = 0
+        for method in queryset:
+            if VendorDisbursalService.verify_payout_method(method, notes="Verified by admin action"):
+                success_count += 1
+        self.message_user(request, f"Successfully verified {success_count} payout method(s).")
+
 
 @admin.register(PayoutRequest)
 class PayoutRequestAdmin(ModelAdmin):
-    list_display = ('id', 'vendor', 'amount', 'show_status', 'requested_at', 'processed_at')
-    list_filter = ('status',)
-    list_select_related = ('vendor',)
-    search_fields = ('vendor__store_name', 'id')
-    actions = ['approve_payout', 'reject_and_release', 'mark_as_paid']
+    list_display = (
+        'id', 'vendor', 'amount', 'disbursal_channel', 'gateway_reference',
+        'show_status', 'show_automated', 'requested_at', 'processed_at',
+    )
+    list_filter = ('status', 'disbursal_channel', 'is_automated')
+    list_select_related = ('vendor', 'payout_method')
+    search_fields = ('vendor__store_name', 'id', 'gateway_reference')
+    actions = ['disburse_via_gateway', 'approve_payout', 'reject_and_release', 'mark_as_paid']
 
     @display(description='Status', label={
         PayoutRequest.Status.REQUESTED: 'warning',
@@ -115,6 +138,27 @@ class PayoutRequestAdmin(ModelAdmin):
     })
     def show_status(self, obj):
         return obj.status
+
+    @display(description='Automated', label={True: 'info', False: 'default'})
+    def show_automated(self, obj):
+        return obj.is_automated
+
+    @admin.action(description="⚡ Disburse via Gateway (bKash/Nagad/Bank)")
+    def disburse_via_gateway(self, request, queryset):
+        success_count = 0
+        error_count = 0
+        for payout in queryset:
+            if payout.status == PayoutRequest.Status.PAID:
+                continue
+            res = VendorDisbursalService.disburse_payout(payout)
+            if res.get('success'):
+                success_count += 1
+            else:
+                error_count += 1
+        self.message_user(
+            request,
+            f"Gateway Disbursal complete: {success_count} paid successfully, {error_count} failed/rejected."
+        )
 
     @admin.action(description="Approve payout (notify vendor)")
     def approve_payout(self, request, queryset):
@@ -154,7 +198,7 @@ class PayoutRequestAdmin(ModelAdmin):
             except Exception:
                 pass
 
-    @admin.action(description="Mark payout as PAID (debit held)")
+    @admin.action(description="Mark payout as PAID (manual bypass)")
     def mark_as_paid(self, request, queryset):
         for payout in queryset:
             if payout.status == PayoutRequest.Status.PAID:

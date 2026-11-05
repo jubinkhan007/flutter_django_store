@@ -24,6 +24,7 @@ from .serializers import (
     BulkJobSerializer,
     LedgerEntrySerializer,
     VendorPayoutMethodSerializer,
+    VendorPayoutSettingsSerializer,
     SettlementRecordSerializer,
 )
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -245,6 +246,7 @@ class VendorWalletSummaryView(APIView):
 
         recent_entries = LedgerEntry.objects.filter(vendor=vendor).order_by('-created_at')[:50]
         payout_methods = VendorPayoutMethod.objects.filter(vendor=vendor).order_by('-is_verified', '-updated_at')
+        recent_payouts = PayoutRequest.objects.filter(vendor=vendor).order_by('-requested_at')[:20]
 
         return Response({
             'balances': {
@@ -257,8 +259,16 @@ class VendorWalletSummaryView(APIView):
                 'lifetime_withdrawn': float(vendor.total_withdrawn_lifetime),
                 'min_withdrawal': float(FinancialService.fee_config.min_withdrawal_amount),
             },
+            'auto_payout': {
+                'is_enabled': vendor.is_auto_payout_enabled,
+                'schedule': vendor.auto_payout_schedule,
+                'threshold': float(vendor.auto_payout_threshold),
+                'preferred_method_id': vendor.preferred_payout_method_id,
+                'last_payout_at': vendor.last_payout_at.isoformat() if vendor.last_payout_at else None,
+            },
             'entries': LedgerEntrySerializer(recent_entries, many=True).data,
             'payout_methods': VendorPayoutMethodSerializer(payout_methods, many=True).data,
+            'payout_requests': PayoutRequestSerializer(recent_payouts, many=True).data,
         })
 
 
@@ -275,7 +285,67 @@ class VendorPayoutMethodListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         vendor = self.request.user.vendor_profile
-        serializer.save(vendor=vendor)
+        method = serializer.save(vendor=vendor)
+        # Auto-verify on creation if valid details provided
+        from .disbursal_service import VendorDisbursalService
+        VendorDisbursalService.verify_payout_method(method)
+
+
+class VendorPayoutMethodVerifyView(APIView):
+    """
+    POST /api/vendors/payout-methods/<id>/verify/
+    Verifies vendor's payout method (bKash/Nagad wallet or Bank).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            vendor = request.user.vendor_profile
+            method = VendorPayoutMethod.objects.get(id=pk, vendor=vendor)
+        except (AttributeError, VendorPayoutMethod.DoesNotExist):
+            return Response({'error': 'Payout method not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        from .disbursal_service import VendorDisbursalService
+        is_valid = VendorDisbursalService.verify_payout_method(method)
+        if is_valid:
+            return Response({
+                'status': 'verified',
+                'message': f'{method.method} account verified successfully.',
+                'method': VendorPayoutMethodSerializer(method).data,
+            })
+        else:
+            return Response({
+                'status': 'failed',
+                'error': method.verification_notes or 'Account verification failed. Please check account details.',
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VendorPayoutSettingsView(APIView):
+    """
+    GET /api/vendors/payout-settings/
+    POST /api/vendors/payout-settings/
+    Manages auto-payout schedule (Weekly, Bi-weekly, Monthly) and threshold.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        try:
+            vendor = request.user.vendor_profile
+        except AttributeError:
+            return Response({'error': 'Not a vendor'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = VendorPayoutSettingsSerializer(vendor)
+        return Response(serializer.data)
+
+    def post(self, request, *args, **kwargs):
+        try:
+            vendor = request.user.vendor_profile
+        except AttributeError:
+            return Response({'error': 'Not a vendor'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = VendorPayoutSettingsSerializer(vendor, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class VendorSettlementListView(generics.ListAPIView):
@@ -289,6 +359,7 @@ class VendorSettlementListView(generics.ListAPIView):
             return SettlementRecord.objects.none()
         return SettlementRecord.objects.filter(vendor=vendor).order_by('-created_at')
 
+
 class PayoutRequestListCreateView(generics.ListCreateAPIView):
     serializer_class = PayoutRequestSerializer
     permission_classes = [IsAuthenticated]
@@ -300,16 +371,51 @@ class PayoutRequestListCreateView(generics.ListCreateAPIView):
         except AttributeError:
             return PayoutRequest.objects.none()
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        output_serializer = self.get_serializer(serializer.instance)
+        headers = self.get_success_headers(output_serializer.data)
+        return Response(output_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     def perform_create(self, serializer):
         vendor = self.request.user.vendor_profile
         amount = serializer.validated_data['amount']
 
+        payout_method_id = self.request.data.get('payout_method') or self.request.data.get('payout_method_id')
+        payout_method = None
+        if payout_method_id:
+            try:
+                payout_method = VendorPayoutMethod.objects.get(id=payout_method_id, vendor=vendor)
+            except VendorPayoutMethod.DoesNotExist:
+                pass
+
+        channel = ''
+        if payout_method:
+            channel = payout_method.method
+            if not serializer.validated_data.get('bank_details'):
+                serializer.validated_data['bank_details'] = f"{payout_method.method} ({payout_method.label or 'Default'}): {payout_method.details}"
+
         with transaction.atomic():
-            payout = serializer.save(vendor=vendor)
+            payout = serializer.save(
+                vendor=vendor,
+                payout_method=payout_method,
+                disbursal_channel=channel or 'BANK',
+            )
             try:
                 FinancialService.request_payout_hold(vendor, Decimal(str(amount)), payout)
             except ValueError as e:
                 raise serializers.ValidationError(str(e))
+
+            # Auto-disburse if requested by client or if auto-disburse flag is passed
+            raw_auto = self.request.data.get('auto_disburse')
+            auto_disburse = raw_auto is True or str(raw_auto).strip().lower() in ('true', '1')
+            if auto_disburse:
+                from .disbursal_service import VendorDisbursalService
+                VendorDisbursalService.disburse_payout(payout)
+                payout.refresh_from_db()
+                serializer.instance = payout
 
             # Admin inbox notification: PAYOUT_REQUESTED
             def _notify_admins() -> None:
@@ -324,7 +430,7 @@ class PayoutRequestListCreateView(generics.ListCreateAPIView):
                         NotificationService.create(
                             user=admin_user,
                             title='Payout requested',
-                            body=f'Payout request #{payout.id} from {vendor.store_name} for {payout.amount}.',
+                            body=f'Payout request #{payout.id} from {vendor.store_name} for ৳{payout.amount}.',
                             event_type=Notification.Type.PAYOUT_REQUESTED,
                             category=Notification.Category.TRANSACTIONAL,
                             deeplink=f'app://admin/payouts/{payout.id}',
@@ -336,6 +442,28 @@ class PayoutRequestListCreateView(generics.ListCreateAPIView):
                     pass
 
             transaction.on_commit(_notify_admins)
+
+
+class VendorPayoutDisburseView(APIView):
+    """
+    POST /api/vendors/payouts/<id>/disburse/
+    Disburses an approved or requested payout via simulated bKash/Nagad/Bank gateway.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            vendor = request.user.vendor_profile
+            payout = PayoutRequest.objects.get(id=pk, vendor=vendor)
+        except (AttributeError, PayoutRequest.DoesNotExist):
+            return Response({'error': 'Payout request not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        from .disbursal_service import VendorDisbursalService
+        res = VendorDisbursalService.disburse_payout(payout)
+        if res.get('success'):
+            return Response(res)
+        else:
+            return Response(res, status=status.HTTP_400_BAD_REQUEST)
 
 # ═══════════════════════════════════════════════════════════════════
 # BULK OPERATIONS

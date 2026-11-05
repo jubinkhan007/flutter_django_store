@@ -326,15 +326,47 @@ class VendorRepository {
   Future<void> requestPayout({
     required double amount,
     required String bankDetails,
+    int? payoutMethodId,
+    bool autoDisburse = false,
   }) async {
+    final body = <String, dynamic>{
+      'amount': amount,
+      'bank_details': bankDetails,
+      if (payoutMethodId != null) 'payout_method': payoutMethodId,
+      if (autoDisburse) 'auto_disburse': true,
+    };
     final response = await _apiClient.post(
       ApiConfig.vendorPayoutsUrl,
-      body: {'amount': amount, 'bank_details': bankDetails},
+      body: body,
     );
     if (response.statusCode != 201) {
       final error = jsonDecode(response.body);
       throw Exception(error['error'] ?? error.toString());
     }
+  }
+
+  Future<bool> verifyPayoutMethod(int methodId) async {
+    final response = await _apiClient.post(
+      ApiConfig.vendorPayoutMethodVerifyUrl(methodId),
+      body: {},
+    );
+    return response.statusCode == 200;
+  }
+
+  Future<bool> updatePayoutSettings(VendorAutoPayoutSettings settings) async {
+    final response = await _apiClient.post(
+      ApiConfig.vendorPayoutSettingsUrl,
+      body: settings.toJson(),
+    );
+    return response.statusCode == 200;
+  }
+
+  Future<bool> disbursePayout(int payoutId) async {
+    final response = await _apiClient.post(
+      ApiConfig.vendorPayoutDisburseUrl(payoutId),
+      body: {},
+    );
+    return response.statusCode == 200;
   }
 
   // ── Ads & PPC Campaigns ──

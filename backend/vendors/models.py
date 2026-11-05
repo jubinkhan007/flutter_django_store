@@ -37,6 +37,28 @@ class Vendor(models.Model):
     late_shipment_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text="Percentage of late shipped orders")
     avg_handling_time_days = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text="Average days to ship")
 
+    # Auto-payout schedule & configuration
+    is_auto_payout_enabled = models.BooleanField(default=False, help_text="Automatically disburse funds on schedule")
+    auto_payout_schedule = models.CharField(
+        max_length=20,
+        choices=[('WEEKLY', 'Weekly'), ('BIWEEKLY', 'Bi-weekly'), ('MONTHLY', 'Monthly')],
+        default='WEEKLY'
+    )
+    auto_payout_threshold = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('1000.00'),
+        help_text="Minimum available balance in BDT before an auto-payout triggers"
+    )
+    preferred_payout_method = models.ForeignKey(
+        'VendorPayoutMethod',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='preferred_by_vendors'
+    )
+    last_payout_at = models.DateTimeField(null=True, blank=True)
+
     def __str__(self):
         return self.store_name
 
@@ -138,9 +160,36 @@ class PayoutRequest(models.Model):
         REJECTED = 'REJECTED', 'Rejected'
 
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='payout_requests')
+    payout_method = models.ForeignKey(
+        'VendorPayoutMethod',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='payout_requests'
+    )
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.REQUESTED)
+    disbursal_channel = models.CharField(
+        max_length=20,
+        choices=[('BKASH', 'bKash'), ('NAGAD', 'Nagad'), ('BANK', 'Bank')],
+        blank=True
+    )
     bank_details = models.TextField() # e.g. "Bank: Chase, Acct: ****1234"
+    gateway_reference = models.CharField(
+        max_length=120,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="bKash/Nagad/BEFTN transaction reference ID"
+    )
+    gateway_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    failure_reason = models.TextField(blank=True)
+    is_automated = models.BooleanField(default=False, help_text="Triggered automatically by scheduled disbursal engine")
+    verification_status = models.CharField(
+        max_length=20,
+        choices=[('UNVERIFIED', 'Unverified'), ('VERIFIED', 'Verified'), ('FAILED', 'Failed')],
+        default='VERIFIED'
+    )
     admin_note = models.TextField(blank=True)
     requested_at = models.DateTimeField(auto_now_add=True)
     processed_at = models.DateTimeField(null=True, blank=True)
@@ -159,6 +208,8 @@ class VendorPayoutMethod(models.Model):
     label = models.CharField(max_length=100, blank=True, help_text="e.g. 'Main bank', 'bKash personal'")
     details = models.JSONField(default=dict, blank=True)
     is_verified = models.BooleanField(default=False)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    verification_notes = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

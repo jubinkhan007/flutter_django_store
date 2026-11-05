@@ -81,10 +81,41 @@ class WalletTransactionSerializer(serializers.ModelSerializer):
 
 
 class PayoutRequestSerializer(serializers.ModelSerializer):
+    payout_method_details = serializers.SerializerMethodField()
+
     class Meta:
         model = PayoutRequest
-        fields = ['id', 'amount', 'status', 'bank_details', 'admin_note', 'requested_at', 'processed_at']
-        read_only_fields = ['id', 'status', 'admin_note', 'requested_at', 'processed_at']
+        fields = [
+            'id', 'amount', 'status', 'payout_method', 'payout_method_details',
+            'disbursal_channel', 'bank_details', 'gateway_reference', 'gateway_fee',
+            'failure_reason', 'is_automated', 'admin_note', 'requested_at', 'processed_at'
+        ]
+        read_only_fields = [
+            'id', 'status', 'disbursal_channel', 'gateway_reference', 'gateway_fee',
+            'failure_reason', 'is_automated', 'admin_note', 'requested_at', 'processed_at',
+            'payout_method_details'
+        ]
+        extra_kwargs = {
+            'bank_details': {'required': False, 'allow_blank': True},
+        }
+
+    def get_payout_method_details(self, obj):
+        if obj.payout_method:
+            return {
+                'id': obj.payout_method.id,
+                'method': obj.payout_method.method,
+                'label': obj.payout_method.label,
+                'is_verified': obj.payout_method.is_verified,
+            }
+        return None
+
+    def validate(self, attrs):
+        if not attrs.get('bank_details') and not attrs.get('payout_method'):
+            raise serializers.ValidationError({"bank_details": "Please specify bank/wallet details or select a payout method."})
+        if not attrs.get('bank_details') and attrs.get('payout_method'):
+            pm = attrs['payout_method']
+            attrs['bank_details'] = f"{pm.method} ({pm.label or 'Default'}): {pm.details}"
+        return attrs
 
     def validate_amount(self, value):
         if value <= 0:
@@ -95,8 +126,27 @@ class PayoutRequestSerializer(serializers.ModelSerializer):
 class VendorPayoutMethodSerializer(serializers.ModelSerializer):
     class Meta:
         model = VendorPayoutMethod
-        fields = ['id', 'method', 'label', 'details', 'is_verified', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'is_verified', 'created_at', 'updated_at']
+        fields = [
+            'id', 'method', 'label', 'details', 'is_verified',
+            'verified_at', 'verification_notes', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'is_verified', 'verified_at', 'verification_notes', 'created_at', 'updated_at']
+
+
+class VendorPayoutSettingsSerializer(serializers.ModelSerializer):
+    preferred_payout_method_details = VendorPayoutMethodSerializer(source='preferred_payout_method', read_only=True)
+
+    class Meta:
+        model = Vendor
+        fields = [
+            'is_auto_payout_enabled',
+            'auto_payout_schedule',
+            'auto_payout_threshold',
+            'preferred_payout_method',
+            'preferred_payout_method_details',
+            'last_payout_at',
+        ]
+        read_only_fields = ['last_payout_at', 'preferred_payout_method_details']
 
 
 class LedgerEntrySerializer(serializers.ModelSerializer):

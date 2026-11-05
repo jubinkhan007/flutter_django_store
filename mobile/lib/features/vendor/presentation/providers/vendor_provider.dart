@@ -163,15 +163,55 @@ class VendorProvider extends ChangeNotifier {
   Future<bool> requestPayout({
     required double amount,
     required String bankDetails,
+    int? payoutMethodId,
+    bool autoDisburse = false,
   }) async {
     try {
       await _vendorRepository.requestPayout(
         amount: amount,
         bankDetails: bankDetails,
+        payoutMethodId: payoutMethodId,
+        autoDisburse: autoDisburse,
       );
       await loadWalletSummary();
       await loadStats();
       return true;
+    } catch (e) {
+      _walletError = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> verifyPayoutMethod(int methodId) async {
+    try {
+      final ok = await _vendorRepository.verifyPayoutMethod(methodId);
+      if (ok) await loadWalletSummary();
+      return ok;
+    } catch (e) {
+      _walletError = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateAutoPayoutSettings(VendorAutoPayoutSettings settings) async {
+    try {
+      final ok = await _vendorRepository.updatePayoutSettings(settings);
+      if (ok) await loadWalletSummary();
+      return ok;
+    } catch (e) {
+      _walletError = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> disbursePayout(int payoutId) async {
+    try {
+      final ok = await _vendorRepository.disbursePayout(payoutId);
+      if (ok) await loadWalletSummary();
+      return ok;
     } catch (e) {
       _walletError = e.toString().replaceAll('Exception: ', '');
       notifyListeners();

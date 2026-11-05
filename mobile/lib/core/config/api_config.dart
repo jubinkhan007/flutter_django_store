@@ -96,6 +96,11 @@ class ApiConfig {
       '$baseUrl/vendors/payout-methods/';
   static String get vendorSettlementsUrl => '$baseUrl/vendors/settlements/';
   static String get vendorPayoutsUrl => '$baseUrl/vendors/payouts/';
+  static String get vendorPayoutSettingsUrl => '$baseUrl/vendors/payout-settings/';
+  static String vendorPayoutMethodVerifyUrl(int id) =>
+      '$baseUrl/vendors/payout-methods/$id/verify/';
+  static String vendorPayoutDisburseUrl(int id) =>
+      '$baseUrl/vendors/payouts/$id/disburse/';
   static String vendorSubOrderFulfillUrl(int subOrderId) =>
       '$baseUrl/vendors/sub-orders/$subOrderId/fulfill/';
   static String vendorSubOrderEventsUrl(int subOrderId) =>
