@@ -45,14 +45,18 @@ class SubOrderSerializer(serializers.ModelSerializer):
         model = SubOrder
         fields = [
             'id', 'order_id', 'vendor', 'vendor_store_name', 'package_label', 'status',
+            'subtotal_amount', 'discount_amount', 'loyalty_discount_amount', 'shipping_fee', 'total_amount',
             'courier_code', 'courier_name', 'tracking_number', 'tracking_url',
             'provision_status', 'courier_reference_id', 'last_error',
-            'payment_status', 'payment_method', 'total_amount',
+            'payment_status', 'payment_method',
             'accepted_at', 'packed_at', 'shipped_at', 'delivered_at', 'canceled_at',
             'ship_by_date', 'created_at', 'updated_at', 'items', 'events',
             'has_live_tracking', 'live_tracking'
         ]
-        read_only_fields = ['vendor', 'vendor_store_name', 'order_id', 'created_at', 'updated_at']
+        read_only_fields = [
+            'vendor', 'vendor_store_name', 'order_id', 'created_at', 'updated_at',
+            'subtotal_amount', 'discount_amount', 'loyalty_discount_amount', 'shipping_fee'
+        ]
 
     def get_has_live_tracking(self, obj):
         # Tracking is available once order is processed, shipped, or explicitly has tracking
@@ -80,6 +84,8 @@ class SubOrderSerializer(serializers.ModelSerializer):
         return f"Package {idx}"
 
     def get_total_amount(self, obj):
+        if obj.total_amount and obj.total_amount > Decimal('0.00'):
+            return str(obj.total_amount.quantize(Decimal('0.01')))
         total = Decimal('0.00')
         for item in obj.items.all():
             try:
@@ -123,6 +129,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'discount_amount',
             'loyalty_points_redeemed',
             'loyalty_discount_amount',
+            'shipping_fee',
             'total_amount',
             'wallet_amount_applied',
             'payable_amount',
@@ -144,6 +151,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'discount_amount',
             'loyalty_points_redeemed',
             'loyalty_discount_amount',
+            'shipping_fee',
             'total_amount',
             'wallet_amount_applied',
             'payable_amount',

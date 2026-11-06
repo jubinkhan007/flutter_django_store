@@ -89,6 +89,12 @@ class CheckoutReviewStep extends StatelessWidget {
           // Order summary card
           OrderSummaryCard(quote: quote),
 
+          // Multi-Vendor Package Breakdown
+          if (quote.vendorPackages.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            _MultiVendorPackagesCard(packages: quote.vendorPackages),
+          ],
+
           const SizedBox(height: AppSpacing.md),
 
           // Delivery info
@@ -128,11 +134,13 @@ class CheckoutReviewStep extends StatelessWidget {
                 Icon(
                   (quote.isFullyCoveredByWallet || checkout.paymentMethod == 'WALLET')
                       ? Icons.account_balance_wallet_rounded
-                      : checkout.useWallet
-                          ? Icons.pie_chart_outline_rounded
-                          : checkout.paymentMethod == 'COD'
-                              ? Icons.local_shipping_outlined
-                              : Icons.credit_card_rounded,
+                      : checkout.paymentMethod == 'BKASH' || checkout.paymentMethod == 'NAGAD'
+                          ? Icons.flash_on_rounded
+                          : checkout.useWallet
+                              ? Icons.pie_chart_outline_rounded
+                              : checkout.paymentMethod == 'COD'
+                                  ? Icons.local_shipping_outlined
+                                  : Icons.credit_card_rounded,
                   color: primaryColor,
                   size: 20,
                 ),
@@ -146,9 +154,13 @@ class CheckoutReviewStep extends StatelessWidget {
                             ? 'Wallet Payment'
                             : checkout.useWallet && quote.walletAmountApplied > 0
                                 ? 'Split Payment'
-                                : checkout.paymentMethod == 'COD'
-                                    ? 'Cash on Delivery'
-                                    : 'Pay Online (SSLCommerz)',
+                                : checkout.paymentMethod == 'BKASH'
+                                    ? 'bKash Direct'
+                                    : checkout.paymentMethod == 'NAGAD'
+                                        ? 'Nagad Direct'
+                                        : checkout.paymentMethod == 'COD'
+                                            ? 'Cash on Delivery'
+                                            : 'Pay Online (SSLCommerz)',
                         style: AppTextStyles.labelLarge.copyWith(
                           color: AppColors.lightTextPrimary,
                         ),
@@ -158,7 +170,7 @@ class CheckoutReviewStep extends StatelessWidget {
                         Text(
                           quote.isFullyCoveredByWallet
                               ? 'Fully paid with wallet balance'
-                              : 'Wallet: -\$${quote.walletAmountApplied.toStringAsFixed(2)} • Remaining: \$${quote.payableAmount.toStringAsFixed(2)} (${checkout.paymentMethod == 'COD' ? 'COD' : 'Online'})',
+                              : 'Wallet: -৳${quote.walletAmountApplied.toStringAsFixed(2)} • Remaining: ৳${quote.payableAmount.toStringAsFixed(2)} (${checkout.paymentMethod})',
                           style: AppTextStyles.caption.copyWith(
                             color: AppColors.lightTextSecondary,
                           ),
@@ -250,6 +262,153 @@ class _StockWarningBanner extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MultiVendorPackagesCard extends StatelessWidget {
+  final List<VendorPackageQuote> packages;
+
+  const _MultiVendorPackagesCard({required this.packages});
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).primaryColor;
+
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.inventory_2_outlined, color: primaryColor, size: 20),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Vendor Packages (${packages.length})',
+                  style: AppTextStyles.labelLarge.copyWith(
+                    color: AppColors.lightTextPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: primaryColor.withAlpha(20),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Combined Payment',
+                  style: AppTextStyles.caption.copyWith(
+                    color: primaryColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Your items will be shipped separately by each store in dedicated parcels.',
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.lightTextSecondary,
+            ),
+          ),
+          const Divider(height: 20),
+          ...packages.asMap().entries.map((entry) {
+            final index = entry.key;
+            final pkg = entry.value;
+            final isLast = index == packages.length - 1;
+
+            return Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.lightBg,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  border: Border.all(color: AppColors.lightOutline.withAlpha(70)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.storefront_outlined,
+                          size: 16,
+                          color: AppColors.lightTextPrimary,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            pkg.storeName,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.lightTextPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '৳${pkg.total.toStringAsFixed(2)}',
+                          style: AppTextStyles.labelLarge.copyWith(
+                            color: primaryColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${pkg.itemsCount} ${pkg.itemsCount == 1 ? 'item' : 'items'} • Subtotal: ৳${pkg.subtotal.toStringAsFixed(2)}',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.lightTextSecondary,
+                      ),
+                    ),
+                    if (pkg.couponDiscount > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          'Coupon Allocation: -৳${pkg.couponDiscount.toStringAsFixed(2)}',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    if (pkg.loyaltyDiscount > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          'Reward Points: -৳${pkg.loyaltyDiscount.toStringAsFixed(2)}',
+                          style: AppTextStyles.caption.copyWith(
+                            color: const Color(0xFFD97706),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    if (pkg.shippingFee > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          'Package Delivery Fee: ৳${pkg.shippingFee.toStringAsFixed(2)}',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.lightTextSecondary,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }),
         ],
       ),
     );

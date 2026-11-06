@@ -21,8 +21,8 @@ from vendors.financial_service import FinancialService
 class CheckoutQuoteView(generics.GenericAPIView):
     """
     POST /api/orders/quote/
-    Server-side price revalidation before placing order.
-    Returns pricing breakdown + stock warnings without creating an order.
+    Server-side multi-vendor price revalidation before placing order.
+    Returns pricing breakdown + vendor packages + partial coupon allocations without creating an order.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -33,6 +33,9 @@ class CheckoutQuoteView(generics.GenericAPIView):
         items_data = serializer.validated_data['items']
         address_id = serializer.validated_data['address_id']
         coupon_code = (serializer.validated_data.get('coupon_code') or '').strip().upper()
+        redeem_points = int(serializer.validated_data.get('redeem_points') or 0)
+        use_wallet = serializer.validated_data.get('use_wallet', False)
+        requested_wallet_amount = serializer.validated_data.get('wallet_amount')
 
         # Validate address
         from users.models import Address
@@ -44,140 +47,50 @@ class CheckoutQuoteView(generics.GenericAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Validate items + compute pricing
+        from orders.split_checkout_service import MultiVendorSplitCheckoutService
+        try:
+            quote = MultiVendorSplitCheckoutService.compute_multi_vendor_quote(
+                items_data=items_data,
+                coupon_code=coupon_code,
+                redeem_points=redeem_points,
+                user=request.user,
+                use_wallet=use_wallet,
+                requested_wallet_amount=requested_wallet_amount,
+            )
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Build backward-compatible items_detail
         items_detail = []
-        stock_warnings = []
-        subtotal = Decimal('0.00')
-
-        for item in items_data:
-            try:
-                product = Product.objects.get(id=item['product'], is_available=True)
-            except Product.DoesNotExist:
-                return Response(
-                    {"error": f"Product with ID {item['product']} not found or unavailable."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            variant = None
-            available_stock = product.stock_quantity
-            unit_price = product.price
-
-            if 'variant' in item and item['variant']:
-                try:
-                    variant = ProductVariant.objects.get(id=item['variant'], product=product)
-                    available_stock = variant.available_stock
-                    unit_price = variant.effective_price
-                except ProductVariant.DoesNotExist:
-                    return Response(
-                        {"error": f"Variant not found for product '{product.name}'."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-            requested_qty = item['quantity']
-            if available_stock < requested_qty:
-                stock_warnings.append({
-                    'product_id': product.id,
-                    'product_name': product.name,
-                    'variant_id': variant.id if variant else None,
-                    'requested': requested_qty,
-                    'available': available_stock,
-                })
-
-            line_total = unit_price * requested_qty
-            subtotal += line_total
-
-            items_detail.append({
-                'product_id': product.id,
-                'product_name': product.name,
-                'variant_id': variant.id if variant else None,
-                'unit_price': str(unit_price),
-                'quantity': requested_qty,
-                'line_total': str(line_total),
-                'image_url': product.image.url if product.image else '',
-            })
-
-        # Coupon computation
-        discount_amount = Decimal('0.00')
-        coupon_label = None
-        if coupon_code:
-            try:
-                coupon = Coupon.objects.get(code=coupon_code, is_active=True)
-                order_items_compat = []
-                for item in items_data:
-                    prod = Product.objects.get(id=item['product'])
-                    up = prod.price
-                    if 'variant' in item and item['variant']:
-                        vari = ProductVariant.objects.get(id=item['variant'], product=prod)
-                        up = vari.effective_price
-                    order_items_compat.append({
-                        'product': prod, 'vendor': prod.vendor,
-                        'price': up, 'unit_price': up, 'quantity': item['quantity'],
-                    })
-                coupon_result = compute_coupon_discount(coupon=coupon, order_items=order_items_compat)
-                if coupon_result['ok']:
-                    discount_amount = coupon_result['discount']
-                    coupon_label = f"{coupon.code}"
-            except Coupon.DoesNotExist:
-                pass
-
-        # Loyalty redemption computation
-        redeem_points = int(serializer.validated_data.get('redeem_points') or 0)
-        from loyalty.models import LoyaltyAccount
-        loyalty_account, _ = LoyaltyAccount.objects.get_or_create(user=request.user)
-        loyalty_points_balance = loyalty_account.points_balance
-        loyalty_discount = Decimal('0.00')
-        loyalty_points_redeemed = 0
-
-        pre_loyalty_total = max(Decimal('0.00'), subtotal - discount_amount)
-        if redeem_points > 0 and pre_loyalty_total > 0 and loyalty_points_balance > 0:
-            max_points_needed = int(pre_loyalty_total * LoyaltyAccount.POINTS_PER_BDT)
-            loyalty_points_redeemed = min(redeem_points, loyalty_points_balance, max_points_needed)
-            loyalty_discount = (Decimal(loyalty_points_redeemed) / Decimal(LoyaltyAccount.POINTS_PER_BDT)).quantize(Decimal('0.01'))
-
-        use_wallet = serializer.validated_data.get('use_wallet', False)
-        requested_wallet_amount = serializer.validated_data.get('wallet_amount')
-
-        shipping = Decimal('0.00')
-        tax = Decimal('0.00')
-        total = (subtotal - discount_amount - loyalty_discount + shipping + tax).quantize(Decimal('0.01'))
-        if total < 0:
-            total = Decimal('0.00')
-
-        user_wallet_balance = (getattr(request.user, 'wallet_balance', None) or Decimal('0.00')).quantize(Decimal('0.01'))
-        wallet_amount_applied = Decimal('0.00')
-        if use_wallet and user_wallet_balance > 0 and total > 0:
-            if requested_wallet_amount is not None:
-                wallet_amount_applied = min(requested_wallet_amount, user_wallet_balance, total)
-            else:
-                wallet_amount_applied = min(user_wallet_balance, total)
-            wallet_amount_applied = wallet_amount_applied.quantize(Decimal('0.01'))
-
-        payable_amount = max(Decimal('0.00'), total - wallet_amount_applied).quantize(Decimal('0.01'))
-        is_fully_covered_by_wallet = bool(use_wallet and payable_amount == 0 and total > 0)
+        for pkg in quote['vendor_packages']:
+            for itm in pkg['items']:
+                items_detail.append(itm)
 
         return Response({
-            'subtotal': str(subtotal.quantize(Decimal('0.01'))),
-            'discount': str(discount_amount.quantize(Decimal('0.01'))),
-            'loyalty_points_redeemed': loyalty_points_redeemed,
-            'loyalty_discount': str(loyalty_discount),
-            'loyalty_points_balance': loyalty_points_balance,
-            'loyalty_tier': loyalty_account.tier,
-            'shipping': str(shipping.quantize(Decimal('0.01'))),
-            'tax': str(tax.quantize(Decimal('0.01'))),
-            'total': str(total),
-            'user_wallet_balance': str(user_wallet_balance),
-            'wallet_amount_applied': str(wallet_amount_applied),
-            'payable_amount': str(payable_amount),
-            'is_fully_covered_by_wallet': is_fully_covered_by_wallet,
-            'coupon_label': coupon_label,
+            'subtotal': quote['subtotal'],
+            'discount': quote['discount'],
+            'loyalty_points_redeemed': quote['loyalty_points_redeemed'],
+            'loyalty_discount': quote['loyalty_discount'],
+            'loyalty_points_balance': quote['loyalty_points_balance'],
+            'loyalty_tier': quote['loyalty_tier'],
+            'shipping': quote['shipping'],
+            'tax': quote['tax'],
+            'total': quote['total'],
+            'user_wallet_balance': quote['user_wallet_balance'],
+            'wallet_amount_applied': quote['wallet_amount_applied'],
+            'payable_amount': quote['payable_amount'],
+            'is_fully_covered_by_wallet': quote['is_fully_covered_by_wallet'],
+            'coupon_label': quote['coupon_label'],
             'items': items_detail,
-            'stock_warnings': stock_warnings,
+            'vendor_packages': quote['vendor_packages'],
+            'stock_warnings': quote['stock_warnings'],
         })
 
 
 class CustomerPlaceOrderView(generics.CreateAPIView):
     """
     POST /api/orders/place/
+    Creates multi-vendor order and vendor sub-orders with partial coupon & loyalty allocations.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -202,7 +115,7 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
         requested_wallet_amount = serializer.validated_data.get('wallet_amount')
         redeem_points = int(serializer.validated_data.get('redeem_points') or 0)
 
-        # ── Step 1: Validate address ──
+        # Validate address
         from users.models import Address
         try:
             address = Address.objects.get(id=address_id, user=request.user)
@@ -212,235 +125,22 @@ class CustomerPlaceOrderView(generics.CreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # ── Step 2: Validate all products and stock ──
-        order_items_payload = []
-        subtotal = Decimal('0.00')
-        vendors_set = set()
-
-        for item in items_data:
-            try:
-                product = Product.objects.get(id=item['product'], is_available=True)
-            except Product.DoesNotExist:
-                return Response(
-                    {"error": f"Product with ID {item['product']} not found or unavailable."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            variant = None
-            if 'variant' in item and item['variant']:
-                try:
-                    variant = ProductVariant.objects.get(id=item['variant'], product=product)
-                except ProductVariant.DoesNotExist:
-                    return Response(
-                        {"error": f"Variant not found for product '{product.name}'."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                
-                # Check variant stock
-                if variant.available_stock < item['quantity']:
-                    return Response(
-                        {"error": f"Not enough stock for variant. Available: {variant.available_stock}"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                
-                unit_price = variant.effective_price
-                sku = variant.sku
-                variant_name = ", ".join([v.value for v in variant.option_values.all()])
-                
-            else:
-                # Fallback to product stock if no variant system is used for this item
-                if product.stock_quantity < item['quantity']:
-                    return Response(
-                        {"error": f"Not enough stock for '{product.name}'. Available: {product.stock_quantity}"},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                unit_price = product.price
-                sku = ""
-                variant_name = ""
-
-            line_total = unit_price * item['quantity']
-            subtotal += line_total
-            vendors_set.add(product.vendor)
-
-            order_items_payload.append({
-                'product': product,
-                'variant': variant,
-                'vendor': product.vendor,
-                'quantity': item['quantity'],
-                'unit_price': unit_price,
-                'product_title': product.name,
-                'variant_name': variant_name,
-                'sku': sku,
-                'image_url': product.image.url if product.image else '',
-                'line_total': line_total,
-            })
-
-        coupon = None
-        discount_amount = Decimal('0.00')
-        if coupon_code:
-            try:
-                coupon = Coupon.objects.get(code=coupon_code, is_active=True)
-                for oi in order_items_payload:
-                    oi['price'] = oi['unit_price']
-                
-                coupon_result = compute_coupon_discount(coupon=coupon, order_items=order_items_payload)
-                if not coupon_result['ok']:
-                    return Response({"error": coupon_result['error']}, status=status.HTTP_400_BAD_REQUEST)
-                discount_amount = coupon_result['discount']
-            except Coupon.DoesNotExist:
-                return Response({"error": "Invalid coupon code."}, status=status.HTTP_400_BAD_REQUEST)
-
-        total = (subtotal - discount_amount).quantize(Decimal('0.01'))
-        if total < 0:
-            total = Decimal('0.00')
-
-        # ── Step 3: Create order + suborders + items in a single transaction ──
-        with transaction.atomic():
-            user = request.user.__class__.objects.select_for_update().get(id=request.user.id)
-            wallet_bal = user.wallet_balance or Decimal('0.00')
-            wallet_to_apply = Decimal('0.00')
-
-            # Loyalty points redemption
-            from loyalty.models import LoyaltyAccount
-            loyalty_account, _ = LoyaltyAccount.objects.select_for_update().get_or_create(user=user)
-            loyalty_discount = Decimal('0.00')
-            loyalty_points_to_redeem = 0
-
-            pre_loyalty_total = max(Decimal('0.00'), subtotal - discount_amount)
-            if redeem_points > 0 and pre_loyalty_total > 0 and loyalty_account.points_balance > 0:
-                max_pts = int(pre_loyalty_total * LoyaltyAccount.POINTS_PER_BDT)
-                loyalty_points_to_redeem = min(redeem_points, loyalty_account.points_balance, max_pts)
-                loyalty_discount = (Decimal(loyalty_points_to_redeem) / Decimal(LoyaltyAccount.POINTS_PER_BDT)).quantize(Decimal('0.01'))
-
-            total = max(Decimal('0.00'), (subtotal - discount_amount - loyalty_discount).quantize(Decimal('0.01')))
-
-            if use_wallet and wallet_bal > 0 and total > 0:
-                if requested_wallet_amount is not None:
-                    wallet_to_apply = min(requested_wallet_amount, wallet_bal, total)
-                else:
-                    wallet_to_apply = min(wallet_bal, total)
-                wallet_to_apply = wallet_to_apply.quantize(Decimal('0.01'))
-
-            # Determine final payment status and method
-            if wallet_to_apply >= total and total > 0:
-                final_payment_method = Order.PaymentMethod.WALLET
-                final_payment_status = Order.PaymentStatus.PAID
-                final_order_status = Order.Status.PAID
-            else:
-                final_payment_method = payment_method
-                final_payment_status = Order.PaymentStatus.UNPAID
-                final_order_status = Order.Status.PENDING
-
-            order = Order.objects.create(
-                customer=user,
-                delivery_address=address,
-                coupon=coupon,
-                subtotal_amount=subtotal,
-                discount_amount=discount_amount,
-                loyalty_points_redeemed=loyalty_points_to_redeem,
-                loyalty_discount_amount=loyalty_discount,
-                total_amount=total,
-                wallet_amount_applied=wallet_to_apply,
-                status=final_order_status,
-                payment_method=final_payment_method,
-                payment_status=final_payment_status,
-                idempotency_key=idempotency_key if idempotency_key else None,
-            )
-
-            # Deduct loyalty points and create ledger record
-            if loyalty_points_to_redeem > 0:
-                loyalty_account.redeem_points(loyalty_points_to_redeem, order=order)
-
-            # Deduct wallet and write ledger transaction
-            if wallet_to_apply > 0:
-                user.wallet_balance = (wallet_bal - wallet_to_apply).quantize(Decimal('0.01'))
-                user.save(update_fields=['wallet_balance'])
-                from users.models import CustomerWalletTransaction
-                CustomerWalletTransaction.objects.create(
-                    user=user,
-                    amount=wallet_to_apply,
-                    transaction_type=CustomerWalletTransaction.TransactionType.DEBIT,
-                    description=f"Payment for Order #{order.id}",
-                )
-
-            # Create SubOrders
-            sub_orders = {}
-            for vendor in vendors_set:
-                sub_orders[vendor.id] = SubOrder.objects.create(
-                    order=order,
-                    vendor=vendor,
-                    ship_by_date=timezone.now() + timezone.timedelta(hours=48)
-                )
-
-            for item_data in order_items_payload:
-                vendor_id = item_data['vendor'].id
-                sub_order = sub_orders[vendor_id]
-                
-                # Decrease stock
-                variant = item_data['variant']
-                product = item_data['product']
-                
-                if variant:
-                    variant.stock_on_hand -= item_data['quantity']
-                    variant.save()
-                else:
-                    product.stock_quantity -= item_data['quantity']
-                    product.save()
-
-                OrderItem.objects.create(
-                    sub_order=sub_order,
-                    product=item_data['product'],
-                    variant=item_data['variant'],
-                    quantity=item_data['quantity'],
-                    product_title=item_data['product_title'],
-                    variant_name=item_data['variant_name'],
-                    sku=item_data['sku'],
-                    unit_price=item_data['unit_price'],
-                    image_url=item_data['image_url']
-                )
-
-            # Award loyalty reward points for the purchase
-            award_amount = order.total_amount
-            if award_amount > 0:
-                try:
-                    loyalty_account.earn_points_for_purchase(award_amount, order=order)
-                except Exception:
-                    pass
-
-        # Notifications (Customer: Order placed; Vendor: notify immediately for COD/PAID/WALLET orders)
+        from orders.split_checkout_service import MultiVendorSplitCheckoutService
         try:
-            from notifications.models import Notification
-            from notifications.services import NotificationService
-
-            NotificationService.create(
+            order = MultiVendorSplitCheckoutService.place_multi_vendor_order(
                 user=request.user,
-                title='Order placed',
-                body=f'Your order #{order.id} has been placed.',
-                event_type=Notification.Type.ORDER_PLACED,
-                category=Notification.Category.TRANSACTIONAL,
-                deeplink=f'app://orders/{order.id}',
-                data={'order_id': str(order.id)},
-                inbox_visible=True,
-                push_enabled=True,
+                address=address,
+                items_data=items_data,
+                payment_method=payment_method,
+                coupon_code=coupon_code,
+                redeem_points=redeem_points,
+                use_wallet=use_wallet,
+                requested_wallet_amount=requested_wallet_amount,
+                idempotency_key=idempotency_key,
             )
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-            if order.payment_method in [Order.PaymentMethod.COD, Order.PaymentMethod.WALLET] or order.payment_status == Order.PaymentStatus.PAID:
-                for so in order.sub_orders.select_related('vendor__user').all():
-                    NotificationService.create(
-                        user=so.vendor.user,
-                        title='New order received',
-                        body=f'You have a new order (SubOrder #{so.id}).',
-                        event_type=Notification.Type.NEW_SUBORDER,
-                        category=Notification.Category.TRANSACTIONAL,
-                        deeplink=f'app://vendor/orders/{so.id}',
-                        data={'order_id': str(order.id), 'suborder_id': str(so.id)},
-                        inbox_visible=True,
-                        push_enabled=True,
-                    )
-        except Exception:
-            pass
-
-        # ── Step 4: Return the created order ──
         result = OrderSerializer(order).data
         return Response(result, status=status.HTTP_201_CREATED)
 
@@ -798,6 +498,81 @@ class VendorSubOrderEventsView(generics.GenericAPIView):
             external_event_id=external_id,
         )
         return Response(ShipmentEventSerializer(event).data, status=status.HTTP_201_CREATED)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# MULTI-VENDOR COMBINED PAYMENT VIEWS (bKash / Nagad / SSLCommerz)
+# ═══════════════════════════════════════════════════════════════════
+
+class CombinedPaymentInitiateView(generics.GenericAPIView):
+    """
+    POST /api/orders/<id>/pay/combined/
+    Initiates single transaction payment covering all multi-vendor sub-orders.
+    Body: {"channel": "BKASH" | "NAGAD" | "ONLINE"}
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            order = Order.objects.get(id=pk, customer=request.user)
+        except Order.DoesNotExist:
+            return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if order.payment_status == Order.PaymentStatus.PAID:
+            return Response({"error": "Order is already paid."}, status=status.HTTP_400_BAD_REQUEST)
+
+        channel = request.data.get('channel') or order.payment_method
+        from orders.split_checkout_service import MultiVendorSplitCheckoutService
+        try:
+            res = MultiVendorSplitCheckoutService.initiate_combined_payment(order, channel=channel)
+            return Response(res, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CombinedPaymentConfirmView(generics.GenericAPIView):
+    """
+    POST /api/orders/<id>/pay/combined/confirm/
+    Confirms single transaction bKash/Nagad/SSLCommerz payment,
+    transitioning master Order and all vendor SubOrders to PAID.
+    Body: {"transaction_id": "...", "channel": "BKASH" | "NAGAD" | "ONLINE"}
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            order = Order.objects.get(id=pk, customer=request.user)
+        except Order.DoesNotExist:
+            return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if order.payment_status == Order.PaymentStatus.PAID:
+            return Response({
+                "message": "Order is already confirmed as paid.",
+                "order": OrderSerializer(order).data,
+            }, status=status.HTTP_200_OK)
+
+        transaction_id = request.data.get('transaction_id') or order.transaction_id
+        channel = request.data.get('channel') or order.payment_method
+        bank_tran_id = request.data.get('bank_tran_id')
+        val_id = request.data.get('val_id')
+
+        if not transaction_id:
+            import uuid
+            transaction_id = f"TRX-{channel.upper()}-{order.id}-{uuid.uuid4().hex[:6].upper()}"
+
+        from orders.split_checkout_service import MultiVendorSplitCheckoutService
+        MultiVendorSplitCheckoutService.confirm_combined_payment(
+            order=order,
+            transaction_id=transaction_id,
+            gateway_channel=channel,
+            bank_tran_id=bank_tran_id,
+            val_id=val_id,
+        )
+
+        return Response({
+            "message": "Multi-vendor combined payment confirmed successfully.",
+            "order": OrderSerializer(order).data,
+        }, status=status.HTTP_200_OK)
 
 
 # ═══════════════════════════════════════════════════════════════════

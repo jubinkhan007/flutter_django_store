@@ -124,6 +124,48 @@ class OrderRepository {
     }
   }
 
+  Future<Map<String, dynamic>> initiateCombinedPayment(
+    int orderId, {
+    String channel = 'ONLINE',
+  }) async {
+    final response = await _apiClient.post(
+      '${ApiConfig.ordersUrl}$orderId/pay/combined/',
+      body: {'channel': channel},
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to initiate combined payment');
+    }
+  }
+
+  Future<bool> confirmCombinedPayment(
+    int orderId, {
+    required String transactionId,
+    required String gatewayChannel,
+    String? bankTranId,
+    String? valId,
+  }) async {
+    final response = await _apiClient.post(
+      '${ApiConfig.ordersUrl}$orderId/pay/combined/confirm/',
+      body: {
+        'transaction_id': transactionId,
+        'gateway_channel': gatewayChannel,
+        if (bankTranId != null) 'bank_tran_id': bankTranId,
+        if (valId != null) 'val_id': valId,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to confirm combined payment');
+    }
+  }
+
   Future<void> cancelOrder(int orderId) async {
     final response = await _apiClient.post(
       '${ApiConfig.ordersUrl}$orderId/cancel/',

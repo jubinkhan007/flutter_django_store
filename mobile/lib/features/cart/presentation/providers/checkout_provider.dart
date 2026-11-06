@@ -227,7 +227,7 @@ class CheckoutProvider extends ChangeNotifier {
     }
   }
 
-  // ── Payment Initiation (Online) ──
+  // ── Payment Initiation (Online / bKash / Nagad) ──
   Future<String?> initiatePayment() async {
     if (_placedOrder == null) return null;
 
@@ -236,6 +236,17 @@ class CheckoutProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final method = _placedOrder!.paymentMethod.toUpperCase();
+      if (method == 'BKASH' || method == 'NAGAD') {
+        final res = await _orderRepository.initiateCombinedPayment(
+          _placedOrder!.id,
+          channel: method,
+        );
+        _isInitiatingPayment = false;
+        notifyListeners();
+        return res['checkout_url'] as String?;
+      }
+
       final url = await _orderRepository.initiatePayment(_placedOrder!.id);
       _isInitiatingPayment = false;
       notifyListeners();

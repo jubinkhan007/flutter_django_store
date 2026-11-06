@@ -20,6 +20,7 @@ class CheckoutQuote {
   final double loyaltyDiscount;
   final int loyaltyPointsBalance;
   final String? loyaltyTier;
+  final List<VendorPackageQuote> vendorPackages;
 
   const CheckoutQuote({
     required this.subtotal,
@@ -38,9 +39,11 @@ class CheckoutQuote {
     this.loyaltyDiscount = 0.0,
     this.loyaltyPointsBalance = 0,
     this.loyaltyTier,
+    this.vendorPackages = const [],
   });
 
   bool get hasStockWarnings => stockWarnings.isNotEmpty;
+  bool get isMultiVendor => vendorPackages.length > 1;
 
   factory CheckoutQuote.fromJson(Map<String, dynamic> json) {
     final subtotal =
@@ -84,6 +87,55 @@ class CheckoutQuote {
           double.tryParse(json['loyalty_discount']?.toString() ?? '') ?? 0.0,
       loyaltyPointsBalance: json['loyalty_points_balance'] as int? ?? 0,
       loyaltyTier: json['loyalty_tier']?.toString(),
+      vendorPackages:
+          (json['vendor_packages'] as List?)
+              ?.map((e) => VendorPackageQuote.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+    );
+  }
+}
+
+class VendorPackageQuote {
+  final int vendorId;
+  final String storeName;
+  final int itemsCount;
+  final double subtotal;
+  final double couponDiscount;
+  final double loyaltyDiscount;
+  final double shippingFee;
+  final double total;
+  final List<QuoteItem> items;
+
+  const VendorPackageQuote({
+    required this.vendorId,
+    required this.storeName,
+    required this.itemsCount,
+    required this.subtotal,
+    required this.couponDiscount,
+    required this.loyaltyDiscount,
+    required this.shippingFee,
+    required this.total,
+    required this.items,
+  });
+
+  factory VendorPackageQuote.fromJson(Map<String, dynamic> json) {
+    return VendorPackageQuote(
+      vendorId: json['vendor_id'] ?? 0,
+      storeName: json['store_name'] ?? '',
+      itemsCount: json['items_count'] ?? (json['items'] as List?)?.length ?? 0,
+      subtotal: double.tryParse(json['subtotal']?.toString() ?? '') ?? 0.0,
+      couponDiscount:
+          double.tryParse(json['coupon_discount']?.toString() ?? '') ?? 0.0,
+      loyaltyDiscount:
+          double.tryParse(json['loyalty_discount']?.toString() ?? '') ?? 0.0,
+      shippingFee:
+          double.tryParse(json['shipping_fee']?.toString() ?? '') ?? 0.0,
+      total: double.tryParse(json['total']?.toString() ?? '') ?? 0.0,
+      items: (json['items'] as List?)
+              ?.map((e) => QuoteItem.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 }

@@ -11,8 +11,10 @@ urlpatterns = [
     path('<int:pk>/invoice/pdf/', views.OrderInvoicePDFView.as_view(), name='order-invoice-pdf'),
     path('<int:pk>/invoice/verify/', views.OrderInvoiceVerifyView.as_view(), name='order-invoice-verify'),
 
-    # SSLCommerz Payment endpoints
+    # Payment endpoints
     path('<int:pk>/pay/', views.SSLCommerzPaymentInitiateView.as_view(), name='payment-initiate'),
+    path('<int:pk>/pay/combined/', views.CombinedPaymentInitiateView.as_view(), name='combined-payment-initiate'),
+    path('<int:pk>/pay/combined/confirm/', views.CombinedPaymentConfirmView.as_view(), name='combined-payment-confirm'),
     path('payment/success/', views.SSLCommerzSuccessView.as_view(), name='payment-success'),
     path('payment/fail/', views.SSLCommerzFailView.as_view(), name='payment-fail'),
     path('payment/cancel/', views.SSLCommerzCancelView.as_view(), name='payment-cancel'),

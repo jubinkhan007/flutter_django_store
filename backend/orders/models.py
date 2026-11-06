@@ -13,7 +13,9 @@ class Order(models.Model):
         CANCELED = 'CANCELED', 'Canceled'
 
     class PaymentMethod(models.TextChoices):
-        ONLINE = 'ONLINE', 'Online'
+        ONLINE = 'ONLINE', 'Online (SSLCommerz)'
+        BKASH = 'BKASH', 'bKash'
+        NAGAD = 'NAGAD', 'Nagad'
         COD = 'COD', 'Cash on Delivery'
         WALLET = 'WALLET', 'Wallet'
 
@@ -35,6 +37,7 @@ class Order(models.Model):
         max_digits=10, decimal_places=2, default=0.00,
         help_text="Fiat discount applied from loyalty points redemption"
     )
+    shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     wallet_amount_applied = models.DecimalField(
         max_digits=10, decimal_places=2, default=0.00,
@@ -86,6 +89,13 @@ class SubOrder(models.Model):
         choices=FulfillmentType.choices,
         default=FulfillmentType.LOCAL,
     )
+
+    # Multi-vendor financial breakdown
+    subtotal_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, help_text="Allocated coupon discount for this vendor's items")
+    loyalty_discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, help_text="Allocated loyalty reward discount")
+    shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Shipping fee for this vendor package")
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, help_text="Net payable amount for this vendor sub-order")
 
     # Courier / Tracking
     courier_code = models.CharField(max_length=50, blank=True, help_text="e.g. 'pathao', 'redx'")

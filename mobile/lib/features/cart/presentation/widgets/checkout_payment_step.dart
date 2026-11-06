@@ -76,7 +76,7 @@ class CheckoutPaymentStep extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Available: \$${walletBalance.toStringAsFixed(2)}',
+                              'Available: ৳${walletBalance.toStringAsFixed(2)}',
                               style: AppTextStyles.caption.copyWith(
                                 color: AppColors.success,
                                 fontWeight: FontWeight.w600,
@@ -215,11 +215,37 @@ class CheckoutPaymentStep extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
 
           _PaymentOptionCard(
+            icon: Icons.flash_on_rounded,
+            title: 'bKash Direct',
+            subtitle: checkout.useWallet
+                ? 'Pay remaining balance via single bKash payment'
+                : 'Combined instant checkout via bKash gateway',
+            value: 'BKASH',
+            groupValue: checkout.paymentMethod,
+            primaryColor: const Color(0xFFE2136E),
+            onTap: () => checkout.selectPaymentMethod('BKASH'),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+
+          _PaymentOptionCard(
+            icon: Icons.bolt_rounded,
+            title: 'Nagad Direct',
+            subtitle: checkout.useWallet
+                ? 'Pay remaining balance via single Nagad payment'
+                : 'Combined instant checkout via Nagad gateway',
+            value: 'NAGAD',
+            groupValue: checkout.paymentMethod,
+            primaryColor: const Color(0xFFF7921E),
+            onTap: () => checkout.selectPaymentMethod('NAGAD'),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+
+          _PaymentOptionCard(
             icon: Icons.credit_card_rounded,
             title: 'Pay Online',
             subtitle: checkout.useWallet
                 ? 'Pay remaining balance via SSLCommerz gateway'
-                : 'SSLCommerz secure payment gateway',
+                : 'SSLCommerz secure payment gateway (Cards / NetBanking)',
             value: 'ONLINE',
             groupValue: checkout.paymentMethod,
             primaryColor: primaryColor,
