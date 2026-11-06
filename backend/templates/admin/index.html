@@ -2,7 +2,7 @@
 
 {% load i18n unfold %}
 
-{% block title %}Dashboard | {{ site_title }}{% endblock %}
+{% block title %}Operations & Analytics Dashboard | {{ site_title }}{% endblock %}
 
 {% block branding %}
 {% include "unfold/helpers/site_branding.html" %}
@@ -11,188 +11,347 @@
 {% block content %}
 <div class="flex flex-col gap-8">
 
-    <!-- ═════════ KPI Metric Cards ═════════ -->
+    <!-- ═════════ Marketplace KPI Metric Cards ═════════ -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
 
-        <div
-            class="bg-white rounded-default shadow-xs border border-base-200 p-5 dark:bg-base-900 dark:border-base-800">
-            <div class="flex items-center gap-2.5 mb-2">
-                <span class="material-symbols-outlined text-2xl text-green-500">payments</span>
-                <p class="text-xs font-medium text-base-500 dark:text-base-400 uppercase tracking-wider">Revenue Today</p>
+        <!-- 30-Day GMV -->
+        <div class="bg-white rounded-default shadow-xs border border-base-200 p-5 dark:bg-base-900 dark:border-base-800">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-2xl text-primary-500">trending_up</span>
+                    <p class="text-xs font-semibold text-base-500 dark:text-base-400 uppercase tracking-wider">30-Day GMV</p>
+                </div>
+                {% if dashboard_metrics.gmv_growth_pct >= 0 %}
+                <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 dark:text-emerald-400 px-1.5 py-0.5 rounded">
+                    +{{ dashboard_metrics.gmv_growth_pct }}%
+                </span>
+                {% else %}
+                <span class="text-[11px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/50 dark:text-rose-400 px-1.5 py-0.5 rounded">
+                    {{ dashboard_metrics.gmv_growth_pct }}%
+                </span>
+                {% endif %}
             </div>
-            <p class="text-2xl font-bold text-important">{{ dashboard_metrics.sales_today_display }}</p>
+            <p class="text-2xl font-bold text-important">{{ dashboard_metrics.gmv_30d_display }}</p>
+            <p class="text-[11px] text-base-400 mt-1">Today: <span class="font-medium text-base-700 dark:text-base-300">{{ dashboard_metrics.sales_today_display }}</span></p>
         </div>
 
-        <div
-            class="bg-white rounded-default shadow-xs border border-base-200 p-5 dark:bg-base-900 dark:border-base-800">
+        <!-- Commission Revenue -->
+        <div class="bg-white rounded-default shadow-xs border border-base-200 p-5 dark:bg-base-900 dark:border-base-800">
             <div class="flex items-center gap-2.5 mb-2">
-                <span class="material-symbols-outlined text-2xl text-blue-500">shopping_cart</span>
-                <p class="text-xs font-medium text-base-500 dark:text-base-400 uppercase tracking-wider">Orders Today</p>
+                <span class="material-symbols-outlined text-2xl text-emerald-500">payments</span>
+                <p class="text-xs font-semibold text-base-500 dark:text-base-400 uppercase tracking-wider">Commission (30d)</p>
             </div>
-            <p class="text-2xl font-bold text-important">{{ dashboard_metrics.orders_today }}</p>
+            <p class="text-2xl font-bold text-important">{{ dashboard_metrics.commission_30d_display }}</p>
+            <p class="text-[11px] text-base-400 mt-1">All-Time: <span class="font-medium text-base-700 dark:text-base-300">{{ dashboard_metrics.commission_all_time_display }}</span></p>
         </div>
 
-        <div
-            class="bg-white rounded-default shadow-xs border border-base-200 p-5 dark:bg-base-900 dark:border-base-800">
+        <!-- Orders & AOV -->
+        <div class="bg-white rounded-default shadow-xs border border-base-200 p-5 dark:bg-base-900 dark:border-base-800">
             <div class="flex items-center gap-2.5 mb-2">
-                <span class="material-symbols-outlined text-2xl text-amber-500">support_agent</span>
-                <p class="text-xs font-medium text-base-500 dark:text-base-400 uppercase tracking-wider">Open Tickets</p>
+                <span class="material-symbols-outlined text-2xl text-blue-500">shopping_bag</span>
+                <p class="text-xs font-semibold text-base-500 dark:text-base-400 uppercase tracking-wider">Orders (30d)</p>
             </div>
-            <p class="text-2xl font-bold text-important">{{ dashboard_metrics.open_tickets }}</p>
+            <p class="text-2xl font-bold text-important">{{ dashboard_metrics.orders_30d }}</p>
+            <p class="text-[11px] text-base-400 mt-1">AOV: <span class="font-medium text-base-700 dark:text-base-300">{{ dashboard_metrics.aov_display }}</span> · Today: {{ dashboard_metrics.orders_today }}</p>
         </div>
 
-        <div
-            class="bg-white rounded-default shadow-xs border border-base-200 p-5 dark:bg-base-900 dark:border-base-800">
+        <!-- Loyalty Points Liability -->
+        <div class="bg-white rounded-default shadow-xs border border-base-200 p-5 dark:bg-base-900 dark:border-base-800">
+            <div class="flex items-center gap-2.5 mb-2">
+                <span class="material-symbols-outlined text-2xl text-amber-500">stars</span>
+                <p class="text-xs font-semibold text-base-500 dark:text-base-400 uppercase tracking-wider">Loyalty Liability</p>
+            </div>
+            <p class="text-2xl font-bold text-important">{{ dashboard_metrics.loyalty_liability_display }}</p>
+            <p class="text-[11px] text-base-400 mt-1"><span class="font-medium text-amber-600 dark:text-amber-400">{{ dashboard_metrics.loyalty_points_total|default:0 }}</span> active points (10:1)</p>
+        </div>
+
+        <!-- Refund & RMA Rate -->
+        <div class="bg-white rounded-default shadow-xs border border-base-200 p-5 dark:bg-base-900 dark:border-base-800">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-2xl text-rose-500">assignment_return</span>
+                    <p class="text-xs font-semibold text-base-500 dark:text-base-400 uppercase tracking-wider">Refund Rate</p>
+                </div>
+                <span class="text-[11px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/50 dark:text-rose-400 px-1.5 py-0.5 rounded">
+                    {{ dashboard_metrics.refund_rate_pct }}%
+                </span>
+            </div>
+            <p class="text-2xl font-bold text-important">{{ dashboard_metrics.refunded_amount_display }}</p>
+            <p class="text-[11px] text-base-400 mt-1">{{ dashboard_metrics.rma_count }} RMAs ({{ dashboard_metrics.rma_pending_count }} pending)</p>
+        </div>
+
+        <!-- Pending Vendor Payouts -->
+        <div class="bg-white rounded-default shadow-xs border border-base-200 p-5 dark:bg-base-900 dark:border-base-800">
             <div class="flex items-center gap-2.5 mb-2">
                 <span class="material-symbols-outlined text-2xl text-purple-500">account_balance_wallet</span>
-                <p class="text-xs font-medium text-base-500 dark:text-base-400 uppercase tracking-wider">Pending Payouts</p>
+                <p class="text-xs font-semibold text-base-500 dark:text-base-400 uppercase tracking-wider">Pending Payouts</p>
             </div>
             <p class="text-2xl font-bold text-important">{{ dashboard_metrics.pending_payout_display }}</p>
-        </div>
-
-        <div
-            class="bg-white rounded-default shadow-xs border border-base-200 p-5 dark:bg-base-900 dark:border-base-800">
-            <div class="flex items-center gap-2.5 mb-2">
-                <span class="material-symbols-outlined text-2xl text-emerald-500">campaign</span>
-                <p class="text-xs font-medium text-base-500 dark:text-base-400 uppercase tracking-wider">Ad Spend / Rev</p>
-            </div>
-            <p class="text-2xl font-bold text-important">{{ dashboard_metrics.ad_revenue_display }}</p>
-            <p class="text-[11px] text-base-400 mt-0.5">{{ dashboard_metrics.active_campaigns }} active campaigns</p>
-        </div>
-
-        <div
-            class="bg-white rounded-default shadow-xs border border-base-200 p-5 dark:bg-base-900 dark:border-base-800">
-            <div class="flex items-center gap-2.5 mb-2">
-                <span class="material-symbols-outlined text-2xl text-sky-500">wallet</span>
-                <p class="text-xs font-medium text-base-500 dark:text-base-400 uppercase tracking-wider">Wallet Liabilities</p>
-            </div>
-            <p class="text-2xl font-bold text-important">{{ dashboard_metrics.wallet_liability_display }}</p>
-            <p class="text-[11px] text-base-400 mt-0.5">Total customer balances</p>
+            <p class="text-[11px] text-purple-600 dark:text-purple-400 mt-1">
+                <a href="{% url 'admin:vendors_payoutrequest_changelist' %}?status__exact=REQUESTED" class="hover:underline font-medium">Review & Disburse →</a>
+            </p>
         </div>
 
     </div>
 
-    <!-- ═════════ Charts Row ═════════ -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <!-- ═════════ Visual Analytics Charts Row 1 ═════════ -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <!-- 7-Day Sales Line Chart -->
-        <div
-            class="lg:col-span-2 bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
-            <div class="border-b border-base-200 dark:border-base-800 py-4 px-6">
-                <h2 class="font-semibold text-[15px] text-important">Daily Sales — Last 7 Days</h2>
+        <!-- 30-Day GMV Trends & Commission Revenue (Dual Line Chart) -->
+        <div class="lg:col-span-2 bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
+            <div class="border-b border-base-200 dark:border-base-800 py-4 px-6 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary-500">show_chart</span>
+                    <h2 class="font-semibold text-[15px] text-important">Marketplace GMV & Platform Commission Trends</h2>
+                </div>
+                <span class="text-xs font-medium text-base-400">Past 14 Days</span>
             </div>
             <div class="p-6">
-                <canvas class="chart" data-type="line" data-value='{{ chart_sales_7d_json }}' height="300"></canvas>
+                <canvas class="chart" data-type="line" data-value='{{ chart_gmv_trends_json }}' height="260"></canvas>
             </div>
         </div>
 
-        <!-- Order Status Bar Chart -->
-        <div
-            class="lg:col-span-1 bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
-            <div class="border-b border-base-200 dark:border-base-800 py-4 px-6">
-                <h2 class="font-semibold text-[15px] text-important">Order Statuses — 30 Days</h2>
+        <!-- Top Performing Vendors by GMV (Bar Chart) -->
+        <div class="lg:col-span-1 bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
+            <div class="border-b border-base-200 dark:border-base-800 py-4 px-6 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-indigo-500">leaderboard</span>
+                    <h2 class="font-semibold text-[15px] text-important">Top Vendors by GMV (৳)</h2>
+                </div>
+                <a href="{% url 'admin:vendors_vendor_changelist' %}" class="text-xs text-primary-600 hover:underline">All Vendors →</a>
             </div>
             <div class="p-6">
-                <canvas class="chart" data-type="bar" data-value='{{ chart_order_status_json }}' height="300"></canvas>
+                <canvas class="chart" data-type="bar" data-value='{{ chart_top_vendors_json }}' height="260"></canvas>
             </div>
         </div>
 
     </div>
 
-    <!-- ═════════ Operational Alerts + Quick Reports ═════════ -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <!-- ═════════ Visual Analytics Charts Row 2 ═════════ -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Order Fulfillment & Lifecycle (Doughnut Chart) -->
+        <div class="bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
+            <div class="border-b border-base-200 dark:border-base-800 py-4 px-6 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-blue-500">donut_large</span>
+                    <h2 class="font-semibold text-[15px] text-important">Order Fulfillment & Lifecycle Status</h2>
+                </div>
+                <span class="text-xs text-base-400">30-Day Window</span>
+            </div>
+            <div class="p-6">
+                <canvas class="chart" data-type="doughnut" data-value='{{ chart_order_status_json }}' height="220"></canvas>
+            </div>
+        </div>
+
+        <!-- Return / Refund Reasons Breakdown (Bar Chart) -->
+        <div class="bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
+            <div class="border-b border-base-200 dark:border-base-800 py-4 px-6 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-rose-500">pie_chart</span>
+                    <h2 class="font-semibold text-[15px] text-important">Return / RMA Reasons Distribution</h2>
+                </div>
+                <a href="{% url 'admin:returns_returnrequest_changelist' %}" class="text-xs text-primary-600 hover:underline">RMA Manager →</a>
+            </div>
+            <div class="p-6">
+                <canvas class="chart" data-type="bar" data-value='{{ chart_return_reasons_json }}' height="220"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═════════ Top Vendors Leaderboard & Financial Liabilities ═════════ -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Top Performing Vendors Leaderboard Table (2 Cols) -->
+        <div class="lg:col-span-2 bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
+            <div class="border-b border-base-200 dark:border-base-800 py-4 px-6 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-amber-500">workspace_premium</span>
+                    <h2 class="font-semibold text-[15px] text-important">Top Performing Vendors Leaderboard</h2>
+                </div>
+                <a href="{% url 'admin:vendors_vendor_changelist' %}" class="text-xs text-primary-600 dark:text-primary-400 hover:underline">Manage All Vendors →</a>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="border-b border-base-100 dark:border-base-800 bg-base-50/50 dark:bg-base-800/50 text-xs font-semibold text-base-500 uppercase tracking-wider">
+                            <th class="py-3 px-6">Vendor / Store</th>
+                            <th class="py-3 px-4 text-center">Orders</th>
+                            <th class="py-3 px-4 text-right">GMV (Sales)</th>
+                            <th class="py-3 px-4 text-right">Commission</th>
+                            <th class="py-3 px-4 text-center">Rating</th>
+                            <th class="py-3 px-6 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-base-100 dark:divide-base-800">
+                        {% for vendor in top_vendors %}
+                        <tr class="hover:bg-base-50 dark:hover:bg-base-800/40 transition-colors">
+                            <td class="py-3.5 px-6 font-medium text-important flex items-center gap-2">
+                                <span class="material-symbols-outlined text-base text-base-400">storefront</span>
+                                {{ vendor.store_name }}
+                            </td>
+                            <td class="py-3.5 px-4 text-center text-base-600 dark:text-base-300 font-semibold">{{ vendor.orders_count }}</td>
+                            <td class="py-3.5 px-4 text-right font-bold text-important">{{ vendor.gmv_display }}</td>
+                            <td class="py-3.5 px-4 text-right font-semibold text-emerald-600 dark:text-emerald-400">{{ vendor.commission_display }}</td>
+                            <td class="py-3.5 px-4 text-center">
+                                <span class="inline-flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded">
+                                    ★ {{ vendor.rating }}
+                                </span>
+                            </td>
+                            <td class="py-3.5 px-6 text-right">
+                                <a href="{% url 'admin:vendors_vendor_change' vendor.id %}" class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline">View →</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="py-6 px-6 text-center text-base-400">No vendor sales recorded in this period.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Financial Liabilities & Store Credit Exposure (1 Col) -->
+        <div class="lg:col-span-1 bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
+            <div class="border-b border-base-200 dark:border-base-800 py-4 px-6 flex items-center gap-2">
+                <span class="material-symbols-outlined text-purple-500">account_balance</span>
+                <h2 class="font-semibold text-[15px] text-important">Liabilities & Float Exposure</h2>
+            </div>
+            <div class="p-6 flex flex-col gap-4">
+                <div class="p-4 bg-base-50 dark:bg-base-800 rounded-lg border border-base-200 dark:border-base-700">
+                    <p class="text-xs font-semibold text-base-500 dark:text-base-400 uppercase tracking-wider mb-1">Total Store Credit Liability</p>
+                    <p class="text-2xl font-bold text-purple-600 dark:text-purple-400">{{ dashboard_metrics.total_liability_display }}</p>
+                    <p class="text-[11px] text-base-400 mt-1">Customer loyalty points + unspent wallet balances</p>
+                </div>
+
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between items-center py-2 border-b border-base-100 dark:border-base-800">
+                        <span class="text-base-600 dark:text-base-300">Customer Wallet Balances</span>
+                        <span class="font-bold text-important">{{ dashboard_metrics.wallet_liability_display }}</span>
+                    </div>
+                    <div class="flex justify-between items-center py-2 border-b border-base-100 dark:border-base-800">
+                        <span class="text-base-600 dark:text-base-300">Loyalty Points Liability</span>
+                        <span class="font-bold text-amber-600 dark:text-amber-400">{{ dashboard_metrics.loyalty_liability_display }}</span>
+                    </div>
+                    <div class="flex justify-between items-center py-2 border-b border-base-100 dark:border-base-800">
+                        <span class="text-base-600 dark:text-base-300">Total Unredeemed Points</span>
+                        <span class="font-medium text-base-700 dark:text-base-200">{{ dashboard_metrics.loyalty_points_total|default:0 }} pts</span>
+                    </div>
+                    <div class="flex justify-between items-center py-2">
+                        <span class="text-base-600 dark:text-base-300">Total Refunded Amount</span>
+                        <span class="font-bold text-rose-600 dark:text-rose-400">{{ dashboard_metrics.refunded_amount_display }}</span>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <a href="{% url 'admin:analytics_marketplace_summary' %}?days=30" target="_blank"
+                        class="flex items-center justify-center gap-2 w-full py-2.5 px-4 text-xs font-semibold text-primary-700 bg-primary-50 hover:bg-primary-100 dark:bg-primary-950/60 dark:text-primary-300 dark:hover:bg-primary-900 rounded-lg transition-colors">
+                        <span class="material-symbols-outlined text-sm">download</span>
+                        Export Raw Analytics JSON API
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═════════ Operational Bottlenecks + Quick Reports ═════════ -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <!-- Operational Bottlenecks -->
-        <div
-            class="bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
+        <div class="bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
             <div class="border-b border-base-200 dark:border-base-800 py-4 px-6 flex items-center gap-2">
                 <span class="material-symbols-outlined text-amber-500">warning</span>
                 <h2 class="font-semibold text-[15px] text-important">Operational Bottlenecks</h2>
             </div>
             <div class="p-6">
-                <p class="text-sm text-base-500 dark:text-base-400 mb-4">Items requiring administrative attention.</p>
+                <p class="text-sm text-base-500 dark:text-base-400 mb-4">Urgent tasks requiring administrator or ops team attention.</p>
                 <ul class="divide-y divide-base-100 dark:divide-base-800">
-                    {% if dashboard_metrics.cb_in_transit > 0 %}
+                    {% if dashboard_metrics.pending_payout_amount > 0 %}
                     <li class="flex justify-between items-center py-3 text-sm">
-                        <span class="text-base-700 dark:text-base-300">Cross-Border packages in transit</span>
-                        <a href="{% url 'admin:crossborder_crossborderorderrequest_changelist' %}"
-                            class="font-medium text-primary-600 dark:text-primary-400 hover:underline">{{
-                            dashboard_metrics.cb_in_transit }} requests →</a>
-                    </li>
-                    {% endif %}
-                    {% if dashboard_metrics.open_tickets > 0 %}
-                    <li class="flex justify-between items-center py-3 text-sm">
-                        <span class="text-base-700 dark:text-base-300">Support tickets needing attention</span>
-                        <a href="{% url 'admin:support_ticket_changelist' %}"
-                            class="font-medium text-primary-600 dark:text-primary-400 hover:underline">{{
-                            dashboard_metrics.open_tickets }} open →</a>
+                        <span class="text-base-700 dark:text-base-300">Pending Vendor Payout Requests</span>
+                        <a href="{% url 'admin:vendors_payoutrequest_changelist' %}?status__exact=REQUESTED"
+                            class="font-medium text-purple-600 dark:text-purple-400 hover:underline">{{ dashboard_metrics.pending_payout_display }} requested →</a>
                     </li>
                     {% endif %}
                     {% if dashboard_metrics.pending_rmas > 0 %}
                     <li class="flex justify-between items-center py-3 text-sm">
                         <span class="text-base-700 dark:text-base-300">Customer return (RMA) requests</span>
                         <a href="{% url 'admin:returns_returnrequest_changelist' %}?status__exact=SUBMITTED"
-                            class="font-medium text-amber-600 dark:text-amber-400 hover:underline">{{
-                            dashboard_metrics.pending_rmas }} pending review →</a>
+                            class="font-medium text-amber-600 dark:text-amber-400 hover:underline">{{ dashboard_metrics.pending_rmas }} pending review →</a>
+                    </li>
+                    {% endif %}
+                    {% if dashboard_metrics.open_tickets > 0 %}
+                    <li class="flex justify-between items-center py-3 text-sm">
+                        <span class="text-base-700 dark:text-base-300">Support tickets needing attention</span>
+                        <a href="{% url 'admin:support_ticket_changelist' %}"
+                            class="font-medium text-primary-600 dark:text-primary-400 hover:underline">{{ dashboard_metrics.open_tickets }} open →</a>
+                    </li>
+                    {% endif %}
+                    {% if dashboard_metrics.cb_in_transit > 0 %}
+                    <li class="flex justify-between items-center py-3 text-sm">
+                        <span class="text-base-700 dark:text-base-300">Cross-Border packages in transit</span>
+                        <a href="{% url 'admin:crossborder_crossborderorderrequest_changelist' %}"
+                            class="font-medium text-primary-600 dark:text-primary-400 hover:underline">{{ dashboard_metrics.cb_in_transit }} requests →</a>
                     </li>
                     {% endif %}
                     {% if dashboard_metrics.exhausted_campaigns > 0 %}
                     <li class="flex justify-between items-center py-3 text-sm">
                         <span class="text-base-700 dark:text-base-300">Vendor ad campaigns exhausted</span>
                         <a href="{% url 'admin:ads_adcampaign_changelist' %}?status__exact=EXHAUSTED"
-                            class="font-medium text-rose-600 dark:text-rose-400 hover:underline">{{
-                            dashboard_metrics.exhausted_campaigns }} exhausted →</a>
+                            class="font-medium text-rose-600 dark:text-rose-400 hover:underline">{{ dashboard_metrics.exhausted_campaigns }} exhausted →</a>
                     </li>
                     {% endif %}
                     <li class="flex justify-between items-center py-3 text-sm">
                         <span class="text-base-700 dark:text-base-300">Unverified vendors awaiting approval</span>
                         <a href="{% url 'admin:vendors_vendor_changelist' %}?is_approved__exact=0"
-                            class="font-medium text-primary-600 dark:text-primary-400 hover:underline">Review →</a>
+                            class="font-medium text-primary-600 dark:text-primary-400 hover:underline">Review & Approve →</a>
                     </li>
                 </ul>
             </div>
         </div>
 
-        <!-- Reports & Exports -->
-        <div
-            class="bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
+        <!-- Reports & Operational Modules -->
+        <div class="bg-white rounded-default shadow-xs border border-base-200 dark:bg-base-900 dark:border-base-800 overflow-hidden">
             <div class="border-b border-base-200 dark:border-base-800 py-4 px-6 flex items-center gap-2">
                 <span class="material-symbols-outlined text-blue-500">analytics</span>
-                <h2 class="font-semibold text-[15px] text-important">Reports & Operations</h2>
+                <h2 class="font-semibold text-[15px] text-important">Operational Modules & Ledgers</h2>
             </div>
             <div class="p-6">
-                <p class="text-sm text-base-500 dark:text-base-400 mb-4">Quick shortcuts to operational consoles & reports.</p>
+                <p class="text-sm text-base-500 dark:text-base-400 mb-4">Direct shortcuts to audit trails, invoices, and ledger consoles.</p>
                 <div class="flex flex-col gap-3">
                     <a href="{% url 'admin:orders_order_changelist' %}"
                         class="flex items-center gap-3 text-sm text-base-700 dark:text-base-300 bg-base-50 dark:bg-base-800 hover:bg-base-100 dark:hover:bg-base-700 transition-colors py-3 px-4 rounded-lg">
                         <span class="material-symbols-outlined text-base text-green-500">receipt_long</span>
                         <div>
-                            <p class="font-medium">Order Management & PDF Invoices</p>
-                            <p class="text-xs text-base-400">Filter by date, view tax invoices, print receipts</p>
+                            <p class="font-medium">Order Management & PDF Tax Invoices</p>
+                            <p class="text-xs text-base-400">Order verification, printable tax invoices, and shipping details</p>
                         </div>
                     </a>
-                    <a href="{% url 'admin:ads_adcampaign_changelist' %}"
+                    <a href="{% url 'admin:vendors_payoutrequest_changelist' %}"
                         class="flex items-center gap-3 text-sm text-base-700 dark:text-base-300 bg-base-50 dark:bg-base-800 hover:bg-base-100 dark:hover:bg-base-700 transition-colors py-3 px-4 rounded-lg">
-                        <span class="material-symbols-outlined text-base text-emerald-500">campaign</span>
+                        <span class="material-symbols-outlined text-base text-purple-500">payments</span>
                         <div>
-                            <p class="font-medium">Vendor Ad Campaigns & Monetization</p>
-                            <p class="text-xs text-base-400">PPC metrics, CTR%, spend vs budget, pause/resume</p>
-                        </div>
-                    </a>
-                    <a href="{% url 'admin:users_customerwallettransaction_changelist' %}"
-                        class="flex items-center gap-3 text-sm text-base-700 dark:text-base-300 bg-base-50 dark:bg-base-800 hover:bg-base-100 dark:hover:bg-base-700 transition-colors py-3 px-4 rounded-lg">
-                        <span class="material-symbols-outlined text-base text-sky-500">account_balance_wallet</span>
-                        <div>
-                            <p class="font-medium">Customer Wallet Ledger</p>
-                            <p class="text-xs text-base-400">Store credits, refund balances, split checkout audit</p>
+                            <p class="font-medium">Automated Vendor Payouts & Disbursals</p>
+                            <p class="text-xs text-base-400">bKash, Nagad, and Bank EFT instant gateway disbursal console</p>
                         </div>
                     </a>
                     <a href="{% url 'admin:vendors_ledgerentry_changelist' %}"
                         class="flex items-center gap-3 text-sm text-base-700 dark:text-base-300 bg-base-50 dark:bg-base-800 hover:bg-base-100 dark:hover:bg-base-700 transition-colors py-3 px-4 rounded-lg">
-                        <span class="material-symbols-outlined text-base text-purple-500">account_balance</span>
+                        <span class="material-symbols-outlined text-base text-indigo-500">account_balance</span>
                         <div>
-                            <p class="font-medium">Vendor Financial Ledger</p>
-                            <p class="text-xs text-base-400">Credits, debits, settlements — double-entry audit trail</p>
+                            <p class="font-medium">Vendor Financial Double-Entry Ledger</p>
+                            <p class="text-xs text-base-400">Settlements, holdbacks, platform fees, and withdrawal audit</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'admin:users_customerwallettransaction_changelist' %}"
+                        class="flex items-center gap-3 text-sm text-base-700 dark:text-base-300 bg-base-50 dark:bg-base-800 hover:bg-base-100 dark:hover:bg-base-700 transition-colors py-3 px-4 rounded-lg">
+                        <span class="material-symbols-outlined text-base text-sky-500">wallet</span>
+                        <div>
+                            <p class="font-medium">Customer Wallet & Loyalty Ledger</p>
+                            <p class="text-xs text-base-400">Customer refunds, store credits, and loyalty point rewards</p>
                         </div>
                     </a>
                 </div>

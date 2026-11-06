@@ -458,39 +458,68 @@ def _unfold_badge_pending_rmas(request):
 
 def _unfold_dashboard_callback(request, context):
     """Inject metrics into the admin index (dashboard) template."""
+    import json
     from django.utils import timezone
     from datetime import timedelta
     from django.db.models import Sum, Count
+    from django.utils.safestring import mark_safe
+    from analytics.services import MarketplaceAnalyticsService
 
     today = timezone.now().date()
     metrics = {}
 
-    # Basic Metric Cards
     try:
-        from orders.models import Order
-        metrics['orders_today'] = Order.objects.filter(created_at__date=today).count()
-        today_sales = Order.objects.filter(
-            created_at__date=today,
-            status__in=[Order.Status.PAID, Order.Status.SHIPPED, Order.Status.DELIVERED]
-        ).aggregate(total=Sum('total_amount'))['total'] or 0
-        metrics['sales_today'] = float(today_sales)
+        analytics_kpis = MarketplaceAnalyticsService.get_marketplace_kpis(days=30)
     except Exception:
-        metrics['orders_today'] = 0
-        metrics['sales_today'] = 0
+        analytics_kpis = {}
 
+    # Basic Metric Cards & Backward Compatibility
+    gmv_data = analytics_kpis.get('gmv', {})
+    commission_data = analytics_kpis.get('commission', {})
+    refunds_data = analytics_kpis.get('refunds', {})
+    loyalty_data = analytics_kpis.get('loyalty_liabilities', {})
+    charts = analytics_kpis.get('charts', {})
+
+    metrics['orders_today'] = gmv_data.get('orders_today', 0)
+    metrics['sales_today'] = gmv_data.get('today', 0)
+    metrics['sales_today_display'] = gmv_data.get('today_display', '৳0.00')
+    metrics['gmv_30d'] = gmv_data.get('period_total', 0)
+    metrics['gmv_30d_display'] = gmv_data.get('period_total_display', '৳0.00')
+    metrics['gmv_growth_pct'] = gmv_data.get('growth_pct', 0.0)
+    metrics['aov_display'] = gmv_data.get('aov_display', '৳0.00')
+    metrics['orders_30d'] = gmv_data.get('orders_count', 0)
+
+    metrics['commission_30d'] = commission_data.get('period_total', 0)
+    metrics['commission_30d_display'] = commission_data.get('period_total_display', '৳0.00')
+    metrics['commission_all_time_display'] = commission_data.get('all_time_display', '৳0.00')
+
+    metrics['refund_rate_pct'] = refunds_data.get('refund_rate_pct', 0.0)
+    metrics['refunded_amount_display'] = refunds_data.get('refunded_amount_display', '৳0.00')
+    metrics['rma_count'] = refunds_data.get('rma_count', 0)
+    metrics['rma_pending_count'] = refunds_data.get('rma_pending_count', 0)
+
+    metrics['loyalty_points_total'] = loyalty_data.get('total_points_balance', 0)
+    metrics['loyalty_liability_display'] = loyalty_data.get('points_liability_display', '৳0.00')
+    metrics['wallet_liability_display'] = loyalty_data.get('wallet_liability_display', '৳0.00')
+    metrics['total_liability_display'] = loyalty_data.get('total_liability_display', '৳0.00')
+
+    # Pending Payouts
     try:
         from vendors.models import PayoutRequest
         pending_payouts_agg = PayoutRequest.objects.filter(status='REQUESTED').aggregate(total=Sum('amount'))['total'] or 0
         metrics['pending_payout_amount'] = float(pending_payouts_agg)
     except Exception:
         metrics['pending_payout_amount'] = 0
+    metrics['pending_payout_display'] = f"৳{metrics.get('pending_payout_amount', 0):,.0f}"
 
+    # Support Tickets
     try:
         from support.models import Ticket
         metrics['open_tickets'] = Ticket.objects.filter(status__in=['OPEN', 'IN_PROGRESS']).count()
     except Exception:
         metrics['open_tickets'] = 0
 
+    # Cross-Border Requests
     try:
         from crossborder.models import CrossBorderOrderRequest
         metrics['cb_in_transit'] = CrossBorderOrderRequest.objects.filter(
@@ -510,62 +539,29 @@ def _unfold_dashboard_callback(request, context):
         metrics['active_campaigns'] = 0
         metrics['ad_revenue_total'] = 0
         metrics['exhausted_campaigns'] = 0
-
-    # Customer Wallets
-    try:
-        from users.models import User
-        wallet_liability = User.objects.aggregate(total=Sum('wallet_balance'))['total'] or 0
-        metrics['wallet_liability'] = float(wallet_liability)
-    except Exception:
-        metrics['wallet_liability'] = 0
-
-    # Returns / RMA
-    try:
-        from returns.models import ReturnRequest
-        metrics['pending_rmas'] = ReturnRequest.objects.filter(status='SUBMITTED').count()
-    except Exception:
-        metrics['pending_rmas'] = 0
-
-    # Chart 1: Sales over the last 7 days (Line Chart)
-    chart_sales_7d = {'labels': [], 'datasets': [{'label': 'Daily Sales (BDT)', 'data': [], 'backgroundColor': '#0ea5e9', 'borderColor': '#0ea5e9'}]}
-    try:
-        for i in range(6, -1, -1):
-            d = today - timedelta(days=i)
-            chart_sales_7d['labels'].append(d.strftime('%b %d'))
-            day_total = Order.objects.filter(
-                created_at__date=d,
-                status__in=[Order.Status.PAID, Order.Status.SHIPPED, Order.Status.DELIVERED]
-            ).aggregate(total=Sum('total_amount'))['total'] or 0
-            chart_sales_7d['datasets'][0]['data'].append(float(day_total))
-    except Exception:
-        pass
-
-    # Chart 2: Recent Order Statuses (Doughnut Chart)
-    chart_order_status = {'labels': [], 'datasets': [{'data': [], 'backgroundColor': ['#eab308', '#3b82f6', '#22c55e', '#ef4444']}]}
-    try:
-        status_counts = Order.objects.filter(created_at__date__gte=today - timedelta(days=30)).values('status').annotate(count=Count('id'))
-        status_map = {item['status']: item['count'] for item in status_counts}
-        
-        for status_code, bg_color in [('PENDING', '#eab308'), ('PAID', '#3b82f6'), ('DELIVERED', '#22c55e'), ('CANCELED', '#ef4444')]:
-            chart_order_status['labels'].append(status_code)
-            chart_order_status['datasets'][0]['data'].append(status_map.get(status_code, 0))
-    except Exception:
-        pass
-    import json
-    from django.utils.safestring import mark_safe
-
-    # Formatted display values
-    metrics['sales_today_display'] = f"৳{metrics.get('sales_today', 0):,.0f}"
-    metrics['pending_payout_display'] = f"৳{metrics.get('pending_payout_amount', 0):,.0f}"
     metrics['ad_revenue_display'] = f"৳{metrics.get('ad_revenue_total', 0):,.0f}"
-    metrics['wallet_liability_display'] = f"৳{metrics.get('wallet_liability', 0):,.0f}"
+
+    # Return Requests / Pending RMAs
+    metrics['pending_rmas'] = metrics['rma_pending_count']
+
+    # Chart JSONs
+    chart_gmv_trends = charts.get('gmv_trends', {'labels': [], 'datasets': []})
+    chart_top_vendors = charts.get('top_vendors', {'labels': [], 'datasets': []})
+    chart_order_status = charts.get('order_status', {'labels': [], 'datasets': []})
+    chart_return_reasons = charts.get('return_reasons', {'labels': [], 'datasets': []})
 
     context.update({
         'dashboard_metrics': metrics,
-        'chart_sales_7d_json': mark_safe(json.dumps(chart_sales_7d)),
+        'analytics_kpis': analytics_kpis,
+        'top_vendors': analytics_kpis.get('top_vendors', []),
+        'chart_sales_7d_json': mark_safe(json.dumps(chart_gmv_trends)),
+        'chart_gmv_trends_json': mark_safe(json.dumps(chart_gmv_trends)),
+        'chart_top_vendors_json': mark_safe(json.dumps(chart_top_vendors)),
         'chart_order_status_json': mark_safe(json.dumps(chart_order_status)),
+        'chart_return_reasons_json': mark_safe(json.dumps(chart_return_reasons)),
     })
     return context
+
 
 
 # Permission helpers for sidebar visibility

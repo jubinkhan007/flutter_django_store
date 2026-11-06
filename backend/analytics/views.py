@@ -95,4 +95,30 @@ class UserEventLogView(APIView):
             status=status.HTTP_201_CREATED,
         )
 
-# Create your views here.
+
+class MarketplaceSummaryAnalyticsView(APIView):
+    """
+    GET /api/analytics/marketplace/summary/?days=30
+    Admin-only endpoint delivering visual marketplace operations & analytics metrics:
+    - GMV trends & growth
+    - Platform commission earnings
+    - Top performing vendors
+    - Refund & return rates
+    - Customer loyalty points & wallet liabilities
+    - Time-series and distribution charts
+    """
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request, *args, **kwargs):
+        from .services import MarketplaceAnalyticsService
+
+        try:
+            days = int(request.query_params.get('days', 30))
+            if days <= 0 or days > 365:
+                days = 30
+        except (ValueError, TypeError):
+            days = 30
+
+        data = MarketplaceAnalyticsService.get_marketplace_kpis(days=days)
+        return Response(data, status=status.HTTP_200_OK)
+
