@@ -8,25 +8,11 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
-import '../../features/orders/data/repositories/order_repository.dart';
-import '../../features/orders/presentation/screens/order_detail_screen.dart';
-import '../../features/orders/presentation/screens/order_live_tracking_screen.dart';
-import '../../features/returns/data/repositories/return_repository.dart';
-import '../../features/returns/presentation/screens/return_detail_screen.dart';
 import '../../features/notifications/data/repositories/notification_repository.dart';
 import '../../features/notifications/presentation/providers/notification_provider.dart';
-import '../../features/vendor/presentation/screens/vendor_dashboard_screen.dart';
-import '../../features/vendor/presentation/screens/vendor_wallet_screen.dart';
-import '../../features/support/presentation/screens/ticket_chat_screen.dart';
-import '../../features/chat/presentation/screens/chat_screen.dart';
-import '../../features/chat/presentation/screens/conversations_screen.dart';
-import '../../features/cart/presentation/screens/cart_screen.dart';
-import '../../features/coupons/presentation/screens/coupon_center_screen.dart';
-import '../../features/products/domain/repositories/product_repository.dart';
-import '../../features/products/presentation/screens/product_detail_screen.dart';
-import '../../features/crossborder/presentation/screens/cb_my_orders_screen.dart';
 import '../config/app_config.dart';
 import '../navigation/app_navigator.dart';
+import 'notification_deeplink_handler.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _local =
@@ -87,7 +73,7 @@ class NotificationService {
         final deeplink = resolveDeeplinkFromData(message.data);
         final ctx = appNavigatorKey.currentContext;
         if (ctx == null || !ctx.mounted) return;
-        await openDeeplink(ctx, deeplink);
+        await openDeeplink(ctx, deeplink, message.data);
       });
 
       // Open from terminated.
@@ -96,7 +82,7 @@ class NotificationService {
         final deeplink = resolveDeeplinkFromData(initial.data);
         final ctx = appNavigatorKey.currentContext;
         if (ctx != null && ctx.mounted) {
-          await openDeeplink(ctx, deeplink);
+          await openDeeplink(ctx, deeplink, initial.data);
         }
       }
 
@@ -111,42 +97,7 @@ class NotificationService {
   }
 
   static String resolveDeeplinkFromData(Map<String, dynamic> data) {
-    if (data['deeplink'] != null && data['deeplink'].toString().trim().isNotEmpty) {
-      return data['deeplink'].toString().trim();
-    }
-    final type = data['type']?.toString().toUpperCase() ?? '';
-    final id = data['id'] ??
-        data['order_id'] ??
-        data['conversation_id'] ??
-        data['ticket_id'] ??
-        data['product_id'] ??
-        data['return_id'];
-
-    if (type.contains('CHAT') || type == 'MESSAGE') {
-      return id != null ? 'app://chat/$id' : 'app://chat';
-    }
-    if (type.contains('ORDER') || type == 'NEW_SUBORDER') {
-      return id != null ? 'app://orders/$id' : 'app://orders';
-    }
-    if (type.contains('RETURN') || type.contains('REFUND') || type == 'RMA') {
-      return id != null ? 'app://returns/$id' : 'app://returns';
-    }
-    if (type.contains('TICKET') || type.contains('SUPPORT')) {
-      return id != null ? 'app://support/tickets/$id' : 'app://support';
-    }
-    if (type.contains('PROMO') || type.contains('FLASH_SALE')) {
-      return 'app://promos';
-    }
-    if (type.contains('CART')) {
-      return 'app://cart';
-    }
-    if (type.contains('PRODUCT')) {
-      return id != null ? 'app://products/$id' : '';
-    }
-    if (type.contains('PAYOUT')) {
-      return 'app://vendor/wallet';
-    }
-    return '';
+    return NotificationDeeplinkHandler.resolveDeeplink(data);
   }
 
   static Future<void> _initLocalNotifications() async {
@@ -274,196 +225,13 @@ class NotificationService {
 
   static Future<void> openDeeplink(
     BuildContext context,
-    String deeplink,
-  ) async {
-    String raw = deeplink.trim();
-    if (raw.isEmpty) return;
-
-    if (!raw.startsWith('app://') &&
-        !raw.startsWith('http://') &&
-        !raw.startsWith('https://')) {
-      if (raw.startsWith('/')) {
-        raw = 'app:/$raw';
-      } else {
-        raw = 'app://$raw';
-      }
-    }
-
-    Uri? uri;
-    try {
-      uri = Uri.parse(raw);
-    } catch (_) {
-      return;
-    }
-    if (uri.scheme != 'app') return;
-
-    try {
-      final host = uri.host;
-      final seg = uri.pathSegments;
-
-      // 1. Direct In-App Chat
-      if (host == 'chat') {
-        if (seg.isNotEmpty) {
-          final convId = int.tryParse(seg.first);
-          if (convId != null) {
-            if (!context.mounted) return;
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => ChatScreen(conversationId: convId),
-              ),
-            );
-            return;
-          }
-        }
-        if (!context.mounted) return;
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ConversationsScreen()),
-        );
-        return;
-      }
-
-      // 2. Orders & Order Tracking
-      if (host == 'orders' && seg.isNotEmpty) {
-        if (seg.first == 'tracking' && seg.length >= 2) {
-          final subId = int.tryParse(seg[1]);
-          if (subId != null) {
-            if (!context.mounted) return;
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => OrderLiveTrackingScreen(subOrderId: subId),
-              ),
-            );
-            return;
-          }
-        }
-        if (seg.length >= 3 && seg[1] == 'tracking') {
-          final subId = int.tryParse(seg[2]);
-          if (subId != null) {
-            if (!context.mounted) return;
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => OrderLiveTrackingScreen(subOrderId: subId),
-              ),
-            );
-            return;
-          }
-        }
-        final orderId = int.tryParse(seg.first);
-        if (orderId == null) return;
-        final repo = context.read<OrderRepository>();
-        final order = await repo.getOrderDetail(orderId);
-        if (!context.mounted) return;
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => OrderDetailScreen(order: order)),
-        );
-        return;
-      }
-
-      // 3. Returns & RMA
-      if (host == 'returns' && seg.isNotEmpty) {
-        final returnId = int.tryParse(seg.first);
-        if (returnId == null) return;
-        final repo = context.read<ReturnRepository>();
-        final rr = await repo.getReturnDetail(returnId);
-        if (!context.mounted) return;
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ReturnDetailScreen(returnRequest: rr),
-          ),
-        );
-        return;
-      }
-
-      // 4. Products / Flash sales
-      if (host == 'products' && seg.isNotEmpty) {
-        final productId = int.tryParse(seg.first);
-        if (productId == null) return;
-        final repo = context.read<ProductRepository>();
-        final product = await repo.getProductDetail(productId);
-        if (!context.mounted) return;
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ProductDetailScreen(product: product),
-          ),
-        );
-        return;
-      }
-
-      // 5. Vendor Console & Messages
-      if (host == 'vendor') {
-        if (seg.isNotEmpty && (seg.first == 'chat' || seg.first == 'messages')) {
-          if (!context.mounted) return;
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const ConversationsScreen(isVendorView: true),
-            ),
-          );
-          return;
-        }
-        if (seg.isNotEmpty && seg.first == 'wallet') {
-          if (!context.mounted) return;
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const VendorWalletScreen()),
-          );
-          return;
-        }
-        if (seg.isNotEmpty && seg.first == 'orders') {
-          if (!context.mounted) return;
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const VendorDashboardScreen(initialIndex: 2),
-            ),
-          );
-          return;
-        }
-      }
-
-      // 6. Support Tickets
-      if (host == 'support') {
-        if (seg.length >= 2 && seg.first == 'tickets') {
-          final ticketId = int.tryParse(seg[1]);
-          if (ticketId == null) return;
-          if (!context.mounted) return;
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => TicketChatScreen(ticketId: ticketId),
-            ),
-          );
-          return;
-        }
-      }
-
-      // 7. Cart
-      if (host == 'cart') {
-        if (!context.mounted) return;
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const CartScreen()),
-        );
-        return;
-      }
-
-      // 8. Coupons
-      if (host == 'coupons') {
-        if (!context.mounted) return;
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const CouponCenterScreen()),
-        );
-        return;
-      }
-
-      // 9. Cross-border orders
-      if (host == 'crossborder') {
-        if (!context.mounted) return;
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const CbMyOrdersScreen()),
-        );
-        return;
-      }
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to open destination: $e')),
-      );
-    }
+    String deeplink, [
+    Map<String, dynamic>? data,
+  ]) async {
+    await NotificationDeeplinkHandler.navigate(
+      context,
+      deeplink: deeplink,
+      data: data,
+    );
   }
 }
